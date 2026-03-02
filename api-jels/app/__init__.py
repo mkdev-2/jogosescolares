@@ -1,0 +1,1 @@
+"""Jogos Escolares API Service."""

@@ -1,72 +1,72 @@
 /**
- * Serviço de Modalidades
- * CRUD usando localStorage (substituir por API/Supabase em produção)
+ * Serviço de Modalidades - CRUD via API
  */
+import { apiFetch } from '../config/api'
 
-const STORAGE_KEY = 'jogos-escolares-modalidades'
+const BASE = '/api/modalidades'
 
-function getModalidades() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : []
-  } catch {
-    return []
-  }
-}
-
-function setModalidades(modalidades) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(modalidades))
-}
-
-function generateId() {
-  return `modalidade_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+function handleResponse(res, fallbackError = 'Erro ao processar requisição') {
+  if (res.ok) return res.json().catch(() => null)
+  return res.json().then((data) => {
+    throw new Error(data.detail || fallbackError)
+  }).catch((err) => {
+    if (err instanceof Error) throw err
+    throw new Error(fallbackError)
+  })
 }
 
 export const modalidadesService = {
   async list() {
-    return getModalidades()
+    const res = await apiFetch(`${BASE}`)
+    const data = await handleResponse(res, 'Erro ao listar modalidades')
+    return Array.isArray(data) ? data : []
   },
 
   async getById(id) {
-    const modalidades = getModalidades()
-    return modalidades.find((m) => m.id === id) || null
+    const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`)
+    if (res.status === 404) return null
+    return handleResponse(res, 'Erro ao buscar modalidade')
   },
 
   async create(data) {
-    const modalidades = getModalidades()
-    const novaModalidade = {
-      id: data.id?.trim() ? data.id.toUpperCase().replace(/\s/g, '_') : generateId(),
+    const payload = {
       nome: data.nome?.trim() || '',
       descricao: data.descricao?.trim() || '',
       categoria: data.categoria || 'Coletiva',
       requisitos: data.requisitos?.trim() || '',
       ativa: data.ativa !== undefined ? data.ativa : true,
     }
-    modalidades.push(novaModalidade)
-    setModalidades(modalidades)
-    return novaModalidade
+    if (data.id?.trim()) {
+      payload.id = data.id.trim().toUpperCase().replace(/\s/g, '_')
+    }
+    const res = await apiFetch(BASE, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar modalidade')
   },
 
   async update(id, data) {
-    const modalidades = getModalidades()
-    const index = modalidades.findIndex((m) => m.id === id)
-    if (index === -1) return null
-    const atualizada = {
-      ...modalidades[index],
-      nome: data.nome?.trim() ?? modalidades[index].nome,
-      descricao: data.descricao?.trim() ?? modalidades[index].descricao,
-      categoria: data.categoria ?? modalidades[index].categoria,
-      requisitos: data.requisitos?.trim() ?? modalidades[index].requisitos,
-      ativa: data.ativa !== undefined ? data.ativa : modalidades[index].ativa,
-    }
-    modalidades[index] = atualizada
-    setModalidades(modalidades)
-    return atualizada
+    const payload = {}
+    if (data.nome !== undefined) payload.nome = data.nome?.trim() ?? ''
+    if (data.descricao !== undefined) payload.descricao = data.descricao?.trim() ?? ''
+    if (data.categoria !== undefined) payload.categoria = data.categoria
+    if (data.requisitos !== undefined) payload.requisitos = data.requisitos?.trim() ?? ''
+    if (data.ativa !== undefined) payload.ativa = data.ativa
+
+    const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao atualizar modalidade')
   },
 
   async delete(id) {
-    const modalidades = getModalidades().filter((m) => m.id !== id)
-    setModalidades(modalidades)
+    const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    if (res.status === 204) return true
+    await handleResponse(res, 'Erro ao excluir modalidade')
     return true
   },
 }

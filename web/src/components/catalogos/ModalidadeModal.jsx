@@ -51,9 +51,6 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
 
   const validateForm = () => {
     const newErrors = {}
-    if (!modalidade && !formData.id?.trim()) {
-      newErrors.id = 'ID é obrigatório (ex: FUTEBOL, VOLEI)'
-    }
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
     if (!formData.categoria) newErrors.categoria = 'Categoria é obrigatória'
     setErrors(newErrors)
@@ -124,9 +121,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
 
         {!modalidade && (
           <div className="form-group">
-            <label htmlFor="id">
-              ID da Modalidade <span className="required">*</span>
-            </label>
+            <label htmlFor="id">ID da Modalidade (opcional)</label>
             <input
               id="id"
               name="id"
@@ -134,9 +129,8 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               value={formData.id}
               onChange={handleChange}
               placeholder="Ex: FUTEBOL, VOLEI, NATACAO"
-              className={errors.id ? 'input-error' : ''}
+              className=""
             />
-            {errors.id && <span className="field-error">{errors.id}</span>}
             <span className="helper-text">Identificador único em maiúsculas (sem acentos)</span>
           </div>
         )}

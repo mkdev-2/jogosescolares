@@ -1,14 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import {
+  apiFetch,
+  setTokens,
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+} from '../config/api'
 
 const AuthContext = createContext(null)
-
-// Usuário administrador padrão (em produção, usar backend com autenticação segura)
-const ADMIN_USER = {
-  cpf: '12345678901',
-  password: 'admin123',
-  nome: 'Administrador',
-  role: 'admin'
-}
 
 function normalizeCpf(value) {
   return (value || '').replace(/\D/g, '')
@@ -18,39 +17,83 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const stored = localStorage.getItem('jogos-escolares-user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch {
-        localStorage.removeItem('jogos-escolares-user')
-      }
-    }
-    setLoading(false)
+  const fetchMe = useCallback(async () => {
+    const token = getAccessToken()
+    if (!token) return null
+
+    const res = await apiFetch('/auth/me')
+    if (!res.ok) return null
+
+    const data = await res.json()
+    return data
   }, [])
 
-  const login = (cpf, password) => {
-    const normalizedCpfValue = normalizeCpf(cpf)
-    if (
-      normalizedCpfValue === ADMIN_USER.cpf &&
-      password === ADMIN_USER.password
-    ) {
-      const userData = {
-        cpf: ADMIN_USER.cpf,
-        nome: ADMIN_USER.nome,
-        role: ADMIN_USER.role
+  useEffect(() => {
+    let cancelled = false
+
+    async function init() {
+      const token = getAccessToken()
+      if (!token) {
+        setLoading(false)
+        return
       }
-      setUser(userData)
-      localStorage.setItem('jogos-escolares-user', JSON.stringify(userData))
-      return { success: true }
+
+      const data = await fetchMe()
+      if (!cancelled && data) {
+        setUser(data)
+      } else if (!cancelled) {
+        setUser(null)
+      }
+      setLoading(false)
     }
-    return { success: false, error: 'CPF ou senha incorretos.' }
+
+    init()
+    return () => { cancelled = true }
+  }, [fetchMe])
+
+  const login = async (cpf, password) => {
+    const normalizedCpf = normalizeCpf(cpf)
+    if (!normalizedCpf || normalizedCpf.length !== 11) {
+      return { success: false, error: 'CPF deve conter 11 dígitos.' }
+    }
+
+    try {
+      const res = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ cpf: normalizedCpf, password }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.detail || 'CPF ou senha incorretos.',
+        }
+      }
+
+      setTokens(data.access_token, data.refresh_token)
+
+      const meRes = await apiFetch('/auth/me')
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        setUser(meData)
+      } else {
+        setUser({ id: data.sub, nome: 'Usuário', role: data.role || 'ADMIN' })
+      }
+
+      return { success: true }
+    } catch (err) {
+      return {
+        success: false,
+        error: err.message || 'Erro de conexão. Verifique se a API está rodando.',
+      }
+    }
   }
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem('jogos-escolares-user')
+    clearTokens()
   }
 
   return (

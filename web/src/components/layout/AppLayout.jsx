@@ -98,8 +98,8 @@ export default function AppLayout({ children }) {
               <User size={20} />
             </div>
             <div className="je-user-info">
-              <span className="je-user-name">{user?.nome}</span>
-              <span className="je-user-role">Administrador</span>
+              <span className="je-user-name">{user.nome}</span>
+              <span className="je-user-role">{user.role}</span>
             </div>
             <button
               type="button"

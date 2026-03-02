@@ -33,7 +33,7 @@ export default function Login() {
     setError('')
     setSubmitting(true)
 
-    const result = login(cpf, password)
+    const result = await login(cpf, password)
 
     if (result.success) {
       navigate(from, { replace: true })

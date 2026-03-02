@@ -1,0 +1,126 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: jogosescolares-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "0.0.0.0:${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    command: postgres -c listen_addresses='*' -c max_connections=100
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jogosescolares-network
+
+  postgrest:
+    image: postgrest/postgrest:latest
+    container_name: jogosescolares-postgrest
+    environment:
+      PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: jogosescolares_anon
+      PGRST_DB_ROLE: jogosescolares_authenticated
+      PGRST_JWT_ROLE_CLAIM_KEY: ".role"
+      PGRST_DB_SCHEMA_CACHE: "60"
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_JWT_AUD: ${JWT_AUD}
+      PGRST_CORS_ALLOWED_ORIGINS: "*"
+      PGRST_CORS_ALLOWED_CREDENTIALS: "true"
+    ports:
+      - "${POSTGREST_PORT}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jogosescolares-network
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jogosescolares-auth-service
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_AUD: ${JWT_AUD}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    ports:
+      - "${AUTH_SERVICE_PORT}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - jogosescolares-network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: jogosescolares-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - jogosescolares-network
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: jogosescolares-minio-init
+    stdin_open: false
+    tty: false
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb myminio/public --ignore-existing;
+      mc mb myminio/private --ignore-existing;
+      mc mb myminio/documents --ignore-existing;
+      mc anonymous set public myminio/public;
+      mc anonymous set download myminio/private;
+      mc anonymous set download myminio/documents;
+      echo 'MinIO configurado';
+      "
+    networks:
+      - jogosescolares-network
+
+networks:
+  jogosescolares-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
