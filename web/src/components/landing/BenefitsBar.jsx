@@ -1,4 +1,5 @@
 import { Activity, Heart, Users, GraduationCap } from 'lucide-react'
+import AnimateOnScroll from '../ui/AnimateOnScroll'
 
 const benefits = [
   {
@@ -31,10 +32,12 @@ export default function BenefitsBar() {
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon
             return (
-              <div
+              <AnimateOnScroll
                 key={index}
-                className="flex items-center gap-2 sm:gap-3 group cursor-default"
+                animation="up"
+                className={['', 'reveal-delay-100', 'reveal-delay-200', 'reveal-delay-300'][index]}
               >
+                <div className="flex items-center gap-2 sm:gap-3 group cursor-default">
                 <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-primary text-white flex items-center justify-center flex-shrink-0 shadow-lg transition-transform group-hover:scale-110 duration-300">
                   <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
                 </div>
@@ -47,6 +50,7 @@ export default function BenefitsBar() {
                   </p>
                 </div>
               </div>
+              </AnimateOnScroll>
             )
           })}
         </div>

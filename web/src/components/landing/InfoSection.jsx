@@ -1,4 +1,5 @@
 import { Trophy, Calendar, MapPin, Users } from 'lucide-react'
+import AnimateOnScroll from '../ui/AnimateOnScroll'
 
 const infoCards = [
   {
@@ -27,23 +28,26 @@ export default function InfoSection() {
   return (
     <section id="informacoes" className="py-20 px-4 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
+        <AnimateOnScroll animation="up" className="text-center mb-16">
           <h2 className="font-display text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Informações do <span className="text-primary">Evento</span>
           </h2>
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
             Tudo que você precisa saber sobre os Jogos Escolares Municipais
           </p>
-        </div>
+        </AnimateOnScroll>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {infoCards.map((card) => {
+          {infoCards.map((card, index) => {
             const Icon = card.icon
             return (
-              <div
+              <AnimateOnScroll
                 key={card.title}
-                className="bg-white rounded-lg p-6 border border-gray-200 hover:border-primary/30 transition-colors group"
+                animation="up"
+                className={['', 'reveal-delay-100', 'reveal-delay-200', 'reveal-delay-300'][index]}
+                rootMargin="0px 0px -50px 0px"
               >
+                <div className="bg-white rounded-lg p-6 border border-gray-200 hover:border-primary/30 transition-all duration-300 group">
                 <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <Icon className="w-7 h-7 text-primary" />
                 </div>
@@ -52,6 +56,7 @@ export default function InfoSection() {
                 </h3>
                 <p className="text-gray-600 text-sm leading-relaxed">{card.description}</p>
               </div>
+              </AnimateOnScroll>
             )
           })}
         </div>

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Trophy, Menu, X, User, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import './AppLayout.css'
 
 const menuItems = [
   { label: 'Dashboard', path: '/app', icon: LayoutDashboard },
@@ -26,31 +25,35 @@ export default function AppLayout({ children }) {
   }
 
   return (
-    <div className="je-app-shell">
-      {/* Overlay mobile */}
+    <div className="flex min-h-screen w-full overflow-hidden">
       {sidebarOpen && (
         <div
-          className="je-sidebar-overlay"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Sidebar */}
       <aside
-        className={`je-sidebar ${sidebarOpen ? 'je-sidebar-open' : ''}`}
+        className={`fixed top-0 left-0 h-screen w-[288px] z-50 flex flex-col bg-white/95 backdrop-blur-[24px] border-r border-[rgba(15,118,110,0.2)] shadow-[4px_0_24px_rgba(15,118,110,0.08)] transform transition-transform duration-300 ease-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
       >
-        <div className="je-sidebar-header">
-          <Link to="/app" className="je-sidebar-logo" onClick={() => setSidebarOpen(false)}>
+        <div className="flex items-center justify-between px-6 py-4 min-h-[72px] border-b border-[rgba(15,118,110,0.15)]">
+          <Link
+            to="/app"
+            className="flex items-center text-[#042f2e] no-underline flex-1 min-w-0"
+            onClick={() => setSidebarOpen(false)}
+          >
             <img
               src="/Jels-2026-horizontal.png"
               alt="JELS - Jogos Escolares Luminenses"
-              className="je-sidebar-logo-img"
+              className="h-9 w-auto max-w-full object-contain object-left"
             />
           </Link>
           <button
             type="button"
-            className="je-sidebar-close"
+            className="flex items-center justify-center p-2 rounded-lg text-[#64748b] hover:bg-[rgba(15,118,110,0.1)] hover:text-[#0f766e] lg:hidden"
             onClick={() => setSidebarOpen(false)}
             aria-label="Fechar menu"
           >
@@ -58,8 +61,8 @@ export default function AppLayout({ children }) {
           </button>
         </div>
 
-        <nav className="je-sidebar-nav">
-          <ul className="je-nav-list">
+        <nav className="flex-1 overflow-y-auto py-4 px-3">
+          <ul className="flex flex-col gap-1 list-none m-0 p-0">
             {menuItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.path)
@@ -68,11 +71,19 @@ export default function AppLayout({ children }) {
                   <Link
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
-                    className={`je-nav-link ${active ? 'je-nav-link-active' : ''}`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${
+                      active
+                        ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
+                        : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                    }`}
                   >
-                    <Icon size={20} className="je-nav-icon" />
+                    <Icon size={20} className="shrink-0" />
                     <span>{item.label}</span>
-                    {active && <span className="je-nav-badge">ativo</span>}
+                    {active && (
+                      <span className="ml-auto text-[0.7rem] uppercase tracking-[0.05em] opacity-90">
+                        ativo
+                      </span>
+                    )}
                   </Link>
                 </li>
               )
@@ -81,32 +92,32 @@ export default function AppLayout({ children }) {
         </nav>
       </aside>
 
-      {/* Área principal */}
-      <div className="je-main-area">
-        {/* Header */}
-        <header className="je-header">
+      <div className="flex flex-col min-h-screen w-full lg:ml-[288px] lg:w-[calc(100%-288px)]">
+        <header className="sticky top-0 z-30 h-[72px] min-h-[72px] flex items-center gap-4 px-4 pl-6 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_50%,#0f766e_100%)] border-b border-white/20 shadow-[0_4px_20px_rgba(15,118,110,0.25)]">
           <button
             type="button"
-            className="je-menu-btn"
+            className="flex items-center justify-center p-2 rounded-[10px] bg-white/15 text-white hover:bg-white/25 lg:hidden"
             onClick={() => setSidebarOpen(true)}
             aria-label="Abrir menu"
           >
             <Menu size={24} />
           </button>
 
-          <div className="je-header-spacer" />
+          <div className="flex-1" />
 
-          <div className="je-header-user">
-            <div className="je-user-avatar">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center bg-white/20 rounded-[12px] text-white border border-white/30">
               <User size={20} />
             </div>
-            <div className="je-user-info">
-              <span className="je-user-name">{user.nome}</span>
-              <span className="je-user-role">{user.role}</span>
+            <div className="hidden flex-col items-end sm:flex">
+              <span className="text-sm font-semibold text-white">{user.nome}</span>
+              <span className="text-[0.75rem] text-white/85 uppercase tracking-[0.03em]">
+                {user.role}
+              </span>
             </div>
             <button
               type="button"
-              className="je-logout-btn"
+              className="flex items-center justify-center px-3 py-2 rounded-[10px] bg-white/15 text-white border border-white/30 hover:bg-white/25"
               onClick={handleLogout}
               title="Sair"
             >
@@ -115,9 +126,8 @@ export default function AppLayout({ children }) {
           </div>
         </header>
 
-        {/* Conteúdo */}
-        <main className="je-content">
-          <div className="je-page-container">{children}</div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-8 bg-[#f8fafc] min-h-0">
+          <div className="max-w-[1200px] w-full mx-auto">{children}</div>
         </main>
       </div>
     </div>

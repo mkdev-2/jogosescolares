@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import ModalidadesList from '../components/catalogos/ModalidadesList'
 import ModalidadeModal from '../components/catalogos/ModalidadeModal'
-import './Modalidades.css'
 
 export default function Modalidades() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -28,15 +27,17 @@ export default function Modalidades() {
   }
 
   return (
-    <div className="modalidades-page">
-      <header className="modalidades-page-header">
-        <h1 className="modalidades-page-title">Modalidades</h1>
-        <p className="modalidades-page-subtitle">
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
+          Modalidades
+        </h1>
+        <p className="text-[0.9375rem] text-[#64748b] m-0">
           Gerencie as modalidades esportivas dos Jogos Escolares
         </p>
       </header>
 
-      <div className="modalidades-main">
+      <div className="flex-1">
         <ModalidadesList
           onNewModalidade={handleNewModalidade}
           onEditModalidade={handleEditModalidade}

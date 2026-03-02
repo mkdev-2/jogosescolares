@@ -6,7 +6,6 @@ import LandingPage from './pages/LandingPage'
 import CadastroEscola from './pages/CadastroEscola'
 import Dashboard from './pages/Dashboard'
 import Modalidades from './pages/Modalidades'
-import './App.css'
 
 function App() {
   return (

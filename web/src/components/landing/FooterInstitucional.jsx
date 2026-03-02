@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Facebook, Instagram, Youtube } from 'lucide-react'
+import AnimateOnScroll from '../ui/AnimateOnScroll'
 
 const socialLinks = [
   { platform: 'facebook', url: '#', Icon: Facebook },
@@ -12,7 +13,7 @@ export default function FooterInstitucional() {
     <footer className="bg-[#134e4a] text-white">
       <div className="container-portal px-4 sm:px-6 py-6 sm:py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-center md:text-left">
-          <div className="flex flex-col items-center md:items-start space-y-4 sm:space-y-6">
+          <AnimateOnScroll animation="left" className="flex flex-col items-center md:items-start space-y-4 sm:space-y-6">
             <img
               src="/Jels-2026-vertical.png"
               alt="JELS - Jogos Escolares Luminenses"
@@ -22,9 +23,9 @@ export default function FooterInstitucional() {
               Uma iniciativa da Prefeitura Municipal para promover o esporte, a saúde e a integração
               entre as escolas da nossa cidade.
             </p>
-          </div>
+          </AnimateOnScroll>
 
-          <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-6">
+          <AnimateOnScroll animation="up" className="reveal-delay-100 flex flex-col items-center justify-center space-y-3 sm:space-y-6">
             <h3 className="font-display font-bold text-base sm:text-lg">Siga-nos</h3>
             <div className="flex justify-center items-center gap-3 sm:gap-4 flex-wrap">
               {socialLinks.map(({ platform, url, Icon }) => (
@@ -40,16 +41,16 @@ export default function FooterInstitucional() {
                 </a>
               ))}
             </div>
-          </div>
+          </AnimateOnScroll>
 
-          <div className="flex flex-col items-center md:items-end justify-center space-y-3 sm:space-y-6 text-center md:text-right">
+          <AnimateOnScroll animation="left" className="reveal-delay-200 flex flex-col items-center md:items-end justify-center space-y-3 sm:space-y-6 text-center md:text-right">
             <Link
               to="/cadastro"
               className="inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-colors duration-200 border border-white/20"
             >
               Cadastre sua Escola
             </Link>
-          </div>
+          </AnimateOnScroll>
         </div>
       </div>
 

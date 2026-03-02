@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, ExternalLink } from 'lucide-react'
+import { handleAnchorClick } from '../../utils/smoothScroll'
 
 export default function HeroSection() {
   return (
@@ -11,7 +12,7 @@ export default function HeroSection() {
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
 
-      <div className="container-portal relative z-10 py-12 md:py-20 px-6 sm:px-8">
+      <div className="container-portal relative z-10 py-12 md:py-20 px-6 sm:px-8 animate-fade-in-up">
         <div className="mb-6 md:mb-8 inline-flex items-center gap-2 rounded-full bg-primary/80 px-4 md:px-5 py-2 text-[10px] md:text-sm font-medium text-white backdrop-blur-sm uppercase tracking-widest">
           <span className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-full bg-teal-300" />
           Prefeitura Municipal
@@ -32,7 +33,8 @@ export default function HeroSection() {
         <div className="flex flex-wrap gap-4">
           <a
             href="#informacoes"
-            className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-base font-semibold bg-white/20 text-white border-2 border-white backdrop-blur-sm hover:bg-white/30 transition"
+            onClick={handleAnchorClick}
+            className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-base font-semibold bg-white/20 text-white border-2 border-white backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
           >
             Informações
             <ArrowRight size={20} />

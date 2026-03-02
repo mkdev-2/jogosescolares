@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, LogIn, User, LogOut, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { handleAnchorClick } from '../../utils/smoothScroll'
 
 export default function PublicHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -84,8 +85,11 @@ export default function PublicHeader() {
                   <a
                     key={item.label}
                     href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="px-5 py-2.5 rounded-lg text-base font-semibold transition-colors text-gray-600 hover:text-primary hover:bg-primary/5"
+                    onClick={(e) => {
+                      handleAnchorClick(e)
+                      setIsMenuOpen(false)
+                    }}
+                    className="px-5 py-2.5 rounded-lg text-base font-semibold transition-colors duration-200 text-gray-600 hover:text-primary hover:bg-primary/5"
                   >
                     {item.label}
                   </a>
@@ -93,7 +97,7 @@ export default function PublicHeader() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-base font-semibold transition-colors duration-200 ${
                       isActive(item.path)
                         ? 'bg-primary/10 text-primary'
                         : 'text-gray-600 hover:text-primary hover:bg-primary/5'
@@ -122,42 +126,48 @@ export default function PublicHeader() {
           </div>
         </div>
 
-        {isMenuOpen && (
-          <nav
-            className="lg:hidden absolute left-0 right-0 top-full w-full py-4 sm:py-6 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-b-2xl sm:rounded-b-3xl px-4 sm:px-6 border-t border-slate-100 z-[100]"
-            role="navigation"
-            aria-label="Menu principal"
-          >
-            <div className="container-portal max-w-full flex flex-col gap-2">
-              {navLinks.map((item) =>
-                item.href ? (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-3 sm:px-5 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold text-gray-600 hover:bg-slate-50 transition-all"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-2 px-4 py-3 sm:px-5 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold transition-all ${
-                      isActive(item.path)
-                        ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                        : 'text-gray-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {item.label}
-                    {item.external && <ExternalLink className="w-3.5 h-3.5 opacity-70" />}
-                  </Link>
-                )
-              )}
-            </div>
-          </nav>
-        )}
+        <nav
+          className={`lg:hidden absolute left-0 right-0 top-full w-full py-4 sm:py-6 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-b-2xl sm:rounded-b-3xl px-4 sm:px-6 border-t border-slate-100 z-[100] transition-all duration-300 ease-out origin-top ${
+            isMenuOpen
+              ? 'opacity-100 visible translate-y-0 scale-y-100'
+              : 'opacity-0 invisible -translate-y-2 scale-y-[0.98] pointer-events-none'
+          }`}
+          role="navigation"
+          aria-label="Menu principal"
+          aria-hidden={!isMenuOpen}
+        >
+          <div className="container-portal max-w-full flex flex-col gap-2">
+            {navLinks.map((item) =>
+              item.href ? (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  onClick={(e) => {
+                    handleAnchorClick(e)
+                    setIsMenuOpen(false)
+                  }}
+                  className="block px-4 py-3 sm:px-5 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold text-gray-600 hover:bg-slate-50 transition-colors duration-200"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center gap-2 px-4 py-3 sm:px-5 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold transition-colors duration-200 ${
+                    isActive(item.path)
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                      : 'text-gray-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                  {item.external && <ExternalLink className="w-3.5 h-3.5 opacity-70" />}
+                </Link>
+              )
+            )}
+          </div>
+        </nav>
       </div>
       <div
         className="w-full h-1"
