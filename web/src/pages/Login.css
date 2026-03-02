@@ -8,6 +8,30 @@
   overflow: hidden;
 }
 
+.login-voltar {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: background 0.2s, color 0.2s;
+}
+
+.login-voltar:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
 .login-background {
   position: absolute;
   inset: 0;
@@ -65,10 +89,15 @@
   margin-bottom: 2rem;
 }
 
-.login-logo .logo-icon {
-  font-size: 3rem;
+.login-logo-img {
+  height: 130px;
+  width: auto;
+  max-width: 280px;
+  object-fit: contain;
+  margin-bottom: 1rem;
   display: block;
-  margin-bottom: 0.5rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .login-logo h1 {

@@ -71,19 +71,18 @@
 .je-sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
   text-decoration: none;
   color: #042f2e;
+  flex: 1;
+  min-width: 0;
 }
 
-.je-logo-icon {
-  font-size: 1.75rem;
-}
-
-.je-logo-text {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.je-sidebar-logo-img {
+  height: 36px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left;
 }
 
 .je-sidebar-close {

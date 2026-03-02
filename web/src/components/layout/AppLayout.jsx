@@ -5,8 +5,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import './AppLayout.css'
 
 const menuItems = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'Modalidades', path: '/modalidades', icon: Trophy },
+  { label: 'Dashboard', path: '/app', icon: LayoutDashboard },
+  { label: 'Modalidades', path: '/app/modalidades', icon: Trophy },
 ]
 
 export default function AppLayout({ children }) {
@@ -21,7 +21,7 @@ export default function AppLayout({ children }) {
   }
 
   const isActive = (path) => {
-    if (path === '/') return location.pathname === '/'
+    if (path === '/app') return location.pathname === '/app'
     return location.pathname.startsWith(path)
   }
 
@@ -41,9 +41,12 @@ export default function AppLayout({ children }) {
         className={`je-sidebar ${sidebarOpen ? 'je-sidebar-open' : ''}`}
       >
         <div className="je-sidebar-header">
-          <Link to="/" className="je-sidebar-logo" onClick={() => setSidebarOpen(false)}>
-            <span className="je-logo-icon">⚽</span>
-            <span className="je-logo-text">Jogos Escolares</span>
+          <Link to="/app" className="je-sidebar-logo" onClick={() => setSidebarOpen(false)}>
+            <img
+              src="/Jels-2026-horizontal.png"
+              alt="JELS - Jogos Escolares Luminenses"
+              className="je-sidebar-logo-img"
+            />
           </Link>
           <button
             type="button"

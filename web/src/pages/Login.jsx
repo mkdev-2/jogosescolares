@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { ArrowLeft } from 'lucide-react'
 import './Login.css'
 
 function formatCpf(value) {
@@ -20,7 +21,7 @@ export default function Login() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from?.pathname || '/'
+  const from = location.state?.from?.pathname || '/app'
 
   useEffect(() => {
     if (user) {
@@ -45,6 +46,14 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <Link
+        to="/"
+        className="login-voltar"
+        aria-label="Voltar à página inicial"
+      >
+        <ArrowLeft size={20} />
+        Voltar
+      </Link>
       <div className="login-background">
         <div className="login-shape shape-1" />
         <div className="login-shape shape-2" />
@@ -54,7 +63,11 @@ export default function Login() {
       <div className="login-card">
         <header className="login-header">
           <div className="login-logo">
-            <span className="logo-icon">⚽</span>
+            <img
+              src="/Jels-2026-horizontal.png"
+              alt="JELS - Jogos Escolares Luminenses"
+              className="login-logo-img"
+            />
             <h1>Jogos Escolares</h1>
             <p>Acesso administrativo</p>
           </div>

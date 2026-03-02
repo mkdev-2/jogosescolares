@@ -15,7 +15,7 @@ export default function Dashboard() {
         </section>
 
         <section className="dashboard-cards">
-          <Link to="/modalidades" className="card card-link">
+          <Link to="/app/modalidades" className="card card-link">
             <Activity size={28} className="card-icon" />
             <h3>Modalidades</h3>
             <p>Gerencie as modalidades esportivas</p>
