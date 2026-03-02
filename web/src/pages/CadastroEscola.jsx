@@ -1,51 +1,129 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, School } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 
+const UFS = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+]
+
+const CATEGORIAS = ['12-14', '15-17']
+const NAIPES = { M: 'Masculino', F: 'Feminino' }
+const TIPOS_MODALIDADE = ['individuais', 'coletivas', 'novas']
+
+const getInitialModalidades = () => {
+  const obj = {}
+  CATEGORIAS.forEach((cat) => {
+    obj[cat] = {}
+    Object.keys(NAIPES).forEach((naipe) => {
+      obj[cat][naipe] = {}
+      TIPOS_MODALIDADE.forEach((tipo) => { obj[cat][naipe][tipo] = false })
+    })
+  })
+  return obj
+}
+
 const INITIAL_FORM = {
-  nomeEscola: '',
-  tipoEscola: '',
+  // INSTITUIÇÃO
+  nomeRazaoSocial: '',
+  inep: '',
+  cnpj: '',
   endereco: '',
-  bairro: '',
-  telefone: '',
+  cidade: '',
+  uf: '',
   email: '',
-  nomeGestor: '',
-  cargoGestor: '',
-  telefoneGestor: '',
-  numAlunos: '',
-  observacoes: '',
+  telefone: '',
+  // DIRETOR
+  diretorNome: '',
+  diretorCpf: '',
+  diretorRg: '',
+  // COORDENADOR
+  coordenadorNome: '',
+  coordenadorCpf: '',
+  coordenadorRg: '',
+  coordenadorEndereco: '',
+  coordenadorEmail: '',
+  coordenadorTelefone: '',
+  // MODALIDADES
+  modalidades: getInitialModalidades(),
 }
 
 function validateForm(form) {
   const err = {}
-  if (!form.nomeEscola?.trim() || form.nomeEscola.trim().length < 3) {
-    err.nomeEscola = 'Nome da escola deve ter pelo menos 3 caracteres'
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const onlyDigits = (s) => (s || '').replace(/\D/g, '')
+
+  // INSTITUIÇÃO
+  if (!form.nomeRazaoSocial?.trim() || form.nomeRazaoSocial.trim().length < 3) {
+    err.nomeRazaoSocial = 'Nome/Razão Social deve ter pelo menos 3 caracteres'
   }
-  if (!form.tipoEscola) err.tipoEscola = 'Selecione o tipo de escola'
+  const inepDigits = onlyDigits(form.inep)
+  if (!inepDigits || inepDigits.length !== 8) {
+    err.inep = 'INEP deve conter 8 dígitos'
+  }
+  const cnpjDigits = onlyDigits(form.cnpj)
+  if (!cnpjDigits || cnpjDigits.length !== 14) {
+    err.cnpj = 'CNPJ deve conter 14 dígitos'
+  }
   if (!form.endereco?.trim() || form.endereco.trim().length < 5) {
     err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
   }
-  if (!form.bairro?.trim() || form.bairro.trim().length < 2) {
-    err.bairro = 'Bairro é obrigatório'
+  if (!form.cidade?.trim() || form.cidade.trim().length < 2) {
+    err.cidade = 'Cidade é obrigatória'
   }
-  if (!form.telefone?.trim() || form.telefone.replace(/\D/g, '').length < 8) {
-    err.telefone = 'Telefone inválido'
-  }
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!form.uf) err.uf = 'Selecione a UF'
   if (!form.email?.trim() || !emailRe.test(form.email)) {
     err.email = 'E-mail inválido'
   }
-  if (!form.nomeGestor?.trim() || form.nomeGestor.trim().length < 3) {
-    err.nomeGestor = 'Nome do gestor deve ter pelo menos 3 caracteres'
+  if (!form.telefone?.trim() || onlyDigits(form.telefone).length < 8) {
+    err.telefone = 'Telefone inválido'
   }
-  if (!form.cargoGestor?.trim() || form.cargoGestor.trim().length < 2) {
-    err.cargoGestor = 'Cargo é obrigatório'
+
+  // DIRETOR
+  if (!form.diretorNome?.trim() || form.diretorNome.trim().length < 3) {
+    err.diretorNome = 'Nome do diretor deve ter pelo menos 3 caracteres'
   }
-  if (!form.telefoneGestor?.trim() || form.telefoneGestor.replace(/\D/g, '').length < 8) {
-    err.telefoneGestor = 'Telefone inválido'
+  if (onlyDigits(form.diretorCpf).length !== 11) {
+    err.diretorCpf = 'CPF deve conter 11 dígitos'
   }
-  if (!form.numAlunos?.trim()) err.numAlunos = 'Informe o número de alunos'
+  if (!form.diretorRg?.trim() || form.diretorRg.trim().length < 4) {
+    err.diretorRg = 'RG é obrigatório'
+  }
+
+  // COORDENADOR
+  if (!form.coordenadorNome?.trim() || form.coordenadorNome.trim().length < 3) {
+    err.coordenadorNome = 'Nome do coordenador deve ter pelo menos 3 caracteres'
+  }
+  if (onlyDigits(form.coordenadorCpf).length !== 11) {
+    err.coordenadorCpf = 'CPF deve conter 11 dígitos'
+  }
+  if (!form.coordenadorRg?.trim() || form.coordenadorRg.trim().length < 4) {
+    err.coordenadorRg = 'RG é obrigatório'
+  }
+  if (!form.coordenadorEndereco?.trim() || form.coordenadorEndereco.trim().length < 5) {
+    err.coordenadorEndereco = 'Endereço deve ter pelo menos 5 caracteres'
+  }
+  if (!form.coordenadorEmail?.trim() || !emailRe.test(form.coordenadorEmail)) {
+    err.coordenadorEmail = 'E-mail inválido'
+  }
+  if (!form.coordenadorTelefone?.trim() || onlyDigits(form.coordenadorTelefone).length < 8) {
+    err.coordenadorTelefone = 'Telefone inválido'
+  }
+
+  // MODALIDADES - pelo menos uma selecionada
+  let hasModalidade = false
+  CATEGORIAS.forEach((cat) => {
+    Object.keys(NAIPES).forEach((naipe) => {
+      TIPOS_MODALIDADE.forEach((tipo) => {
+        if (form.modalidades?.[cat]?.[naipe]?.[tipo]) hasModalidade = true
+      })
+    })
+  })
+  if (!hasModalidade) {
+    err.modalidades = 'Selecione pelo menos uma modalidade'
+  }
+
   return err
 }
 
@@ -54,6 +132,41 @@ const inputClass =
 const inputErrorClass = 'border-red-500 focus:ring-red-500'
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 const errorClass = 'text-red-600 text-sm mt-1'
+
+function maskCpf(value) {
+  const v = value.replace(/\D/g, '').slice(0, 11)
+  if (v.length <= 3) return v
+  if (v.length <= 6) return v.replace(/(\d{3})(\d+)/, '$1.$2')
+  if (v.length <= 9) return v.replace(/(\d{3})(\d{3})(\d+)/, '$1.$2.$3')
+  return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+}
+
+function maskCnpj(value) {
+  const v = value.replace(/\D/g, '').slice(0, 14)
+  if (v.length <= 2) return v
+  if (v.length <= 5) return v.replace(/(\d{2})(\d+)/, '$1.$2')
+  if (v.length <= 8) return v.replace(/(\d{2})(\d{3})(\d+)/, '$1.$2.$3')
+  if (v.length <= 12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d+)/, '$1.$2.$3/$4')
+  return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5')
+}
+
+function maskInep(value) {
+  return value.replace(/\D/g, '').slice(0, 8)
+}
+
+function SectionCard({ icon: Icon, title, children }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Icon className="w-5 h-5 text-primary" />
+        </div>
+        <h2 className="font-display text-xl font-bold text-gray-900">{title}</h2>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 export default function CadastroEscola() {
   const navigate = useNavigate()
@@ -64,6 +177,23 @@ export default function CadastroEscola() {
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  const updateModalidade = (cat, naipe, tipo, checked) => {
+    setForm((prev) => ({
+      ...prev,
+      modalidades: {
+        ...prev.modalidades,
+        [cat]: {
+          ...prev.modalidades[cat],
+          [naipe]: {
+            ...prev.modalidades[cat][naipe],
+            [tipo]: checked,
+          },
+        },
+      },
+    }))
+    if (errors.modalidades) setErrors((prev) => ({ ...prev, modalidades: undefined }))
   }
 
   const handleSubmit = (e) => {
@@ -83,24 +213,24 @@ export default function CadastroEscola() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <PublicHeader />
         <div className="flex flex-col flex-1 items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-            <School className="w-8 h-8 text-primary" />
+          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
+              <School className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">
+              Cadastro enviado com sucesso!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Sua escola foi cadastrada. Entraremos em contato em breve.
+            </p>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-lg px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/90 transition"
+            >
+              <ArrowLeft size={18} />
+              Voltar à página inicial
+            </Link>
           </div>
-          <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">
-            Cadastro enviado com sucesso!
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Sua escola foi cadastrada. Entraremos em contato em breve.
-          </p>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-lg px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/90 transition"
-          >
-            <ArrowLeft size={18} />
-            Voltar à página inicial
-          </Link>
-        </div>
         </div>
       </div>
     )
@@ -129,63 +259,56 @@ export default function CadastroEscola() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-10">
-        <form onSubmit={handleSubmit} className="space-y-10">
-          <div>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <School className="w-5 h-5 text-primary" />
-              </div>
-              <h2 className="font-display text-2xl font-bold text-gray-900">Dados da Escola</h2>
-            </div>
-
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* SEÇÃO INSTITUIÇÃO */}
+          <SectionCard icon={Building2} title="INSTITUIÇÃO">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label htmlFor="nomeEscola" className={labelClass}>
-                  Nome da Escola *
+                <label htmlFor="nomeRazaoSocial" className={labelClass}>
+                  Nome / Razão Social *
                 </label>
                 <input
-                  id="nomeEscola"
+                  id="nomeRazaoSocial"
                   type="text"
-                  value={form.nomeEscola}
-                  onChange={(e) => updateField('nomeEscola', e.target.value)}
+                  value={form.nomeRazaoSocial}
+                  onChange={(e) => updateField('nomeRazaoSocial', e.target.value)}
                   placeholder="Ex: Escola Municipal João da Silva"
-                  className={`${inputClass} ${errors.nomeEscola ? inputErrorClass : ''}`}
+                  className={`${inputClass} ${errors.nomeRazaoSocial ? inputErrorClass : ''}`}
                 />
-                {errors.nomeEscola && <p className={errorClass}>{errors.nomeEscola}</p>}
+                {errors.nomeRazaoSocial && <p className={errorClass}>{errors.nomeRazaoSocial}</p>}
               </div>
 
               <div>
-                <label htmlFor="tipoEscola" className={labelClass}>
-                  Tipo de Escola *
-                </label>
-                <select
-                  id="tipoEscola"
-                  value={form.tipoEscola}
-                  onChange={(e) => updateField('tipoEscola', e.target.value)}
-                  className={`${inputClass} ${errors.tipoEscola ? inputErrorClass : ''}`}
-                >
-                  <option value="">Selecione</option>
-                  <option value="municipal">Municipal</option>
-                  <option value="estadual">Estadual</option>
-                  <option value="particular">Particular</option>
-                </select>
-                {errors.tipoEscola && <p className={errorClass}>{errors.tipoEscola}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="numAlunos" className={labelClass}>
-                  Nº de Alunos Participantes *
+                <label htmlFor="inep" className={labelClass}>
+                  INEP *
                 </label>
                 <input
-                  id="numAlunos"
-                  type="number"
-                  min="1"
-                  value={form.numAlunos}
-                  onChange={(e) => updateField('numAlunos', e.target.value)}
-                  placeholder="Ex: 50"
-                  className={`${inputClass} ${errors.numAlunos ? inputErrorClass : ''}`}
+                  id="inep"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.inep}
+                  onChange={(e) => updateField('inep', maskInep(e.target.value))}
+                  placeholder="8 dígitos"
+                  maxLength={8}
+                  className={`${inputClass} ${errors.inep ? inputErrorClass : ''}`}
                 />
-                {errors.numAlunos && <p className={errorClass}>{errors.numAlunos}</p>}
+                {errors.inep && <p className={errorClass}>{errors.inep}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="cnpj" className={labelClass}>
+                  CNPJ *
+                </label>
+                <input
+                  id="cnpj"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.cnpj}
+                  onChange={(e) => updateField('cnpj', maskCnpj(e.target.value))}
+                  placeholder="00.000.000/0001-00"
+                  className={`${inputClass} ${errors.cnpj ? inputErrorClass : ''}`}
+                />
+                {errors.cnpj && <p className={errorClass}>{errors.cnpj}</p>}
               </div>
 
               <div className="md:col-span-2">
@@ -204,38 +327,41 @@ export default function CadastroEscola() {
               </div>
 
               <div>
-                <label htmlFor="bairro" className={labelClass}>
-                  Bairro *
+                <label htmlFor="cidade" className={labelClass}>
+                  Cidade *
                 </label>
                 <input
-                  id="bairro"
+                  id="cidade"
                   type="text"
-                  value={form.bairro}
-                  onChange={(e) => updateField('bairro', e.target.value)}
-                  placeholder="Bairro"
-                  className={`${inputClass} ${errors.bairro ? inputErrorClass : ''}`}
+                  value={form.cidade}
+                  onChange={(e) => updateField('cidade', e.target.value)}
+                  placeholder="Ex: Paço do Lumiar"
+                  className={`${inputClass} ${errors.cidade ? inputErrorClass : ''}`}
                 />
-                {errors.bairro && <p className={errorClass}>{errors.bairro}</p>}
+                {errors.cidade && <p className={errorClass}>{errors.cidade}</p>}
               </div>
 
               <div>
-                <label htmlFor="telefone" className={labelClass}>
-                  Telefone da Escola *
+                <label htmlFor="uf" className={labelClass}>
+                  UF *
                 </label>
-                <input
-                  id="telefone"
-                  type="tel"
-                  value={form.telefone}
-                  onChange={(e) => updateField('telefone', e.target.value)}
-                  placeholder="(XX) XXXX-XXXX"
-                  className={`${inputClass} ${errors.telefone ? inputErrorClass : ''}`}
-                />
-                {errors.telefone && <p className={errorClass}>{errors.telefone}</p>}
+                <select
+                  id="uf"
+                  value={form.uf}
+                  onChange={(e) => updateField('uf', e.target.value)}
+                  className={`${inputClass} ${errors.uf ? inputErrorClass : ''}`}
+                >
+                  <option value="">Selecione</option>
+                  {UFS.map((uf) => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
+                </select>
+                {errors.uf && <p className={errorClass}>{errors.uf}</p>}
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label htmlFor="email" className={labelClass}>
-                  E-mail da Escola *
+                  E-mail *
                 </label>
                 <input
                   id="email"
@@ -247,77 +373,218 @@ export default function CadastroEscola() {
                 />
                 {errors.email && <p className={errorClass}>{errors.email}</p>}
               </div>
+
+              <div>
+                <label htmlFor="telefone" className={labelClass}>
+                  Telefone *
+                </label>
+                <input
+                  id="telefone"
+                  type="tel"
+                  value={form.telefone}
+                  onChange={(e) => updateField('telefone', e.target.value)}
+                  placeholder="(XX) XXXX-XXXX"
+                  className={`${inputClass} ${errors.telefone ? inputErrorClass : ''}`}
+                />
+                {errors.telefone && <p className={errorClass}>{errors.telefone}</p>}
+              </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <div>
-            <h2 className="font-display text-2xl font-bold text-gray-900 mb-6">
-              Dados do Responsável
-            </h2>
-
+          {/* SEÇÃO DIRETOR */}
+          <SectionCard icon={User} title="DIRETOR">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label htmlFor="nomeGestor" className={labelClass}>
+                <label htmlFor="diretorNome" className={labelClass}>
                   Nome Completo *
                 </label>
                 <input
-                  id="nomeGestor"
+                  id="diretorNome"
                   type="text"
-                  value={form.nomeGestor}
-                  onChange={(e) => updateField('nomeGestor', e.target.value)}
-                  placeholder="Nome do diretor ou responsável"
-                  className={`${inputClass} ${errors.nomeGestor ? inputErrorClass : ''}`}
+                  value={form.diretorNome}
+                  onChange={(e) => updateField('diretorNome', e.target.value)}
+                  placeholder="Nome do diretor escolar"
+                  className={`${inputClass} ${errors.diretorNome ? inputErrorClass : ''}`}
                 />
-                {errors.nomeGestor && <p className={errorClass}>{errors.nomeGestor}</p>}
+                {errors.diretorNome && <p className={errorClass}>{errors.diretorNome}</p>}
               </div>
 
               <div>
-                <label htmlFor="cargoGestor" className={labelClass}>
-                  Cargo *
+                <label htmlFor="diretorCpf" className={labelClass}>
+                  CPF *
                 </label>
                 <input
-                  id="cargoGestor"
+                  id="diretorCpf"
                   type="text"
-                  value={form.cargoGestor}
-                  onChange={(e) => updateField('cargoGestor', e.target.value)}
-                  placeholder="Ex: Diretor(a)"
-                  className={`${inputClass} ${errors.cargoGestor ? inputErrorClass : ''}`}
+                  inputMode="numeric"
+                  value={form.diretorCpf}
+                  onChange={(e) => updateField('diretorCpf', maskCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  className={`${inputClass} ${errors.diretorCpf ? inputErrorClass : ''}`}
                 />
-                {errors.cargoGestor && <p className={errorClass}>{errors.cargoGestor}</p>}
+                {errors.diretorCpf && <p className={errorClass}>{errors.diretorCpf}</p>}
               </div>
 
               <div>
-                <label htmlFor="telefoneGestor" className={labelClass}>
-                  Telefone do Responsável *
+                <label htmlFor="diretorRg" className={labelClass}>
+                  RG *
                 </label>
                 <input
-                  id="telefoneGestor"
-                  type="tel"
-                  value={form.telefoneGestor}
-                  onChange={(e) => updateField('telefoneGestor', e.target.value)}
-                  placeholder="(XX) XXXXX-XXXX"
-                  className={`${inputClass} ${errors.telefoneGestor ? inputErrorClass : ''}`}
+                  id="diretorRg"
+                  type="text"
+                  value={form.diretorRg}
+                  onChange={(e) => updateField('diretorRg', e.target.value)}
+                  placeholder="Número do RG"
+                  className={`${inputClass} ${errors.diretorRg ? inputErrorClass : ''}`}
                 />
-                {errors.telefoneGestor && <p className={errorClass}>{errors.telefoneGestor}</p>}
+                {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <div>
-            <label htmlFor="observacoes" className={labelClass}>
-              Observações
-            </label>
-            <textarea
-              id="observacoes"
-              value={form.observacoes}
-              onChange={(e) => updateField('observacoes', e.target.value)}
-              placeholder="Informações adicionais, modalidades de interesse, etc."
-              rows={4}
-              className={`${inputClass} ${errors.observacoes ? inputErrorClass : ''}`}
-            />
-          </div>
+          {/* SEÇÃO COORDENADOR */}
+          <SectionCard icon={Users} title="COORDENADOR DE ESPORTES">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label htmlFor="coordenadorNome" className={labelClass}>
+                  Nome Completo *
+                </label>
+                <input
+                  id="coordenadorNome"
+                  type="text"
+                  value={form.coordenadorNome}
+                  onChange={(e) => updateField('coordenadorNome', e.target.value)}
+                  placeholder="Nome do coordenador de esportes"
+                  className={`${inputClass} ${errors.coordenadorNome ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorNome && <p className={errorClass}>{errors.coordenadorNome}</p>}
+              </div>
 
-          <div className="flex gap-4">
+              <div>
+                <label htmlFor="coordenadorCpf" className={labelClass}>
+                  CPF *
+                </label>
+                <input
+                  id="coordenadorCpf"
+                  type="text"
+                  inputMode="numeric"
+                  value={form.coordenadorCpf}
+                  onChange={(e) => updateField('coordenadorCpf', maskCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  className={`${inputClass} ${errors.coordenadorCpf ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorCpf && <p className={errorClass}>{errors.coordenadorCpf}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="coordenadorRg" className={labelClass}>
+                  RG *
+                </label>
+                <input
+                  id="coordenadorRg"
+                  type="text"
+                  value={form.coordenadorRg}
+                  onChange={(e) => updateField('coordenadorRg', e.target.value)}
+                  placeholder="Número do RG"
+                  className={`${inputClass} ${errors.coordenadorRg ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorRg && <p className={errorClass}>{errors.coordenadorRg}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="coordenadorEndereco" className={labelClass}>
+                  Endereço *
+                </label>
+                <input
+                  id="coordenadorEndereco"
+                  type="text"
+                  value={form.coordenadorEndereco}
+                  onChange={(e) => updateField('coordenadorEndereco', e.target.value)}
+                  placeholder="Rua, número, complemento"
+                  className={`${inputClass} ${errors.coordenadorEndereco ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorEndereco && <p className={errorClass}>{errors.coordenadorEndereco}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="coordenadorEmail" className={labelClass}>
+                  E-mail *
+                </label>
+                <input
+                  id="coordenadorEmail"
+                  type="email"
+                  value={form.coordenadorEmail}
+                  onChange={(e) => updateField('coordenadorEmail', e.target.value)}
+                  placeholder="coordenador@email.com"
+                  className={`${inputClass} ${errors.coordenadorEmail ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorEmail && <p className={errorClass}>{errors.coordenadorEmail}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="coordenadorTelefone" className={labelClass}>
+                  Telefone *
+                </label>
+                <input
+                  id="coordenadorTelefone"
+                  type="tel"
+                  value={form.coordenadorTelefone}
+                  onChange={(e) => updateField('coordenadorTelefone', e.target.value)}
+                  placeholder="(XX) XXXXX-XXXX"
+                  className={`${inputClass} ${errors.coordenadorTelefone ? inputErrorClass : ''}`}
+                />
+                {errors.coordenadorTelefone && <p className={errorClass}>{errors.coordenadorTelefone}</p>}
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* SEÇÃO MODALIDADES */}
+          <SectionCard icon={Trophy} title="MODALIDADES">
+            <p className="text-sm text-gray-600 mb-4">
+              Selecione as modalidades de interesse cruzando Categoria, Naipe e Tipo. Marque pelo menos uma opção.
+            </p>
+            {errors.modalidades && <p className={`${errorClass} mb-4`}>{errors.modalidades}</p>}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[500px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Categoria</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Naipe</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Individuais</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Coletivas</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Novas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CATEGORIAS.map((cat) =>
+                    Object.entries(NAIPES).map(([naipeKey, naipeLabel]) => (
+                      <tr key={`${cat}-${naipeKey}`} className="border-b border-gray-100 hover:bg-gray-50/50">
+                        <td className="py-3 px-2 font-medium text-gray-800">
+                          {cat === '12-14' ? '12 a 14 anos' : '15 a 17 anos'}
+                        </td>
+                        <td className="py-3 px-2 text-gray-700">{naipeLabel}</td>
+                        {TIPOS_MODALIDADE.map((tipo) => (
+                          <td key={tipo} className="py-3 px-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={form.modalidades?.[cat]?.[naipeKey]?.[tipo] ?? false}
+                                onChange={(e) => updateModalidade(cat, naipeKey, tipo, e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span className="text-gray-600 capitalize">{tipo}</span>
+                            </label>
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={() => navigate('/')}

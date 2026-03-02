@@ -1,49 +1,44 @@
 import { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
-import useModalidades from '../../hooks/useModalidades'
 import useCategorias from '../../hooks/useCategorias'
 
-export default function ModalidadeModal({ isOpen, onClose, modalidade = null, onSuccess }) {
-  const { createModalidade, updateModalidade, loading } = useModalidades()
-  const { categorias } = useCategorias()
+export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess }) {
+  const { createCategoria, updateCategoria, loading } = useCategorias()
   const [formData, setFormData] = useState({
     id: '',
     nome: '',
     descricao: '',
-    categoria_id: modalidade?.categoria_id,
-    requisitos: '',
+    ordem: 0,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    if (modalidade) {
+    if (categoria) {
       setFormData({
-        id: modalidade.id || '',
-        nome: modalidade.nome || '',
-        descricao: modalidade.descricao || '',
-        categoria_id: modalidade.categoria_id,
-        requisitos: modalidade.requisitos || '',
-        ativa: modalidade.ativa !== undefined ? modalidade.ativa : true,
+        id: categoria.id || '',
+        nome: categoria.nome || '',
+        descricao: categoria.descricao || '',
+        ordem: categoria.ordem ?? 0,
+        ativa: categoria.ativa !== undefined ? categoria.ativa : true,
       })
     } else {
       setFormData({
         id: '',
         nome: '',
         descricao: '',
-        categoria_id: categorias[0]?.id,
-        requisitos: '',
+        ordem: 0,
         ativa: true,
       })
     }
     setErrors({})
-  }, [modalidade, isOpen, categorias])
+  }, [categoria, isOpen])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : type === 'number' ? parseInt(value, 10) || 0 : value,
     }))
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
@@ -51,7 +46,6 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
   const validateForm = () => {
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
-    if (!formData.categoria_id) newErrors.categoria_id = 'Categoria é obrigatória'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -63,20 +57,19 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     try {
       const dataToSubmit = {
         ...formData,
-        categoria_id: formData.categoria_id,
-        requisitos: formData.requisitos?.trim() || null,
+        descricao: formData.descricao?.trim() || '',
       }
-      if (modalidade) {
-        await updateModalidade(modalidade.id, dataToSubmit)
+      if (categoria) {
+        await updateCategoria(categoria.id, dataToSubmit)
         onSuccess?.()
         onClose()
       } else {
-        await createModalidade(dataToSubmit)
+        await createCategoria(dataToSubmit)
         onSuccess?.()
         onClose()
       }
     } catch (err) {
-      setErrors({ submit: err.message || 'Erro ao salvar modalidade' })
+      setErrors({ submit: err.message || 'Erro ao salvar categoria' })
     }
   }
 
@@ -84,11 +77,11 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalidade ? 'Editar Modalidade' : 'Nova Modalidade'}
+      title={categoria ? 'Editar Categoria' : 'Nova Categoria'}
       subtitle={
-        modalidade
-          ? 'Atualize as informações da modalidade'
-          : 'Preencha os dados para criar uma nova modalidade'
+        categoria
+          ? 'Atualize as informações da categoria'
+          : 'Preencha os dados para criar uma nova categoria (conjunto de modalidades)'
       }
       size="lg"
       footer={
@@ -103,17 +96,17 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
           </button>
           <button
             type="submit"
-            form="modalidade-form"
+            form="categoria-form"
             className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-95 hover:-translate-y-px transition-transform"
             disabled={loading}
           >
-            {loading ? 'Salvando...' : modalidade ? 'Atualizar' : 'Criar'}
+            {loading ? 'Salvando...' : categoria ? 'Atualizar' : 'Criar'}
           </button>
         </div>
       }
-      >
+    >
       <form
-        id="modalidade-form"
+        id="categoria-form"
         onSubmit={handleSubmit}
         className="flex flex-col gap-5"
       >
@@ -126,10 +119,10 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
           </div>
         )}
 
-        {!modalidade && (
+        {!categoria && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="id">
-              ID da Modalidade (opcional)
+              ID da Categoria (opcional)
             </label>
             <input
               id="id"
@@ -137,7 +130,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               type="text"
               value={formData.id}
               onChange={handleChange}
-              placeholder="Ex: FUTEBOL, VOLEI, NATACAO"
+              placeholder="Ex: COLETIVA, INDIVIDUAL"
               className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
             />
             <span className="text-[0.75rem] text-[#64748b]">
@@ -156,7 +149,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             type="text"
             value={formData.nome}
             onChange={handleChange}
-            placeholder="Ex: Futebol"
+            placeholder="Ex: Coletiva"
             className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
               errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
             }`}
@@ -175,64 +168,39 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             name="descricao"
             value={formData.descricao}
             onChange={handleChange}
-            placeholder="Descreva a modalidade..."
-            rows={4}
+            placeholder="Descreva a categoria..."
+            rows={3}
             className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 max-[480px]:grid-cols-1 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="categoria_id">
-              Categoria <span className="text-[#dc2626]">*</span>
-            </label>
-            <select
-              id="categoria_id"
-              name="categoria_id"
-              value={formData.categoria_id}
-              onChange={handleChange}
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.categoria_id ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
-            >
-              {categorias.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nome}
-                </option>
-              ))}
-            </select>
-            {errors.categoria_id && (
-              <span className="text-[0.8rem] text-[#dc2626]">{errors.categoria_id}</span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="requisitos">
-              Requisitos (opcional)
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="ordem">
+              Ordem de exibição
             </label>
             <input
-              id="requisitos"
-              name="requisitos"
-              type="text"
-              value={formData.requisitos}
+              id="ordem"
+              name="ordem"
+              type="number"
+              min={0}
+              value={formData.ordem}
               onChange={handleChange}
-              placeholder="Ex: Necessita quadra"
               className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
             />
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
-            <input
-              type="checkbox"
-              name="ativa"
-              checked={formData.ativa}
-              onChange={handleChange}
-              className="w-[1.125rem] h-[1.125rem]"
-            />
-            Modalidade ativa
-          </label>
+          <div className="flex flex-col gap-1.5 justify-end">
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
+              <input
+                type="checkbox"
+                name="ativa"
+                checked={formData.ativa}
+                onChange={handleChange}
+                className="w-[1.125rem] h-[1.125rem]"
+              />
+              Categoria ativa
+            </label>
+          </div>
         </div>
       </form>
     </Modal>

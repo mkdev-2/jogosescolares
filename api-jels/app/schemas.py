@@ -8,8 +8,37 @@ from pydantic import BaseModel, EmailStr, Field
 # Roles válidas
 VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "MESARIO"]
 
-# Categorias de modalidade
-MODALIDADE_CATEGORIAS = Literal["COLETIVA", "INDIVIDUAL"]
+# ========== CATEGORIAS ==========
+
+class CategoriaCreate(BaseModel):
+    """Schema para criação de categoria."""
+    id: Optional[str] = Field(None, description="ID customizado (opcional)")
+    nome: str = Field(..., min_length=1, description="Nome da categoria")
+    descricao: Optional[str] = Field("", description="Descrição da categoria")
+    ordem: Optional[int] = Field(0, description="Ordem de exibição")
+    ativa: bool = Field(default=True, description="Se a categoria está ativa")
+
+
+class CategoriaUpdate(BaseModel):
+    """Schema para atualização de categoria."""
+    nome: Optional[str] = Field(None, min_length=1)
+    descricao: Optional[str] = None
+    ordem: Optional[int] = None
+    ativa: Optional[bool] = None
+
+
+class CategoriaResponse(BaseModel):
+    """Schema para resposta de categoria."""
+    id: str
+    nome: str
+    descricao: str
+    ordem: int
+    ativa: bool
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ========== AUTH / USERS ==========
@@ -50,6 +79,7 @@ class UserResponse(BaseModel):
     nome: str
     role: str
     ativo: bool = True
+    created_at: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -76,6 +106,15 @@ class UserUpdateMe(BaseModel):
     email: Optional[EmailStr] = Field(None, description="Email do usuário")
 
 
+class UserUpdate(BaseModel):
+    """Schema para atualização de usuário (admin)."""
+    nome: Optional[str] = Field(None, min_length=1)
+    email: Optional[EmailStr] = None
+    role: Optional[VALID_ROLES] = None
+    ativo: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=6, description="Nova senha (opcional)")
+
+
 class ChangePasswordRequest(BaseModel):
     """Schema para alteração de senha."""
     current_password: str = Field(..., description="Senha atual")
@@ -88,7 +127,7 @@ class ModalidadeCreate(BaseModel):
     id: Optional[str] = Field(None, description="ID customizado (opcional)")
     nome: str = Field(..., min_length=1, description="Nome da modalidade")
     descricao: Optional[str] = Field("", description="Descrição da modalidade")
-    categoria: str = Field(default="COLETIVA", description="Coletiva ou Individual")
+    categoria_id: str = Field(..., description="ID da categoria (conjunto de modalidades)")
     requisitos: Optional[str] = Field("", description="Requisitos para participação")
     ativa: bool = Field(default=True, description="Se a modalidade está ativa")
 
@@ -97,7 +136,7 @@ class ModalidadeUpdate(BaseModel):
     """Schema para atualização de modalidade."""
     nome: Optional[str] = Field(None, min_length=1)
     descricao: Optional[str] = None
-    categoria: Optional[str] = None
+    categoria_id: Optional[str] = None
     requisitos: Optional[str] = None
     ativa: Optional[bool] = None
 
@@ -107,7 +146,8 @@ class ModalidadeResponse(BaseModel):
     id: str
     nome: str
     descricao: str
-    categoria: str
+    categoria_id: str
+    categoria: str  # nome da categoria (para exibição)
     requisitos: str
     ativa: bool
     created_at: Optional[str] = None

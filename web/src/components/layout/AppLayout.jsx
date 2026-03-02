@@ -1,15 +1,34 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut } from 'lucide-react'
+import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
   { label: 'Dashboard', path: '/app', icon: LayoutDashboard },
-  { label: 'Modalidades', path: '/app/modalidades', icon: Trophy },
+]
+
+const menuGroups = [
+  {
+    label: 'Atividades',
+    icon: Activity,
+    items: [
+      { label: 'Modalidades', path: '/app/modalidades', icon: Trophy },
+      { label: 'Categorias', path: '/app/categorias', icon: LayoutGrid },
+    ],
+  },
+  {
+    label: 'Usuário',
+    icon: Users,
+    requiredRoles: ['SUPER_ADMIN', 'ADMIN'],
+    items: [
+      { label: 'Usuários', path: '/app/usuarios', icon: Users },
+    ],
+  },
 ]
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [groupExpanded, setGroupExpanded] = useState({ Atividades: true, Usuário: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -85,6 +104,64 @@ export default function AppLayout({ children }) {
                       </span>
                     )}
                   </Link>
+                </li>
+              )
+            })}
+            {menuGroups.filter((group) => {
+              if (!group.requiredRoles) return true
+              return group.requiredRoles.includes(user?.role)
+            }).map((group) => {
+              const GroupIcon = group.icon
+              const isExpanded = groupExpanded[group.label] ?? true
+              const hasActiveChild = group.items.some((item) => isActive(item.path))
+              return (
+                <li key={group.label}>
+                  <button
+                    type="button"
+                    onClick={() => setGroupExpanded((prev) => ({ ...prev, [group.label]: !prev[group.label] }))}
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-[12px] border-0 bg-transparent text-left text-[0.9375rem] font-medium transition-colors cursor-pointer ${
+                      hasActiveChild
+                        ? 'text-[#0f766e]'
+                        : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                    }`}
+                  >
+                    <GroupIcon size={20} className="shrink-0" />
+                    <span className="flex-1">{group.label}</span>
+                    {isExpanded ? (
+                      <ChevronDown size={18} className="shrink-0 opacity-70" />
+                    ) : (
+                      <ChevronRight size={18} className="shrink-0 opacity-70" />
+                    )}
+                  </button>
+                  {isExpanded && (
+                    <ul className="flex flex-col gap-0.5 mt-0.5 ml-4 pl-4 border-l-2 border-[rgba(15,118,110,0.2)] list-none">
+                      {group.items.map((item) => {
+                        const ItemIcon = item.icon
+                        const active = isActive(item.path)
+                        return (
+                          <li key={item.path}>
+                            <Link
+                              to={item.path}
+                              onClick={() => setSidebarOpen(false)}
+                              className={`flex items-center gap-3 px-3 py-2 rounded-[8px] no-underline text-[0.875rem] font-medium transition-colors ${
+                                active
+                                  ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_2px_8px_rgba(15,118,110,0.3)]'
+                                  : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                              }`}
+                            >
+                              <ItemIcon size={18} className="shrink-0" />
+                              <span>{item.label}</span>
+                              {active && (
+                                <span className="ml-auto text-[0.65rem] uppercase tracking-[0.05em] opacity-90">
+                                  ativo
+                                </span>
+                              )}
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </li>
               )
             })}
