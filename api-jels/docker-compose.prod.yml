@@ -47,7 +47,7 @@ services:
     image: postgrest/postgrest:v12.2.0
     container_name: jogosescolares-postgrest
     environment:
-      PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@jogosescolares-postgres:5432/${POSTGRES_DB}
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: jogosescolares_anon
       PGRST_DB_ROLE: jogosescolares_authenticated
