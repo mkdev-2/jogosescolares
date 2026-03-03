@@ -1,10 +1,17 @@
 /**
  * Configuração de API e cliente HTTP.
- * Usa proxy em desenvolvimento (Vite) ou URLs diretas.
+ * Em desenvolvimento: sempre usa proxy (/api-service, /api-postgrest) para evitar CORS.
+ * O target do proxy é definido no setupProxy.js via VITE_API_SERVICE_URL, VITE_POSTGREST_URL.
+ * Em produção: usa URLs diretas das variáveis de ambiente.
  */
+const isDev = import.meta.env.DEV
 
-const API_SERVICE_URL = import.meta.env.VITE_API_SERVICE_URL
-const POSTGREST_URL = import.meta.env.VITE_POSTGREST_URL
+const API_SERVICE_URL = isDev
+  ? '/api-service'
+  : (import.meta.env.VITE_API_SERVICE_URL || '')
+const POSTGREST_URL = isDev
+  ? '/api-postgrest'
+  : (import.meta.env.VITE_POSTGREST_URL || '')
 
 const TOKEN_KEY = 'jogos-escolares-access-token'
 const REFRESH_TOKEN_KEY = 'jogos-escolares-refresh-token'
@@ -31,7 +38,7 @@ export function clearTokens() {
  * Faz requisição autenticada com retry de refresh token em 401.
  */
 export async function apiFetch(url, options = {}) {
-  const baseUrl = url.startsWith('/api-service') || url.startsWith('/postgrest') ? '' : API_SERVICE_URL
+  const baseUrl = url.startsWith('/api-service') || url.startsWith('/api-postgrest') ? '' : API_SERVICE_URL
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 
   const headers = {

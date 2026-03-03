@@ -1,21 +1,24 @@
-import { defineConfig } from 'vite'
+import { createRequire } from 'module'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const require = createRequire(import.meta.url)
+
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api-service': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api-service/, ''),
+export default defineConfig(({ mode }) => {
+  // Garante que .env seja carregado em process.env antes do setupProxy
+  Object.assign(process.env, loadEnv(mode, process.cwd(), ''))
+
+  return {
+    plugins: [
+      react(),
+      {
+        name: 'setup-proxy',
+        configureServer(server) {
+          const setupProxy = require('./src/setupProxy.cjs')
+          setupProxy(server.middlewares)
+        },
       },
-      '/postgrest': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/postgrest/, ''),
-      },
-    },
-  },
+    ],
+  }
 })
