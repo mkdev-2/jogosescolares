@@ -52,7 +52,7 @@ services:
       PGRST_DB_ANON_ROLE: jogosescolares_anon
       PGRST_DB_ROLE: jogosescolares_authenticated
       PGRST_DB_SCHEMA_CACHE: "3600"
-      PGRST_OPENAPI_SERVER_PROXY_URI: ${POSTGREST_URL}
+      PGRST_OPENAPI_SERVER_PROXY_URI: https://api-${DOMAIN}
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_JWT_AUD: ${JWT_AUD}
       PGRST_JWT_ROLE_CLAIM_KEY: ".role"
@@ -67,16 +67,16 @@ services:
       PGRST_CORS_ALLOWED_CREDENTIALS: "true"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.jogosescolares-postgrest-http.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.jogosescolares-postgrest-http.rule=Host(`api-${DOMAIN}`)"
       - "traefik.http.routers.jogosescolares-postgrest-http.entrypoints=web"
       - "traefik.http.routers.jogosescolares-postgrest-http.middlewares=redirect-web-to-websecure@internal"
-      - "traefik.http.routers.jogosescolares-postgrest.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.jogosescolares-postgrest.rule=Host(`api-${DOMAIN}`)"
       - "traefik.http.routers.jogosescolares-postgrest.entrypoints=websecure"
       - "traefik.http.routers.jogosescolares-postgrest.tls.certresolver=myresolver"
       - "traefik.http.services.jogosescolares-postgrest.loadbalancer.server.port=3000"
       - "traefik.http.middlewares.jogosescolares-postgrest-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.middlewares.jogosescolares-postgrest-headers.headers.customrequestheaders.X-Forwarded-Port=443"
-      - "traefik.http.middlewares.jogosescolares-postgrest-headers.headers.customrequestheaders.X-Forwarded-Host=api.${DOMAIN}"
+      - "traefik.http.middlewares.jogosescolares-postgrest-headers.headers.customrequestheaders.X-Forwarded-Host=api-${DOMAIN}"
       - "traefik.http.routers.jogosescolares-postgrest.middlewares=jogosescolares-postgrest-headers@docker"
     depends_on:
       postgres:
@@ -99,12 +99,12 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
       CORS_ORIGINS: ${CORS_ORIGINS}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      AUTH_SERVICE_URL: https://auth-${DOMAIN}
       MINIO_ENDPOINT: minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_PUBLIC_URL: https://storage-${DOMAIN}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -113,10 +113,10 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.jogosescolares-auth-http.rule=Host(`auth.${DOMAIN}`)"
+      - "traefik.http.routers.jogosescolares-auth-http.rule=Host(`auth-${DOMAIN}`)"
       - "traefik.http.routers.jogosescolares-auth-http.entrypoints=web"
       - "traefik.http.routers.jogosescolares-auth-http.middlewares=redirect-web-to-websecure@internal"
-      - "traefik.http.routers.jogosescolares-auth.rule=Host(`auth.${DOMAIN}`)"
+      - "traefik.http.routers.jogosescolares-auth.rule=Host(`auth-${DOMAIN}`)"
       - "traefik.http.routers.jogosescolares-auth.entrypoints=websecure"
       - "traefik.http.routers.jogosescolares-auth.tls.certresolver=myresolver"
       - "traefik.http.services.jogosescolares-auth.loadbalancer.server.port=8000"
@@ -149,8 +149,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
-      MINIO_SERVER_URL: ${MINIO_SERVER_URL}
+      MINIO_BROWSER_REDIRECT_URL: https://storage-console-${DOMAIN}
+      MINIO_SERVER_URL: https://storage-${DOMAIN}
       MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ORIGIN}
     volumes:
       - jogosescolares_minio_data:/data
