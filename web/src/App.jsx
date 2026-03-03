@@ -9,6 +9,10 @@ import Dashboard from './pages/Dashboard'
 import Modalidades from './pages/Modalidades'
 import Categorias from './pages/Categorias'
 import Usuarios from './pages/Usuarios'
+import Configuracoes from './pages/Configuracoes'
+import Administrativo from './pages/Administrativo'
+import Gestao from './pages/Gestao'
+import Atividades from './pages/Atividades'
 import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 import Equipes from './pages/Equipes'
@@ -23,6 +27,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
+            <Route path="/app/gestao" element={<Gestao />} />
+            <Route path="/app/atividades" element={<Atividades />} />
             <Route path="/app/estudantes-atletas" element={<CadastroEstudanteAtleta />} />
             <Route path="/app/professores-tecnicos" element={<ProfessoresTecnicos />} />
             <Route path="/app/equipes" element={<Equipes />} />
@@ -30,7 +36,9 @@ function App() {
             <Route path="/app/categorias" element={<Categorias />} />
           </Route>
           <Route element={<AdminRoute />}>
+            <Route path="/app/administrativo" element={<Administrativo />} />
             <Route path="/app/usuarios" element={<Usuarios />} />
+            <Route path="/app/configuracoes" element={<Configuracoes />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

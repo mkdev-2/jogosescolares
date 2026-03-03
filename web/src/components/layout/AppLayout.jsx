@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, UserPlus, ClipboardList, GraduationCap, UsersRound } from 'lucide-react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Settings } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -12,43 +12,50 @@ const menuGroups = [
     label: 'Gestão',
     icon: ClipboardList,
     items: [
-      { label: 'Estudantes', path: '/app/estudantes-atletas', icon: UserPlus },
-      { label: 'Professores-Técnicos', path: '/app/professores-tecnicos', icon: GraduationCap },
-      { label: 'Equipes', path: '/app/equipes', icon: UsersRound },
+      { label: 'Alunos', path: '/app/gestao', icon: UserPlus, tab: 'alunos' },
+      { label: 'Professores', path: '/app/gestao', icon: GraduationCap, tab: 'professores' },
+      { label: 'Equipes', path: '/app/gestao', icon: UsersRound, tab: 'equipes' },
     ],
   },
   {
     label: 'Atividades',
     icon: Activity,
     items: [
-      { label: 'Modalidades', path: '/app/modalidades', icon: Trophy },
-      { label: 'Categorias', path: '/app/categorias', icon: LayoutGrid },
+      { label: 'Modalidades', path: '/app/atividades', icon: Trophy, tab: 'modalidades' },
+      { label: 'Categorias', path: '/app/atividades', icon: LayoutGrid, tab: 'categorias' },
     ],
   },
   {
-    label: 'Usuário',
+    label: 'Administrativo',
     icon: Users,
     requiredRoles: ['SUPER_ADMIN', 'ADMIN'],
     items: [
-      { label: 'Usuários', path: '/app/usuarios', icon: Users },
+      { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
+      { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes' },
     ],
   },
 ]
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Usuário: true })
+  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Administrativo: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
-  const isActive = (path) => {
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'modalidades', '/app/administrativo': 'usuarios' }
+  const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
+    if (item?.tab) {
+      const currentTab = searchParams.get('tab') || DEFAULT_TAB[path] || 'alunos'
+      return location.pathname === path && currentTab === item.tab
+    }
     return location.pathname.startsWith(path)
   }
 
@@ -122,7 +129,7 @@ export default function AppLayout({ children }) {
             }).map((group) => {
               const GroupIcon = group.icon
               const isExpanded = groupExpanded[group.label] ?? true
-              const hasActiveChild = group.items.some((item) => isActive(item.path))
+              const hasActiveChild = group.items.some((item) => isActive(item.path, item))
               return (
                 <li key={group.label}>
                   <button
@@ -146,11 +153,13 @@ export default function AppLayout({ children }) {
                     <ul className="flex flex-col gap-0.5 mt-0.5 ml-4 pl-4 border-l-2 border-[rgba(15,118,110,0.2)] list-none">
                       {group.items.map((item) => {
                         const ItemIcon = item.icon
-                        const active = isActive(item.path)
+                        const active = isActive(item.path, item)
+                        const defaultTab = DEFAULT_TAB[item.path] || 'alunos'
+                        const to = item.tab && item.tab !== defaultTab ? `${item.path}?tab=${item.tab}` : item.path
                         return (
-                          <li key={item.path}>
+                          <li key={item.path + (item.tab || '')}>
                             <Link
-                              to={item.path}
+                              to={to}
                               onClick={() => setSidebarOpen(false)}
                               className={`flex items-center gap-3 px-3 py-2 rounded-[8px] no-underline text-[0.875rem] font-medium transition-colors ${
                                 active

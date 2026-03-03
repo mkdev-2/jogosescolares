@@ -120,6 +120,13 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., description="Senha atual")
     new_password: str = Field(..., min_length=6, description="Nova senha com no mínimo 6 caracteres")
 
+
+# ========== CONFIGURAÇÕES ==========
+
+class ConfiguracoesUpdate(BaseModel):
+    """Schema para atualização de configurações (datas e prazos)."""
+    cadastro_data_limite: Optional[str] = Field(None, description="Data limite para envio do formulário de cadastro (YYYY-MM-DD) ou null para sem limite")
+
 # ========== MODALIDADES ==========
 
 class ModalidadeCreate(BaseModel):
