@@ -8,6 +8,9 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 # Roles válidas
 VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO"]
 
+# Status do usuário
+VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
+
 # ========== CATEGORIAS ==========
 
 class CategoriaCreate(BaseModel):
@@ -51,7 +54,7 @@ class UserCreate(BaseModel):
     nome: str = Field(..., min_length=1, description="Nome completo do usuário")
     role: VALID_ROLES = Field(..., description="Perfil de acesso")
     escola_id: Optional[int] = Field(None, description="ID da escola (obrigatório para DIRETOR e COORDENADOR)")
-    ativo: bool = Field(default=True, description="Status do usuário (ativo/inativo)")
+    status: VALID_STATUS = Field(default="ATIVO", description="Status do usuário (ATIVO, INATIVO, PENDENTE)")
 
     @model_validator(mode="after")
     def validate_escola_for_role(self):
@@ -86,7 +89,7 @@ class UserResponse(BaseModel):
     nome: str
     role: str
     escola_id: Optional[int] = None
-    ativo: bool = True
+    status: str = "ATIVO"
     created_at: Optional[str] = None
 
     class Config:
@@ -103,6 +106,7 @@ class UserMeResponse(BaseModel):
     escola_id: Union[int, None] = None
     escola_inep: Union[str, None] = None
     ativo: bool
+    status: str
     created_at: Union[str, None] = None
     foto_url: Union[str, None] = None
 
@@ -122,7 +126,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[VALID_ROLES] = None
     escola_id: Optional[int] = None
-    ativo: Optional[bool] = None
+    status: Optional[VALID_STATUS] = None
     password: Optional[str] = Field(None, min_length=6, description="Nova senha (opcional)")
 
     @model_validator(mode="after")

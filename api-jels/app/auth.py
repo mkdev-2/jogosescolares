@@ -44,11 +44,11 @@ async def register(user_data: UserCreate, conn: psycopg.AsyncConnection = Depend
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, ativo)
+            INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, status)
             SELECT %s, %s, %s, %s, %s, %s, %s
-            RETURNING id, cpf, email, nome, role, escola_id, ativo, created_at
+            RETURNING id, cpf, email, nome, role, escola_id, status, created_at
             """,
-            (cpf_clean, user_data.email, hashed_password, user_data.nome, user_data.role, escola_id, user_data.ativo),
+            (cpf_clean, user_data.email, hashed_password, user_data.nome, user_data.role, escola_id, user_data.status),
         )
         new_user = await cur.fetchone()
         await conn.commit()
@@ -62,7 +62,7 @@ async def authenticate_user(cpf: str, password: str, conn: psycopg.AsyncConnecti
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, email, password_hash, role, ativo FROM users WHERE cpf = %s",
+            "SELECT id, email, password_hash, role, status FROM users WHERE cpf = %s",
             (cpf_clean,),
         )
         user = await cur.fetchone()
@@ -74,10 +74,10 @@ async def authenticate_user(cpf: str, password: str, conn: psycopg.AsyncConnecti
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.get("ativo", True):
+    if user.get("status") != "ATIVO":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário desativado. Entre em contato com o administrador.",
+            detail="Usuário desativado ou pendente. Entre em contato com o administrador.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -180,12 +180,13 @@ async def get_current_user(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id, u.ativo, u.created_at, u.foto_url,
+            SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id, u.status, u.created_at, u.foto_url,
                    e.inep AS escola_inep
             FROM users u
             LEFT JOIN escolas e ON u.escola_id = e.id
             WHERE u.id = %s
             """,
+
             (user_id,),
         )
         row = await cur.fetchone()
@@ -199,10 +200,10 @@ async def get_current_user(
 
     user = dict(row)
 
-    if not user.get("ativo", True):
+    if user.get("status") != "ATIVO":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário desativado.",
+            detail="Usuário desativado ou pendente.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -245,12 +246,12 @@ async def refresh_token(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, email, role, ativo FROM users WHERE id = %s",
+            "SELECT id, email, role, status FROM users WHERE id = %s",
             (int(user_id),),
         )
         user = await cur.fetchone()
 
-    if not user or not user.get("ativo", True):
+    if not user or user.get("status") != "ATIVO":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário não encontrado ou desativado",
@@ -289,7 +290,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         role=current_user["role"],
         escola_id=current_user.get("escola_id"),
         escola_inep=current_user.get("escola_inep"),
-        ativo=current_user["ativo"],
+        status=current_user["status"],
         created_at=created_at,
         foto_url=current_user.get("foto_url"),
     )
