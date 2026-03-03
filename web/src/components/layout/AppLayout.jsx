@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users } from 'lucide-react'
+import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, UserPlus, ClipboardList, GraduationCap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -8,6 +8,14 @@ const menuItems = [
 ]
 
 const menuGroups = [
+  {
+    label: 'Gestão',
+    icon: ClipboardList,
+    items: [
+      { label: 'Estudantes', path: '/app/estudantes-atletas', icon: UserPlus },
+      { label: 'Professores-Técnicos', path: '/app/professores-tecnicos', icon: GraduationCap },
+    ],
+  },
   {
     label: 'Atividades',
     icon: Activity,
@@ -28,7 +36,7 @@ const menuGroups = [
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [groupExpanded, setGroupExpanded] = useState({ Atividades: true, Usuário: true })
+  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Usuário: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()

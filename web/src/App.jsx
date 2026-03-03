@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard'
 import Modalidades from './pages/Modalidades'
 import Categorias from './pages/Categorias'
 import Usuarios from './pages/Usuarios'
+import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
+import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
+            <Route path="/app/estudantes-atletas" element={<CadastroEstudanteAtleta />} />
+            <Route path="/app/professores-tecnicos" element={<ProfessoresTecnicos />} />
             <Route path="/app/modalidades" element={<Modalidades />} />
             <Route path="/app/categorias" element={<Categorias />} />
           </Route>
