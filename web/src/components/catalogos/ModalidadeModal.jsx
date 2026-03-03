@@ -12,6 +12,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     descricao: '',
     categoria_id: modalidade?.categoria_id,
     requisitos: '',
+    limite_atletas: modalidade?.limite_atletas ?? 12,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
@@ -24,6 +25,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
         descricao: modalidade.descricao || '',
         categoria_id: modalidade.categoria_id,
         requisitos: modalidade.requisitos || '',
+        limite_atletas: modalidade.limite_atletas ?? 12,
         ativa: modalidade.ativa !== undefined ? modalidade.ativa : true,
       })
     } else {
@@ -33,6 +35,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
         descricao: '',
         categoria_id: categorias[0]?.id,
         requisitos: '',
+        limite_atletas: 12,
         ativa: true,
       })
     }
@@ -52,6 +55,8 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
     if (!formData.categoria_id) newErrors.categoria_id = 'Categoria é obrigatória'
+    const limite = Number(formData.limite_atletas)
+    if (Number.isNaN(limite) || limite < 1) newErrors.limite_atletas = 'Informe o máximo de atletas (mín. 1)'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -65,6 +70,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
         ...formData,
         categoria_id: formData.categoria_id,
         requisitos: formData.requisitos?.trim() || null,
+        limite_atletas: Number(formData.limite_atletas) || 12,
       }
       if (modalidade) {
         await updateModalidade(modalidade.id, dataToSubmit)
@@ -219,6 +225,27 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               placeholder="Ex: Necessita quadra"
               className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
+              Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
+            </label>
+            <input
+              id="limite_atletas"
+              name="limite_atletas"
+              type="number"
+              min={1}
+              value={formData.limite_atletas}
+              onChange={handleChange}
+              placeholder="Ex: 12"
+              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
+                errors.limite_atletas ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+              }`}
+            />
+            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe nesta modalidade (ex: 12 no Futsal)</span>
+            {errors.limite_atletas && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
+            )}
           </div>
         </div>
 

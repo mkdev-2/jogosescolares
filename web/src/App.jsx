@@ -11,6 +11,7 @@ import Categorias from './pages/Categorias'
 import Usuarios from './pages/Usuarios'
 import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
+import Equipes from './pages/Equipes'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/app" element={<Dashboard />} />
             <Route path="/app/estudantes-atletas" element={<CadastroEstudanteAtleta />} />
             <Route path="/app/professores-tecnicos" element={<ProfessoresTecnicos />} />
+            <Route path="/app/equipes" element={<Equipes />} />
             <Route path="/app/modalidades" element={<Modalidades />} />
             <Route path="/app/categorias" element={<Categorias />} />
           </Route>
