@@ -179,18 +179,25 @@ async def get_current_user(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, cpf, email, nome, role, escola_id, ativo, created_at, foto_url FROM users WHERE id = %s",
+            """
+            SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id, u.ativo, u.created_at, u.foto_url,
+                   e.inep AS escola_inep
+            FROM users u
+            LEFT JOIN escolas e ON u.escola_id = e.id
+            WHERE u.id = %s
+            """,
             (user_id,),
         )
-        user = await cur.fetchone()
+        row = await cur.fetchone()
 
-    if not user:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário não encontrado",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    user = dict(row)
 
     if not user.get("ativo", True):
         raise HTTPException(
@@ -200,6 +207,18 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_current_user_with_escola(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Dependency para obter usuário autenticado que possui escola (diretor/coordenador). Retorna 403 se sem escola_id."""
+    if current_user.get("escola_id") is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
+        )
+    return current_user
 
 
 @router.post("/refresh", response_model=Token)
@@ -269,6 +288,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         nome=current_user["nome"],
         role=current_user["role"],
         escola_id=current_user.get("escola_id"),
+        escola_inep=current_user.get("escola_inep"),
         ativo=current_user["ativo"],
         created_at=created_at,
         foto_url=current_user.get("foto_url"),
