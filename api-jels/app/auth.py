@@ -39,14 +39,16 @@ async def register(user_data: UserCreate, conn: psycopg.AsyncConnection = Depend
 
     hashed_password = get_password_hash(user_data.password)
 
+    escola_id = user_data.escola_id if user_data.role in ("DIRETOR", "COORDENADOR") else None
+
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO users (cpf, email, password_hash, nome, role, ativo)
-            SELECT %s, %s, %s, %s, %s, %s
-            RETURNING id, email, nome, role, ativo
+            INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, ativo)
+            SELECT %s, %s, %s, %s, %s, %s, %s
+            RETURNING id, cpf, email, nome, role, escola_id, ativo, created_at
             """,
-            (cpf_clean, user_data.email, hashed_password, user_data.nome, user_data.role, user_data.ativo),
+            (cpf_clean, user_data.email, hashed_password, user_data.nome, user_data.role, escola_id, user_data.ativo),
         )
         new_user = await cur.fetchone()
         await conn.commit()
@@ -177,7 +179,7 @@ async def get_current_user(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, cpf, email, nome, role, ativo, created_at, foto_url FROM users WHERE id = %s",
+            "SELECT id, cpf, email, nome, role, escola_id, ativo, created_at, foto_url FROM users WHERE id = %s",
             (user_id,),
         )
         user = await cur.fetchone()
@@ -266,6 +268,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user.get("email"),
         nome=current_user["nome"],
         role=current_user["role"],
+        escola_id=current_user.get("escola_id"),
         ativo=current_user["ativo"],
         created_at=created_at,
         foto_url=current_user.get("foto_url"),

@@ -2,11 +2,11 @@
 Modelos Pydantic para validação de dados de entrada e saída.
 """
 from typing import Optional, Literal, Union
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # Roles válidas
-VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "MESARIO"]
+VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO"]
 
 # ========== CATEGORIAS ==========
 
@@ -50,7 +50,14 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=6, description="Senha com no mínimo 6 caracteres")
     nome: str = Field(..., min_length=1, description="Nome completo do usuário")
     role: VALID_ROLES = Field(..., description="Perfil de acesso")
+    escola_id: Optional[int] = Field(None, description="ID da escola (obrigatório para DIRETOR e COORDENADOR)")
     ativo: bool = Field(default=True, description="Status do usuário (ativo/inativo)")
+
+    @model_validator(mode="after")
+    def validate_escola_for_role(self):
+        if self.role in ("DIRETOR", "COORDENADOR") and self.escola_id is None:
+            raise ValueError("escola_id é obrigatório para usuários DIRETOR ou COORDENADOR")
+        return self
 
 
 class UserLogin(BaseModel):
@@ -78,6 +85,7 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     nome: str
     role: str
+    escola_id: Optional[int] = None
     ativo: bool = True
     created_at: Optional[str] = None
 
@@ -92,6 +100,7 @@ class UserMeResponse(BaseModel):
     email: Union[str, None] = None
     nome: str
     role: str
+    escola_id: Union[int, None] = None
     ativo: bool
     created_at: Union[str, None] = None
     foto_url: Union[str, None] = None
@@ -111,14 +120,54 @@ class UserUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=1)
     email: Optional[EmailStr] = None
     role: Optional[VALID_ROLES] = None
+    escola_id: Optional[int] = None
     ativo: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=6, description="Nova senha (opcional)")
+
+    @model_validator(mode="after")
+    def validate_escola_for_role(self):
+        if self.role in ("DIRETOR", "COORDENADOR") and self.escola_id is None:
+            raise ValueError("escola_id é obrigatório para usuários DIRETOR ou COORDENADOR")
+        return self
 
 
 class ChangePasswordRequest(BaseModel):
     """Schema para alteração de senha."""
     current_password: str = Field(..., description="Senha atual")
     new_password: str = Field(..., min_length=6, description="Nova senha com no mínimo 6 caracteres")
+
+
+# ========== ESCOLAS ==========
+
+class EscolaCreate(BaseModel):
+    """Schema para criação de escola."""
+    nome_escola: str = Field(..., min_length=1, description="Nome da escola")
+    inep: str = Field(..., min_length=8, max_length=8, description="INEP (8 dígitos)")
+    cnpj: str = Field(..., min_length=14, max_length=14, description="CNPJ (14 dígitos)")
+    endereco: str = Field(..., min_length=1, description="Endereço")
+    cidade: str = Field(..., min_length=1, description="Cidade")
+    uf: str = Field(..., min_length=2, max_length=2, description="UF")
+    email: str = Field(..., description="E-mail")
+    telefone: str = Field(..., min_length=8, description="Telefone")
+
+
+class EscolaResponse(BaseModel):
+    """Schema para resposta de escola."""
+    id: int
+    nome_escola: str
+    inep: str
+    cnpj: str
+    endereco: str
+    cidade: str
+    uf: str
+    email: str
+    telefone: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 
 # ========== MODALIDADES ==========
 

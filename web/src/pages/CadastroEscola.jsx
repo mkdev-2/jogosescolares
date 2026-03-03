@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, School, Building2, User, Users, Trophy } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
+import { escolasService } from '../services/escolasService'
 
 const UFS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -196,7 +197,9 @@ export default function CadastroEscola() {
     if (errors.modalidades) setErrors((prev) => ({ ...prev, modalidades: undefined }))
   }
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validateForm(form)
     if (Object.keys(errs).length > 0) {
@@ -204,8 +207,26 @@ export default function CadastroEscola() {
       return
     }
     setErrors({})
-    setSuccess(true)
-    setForm(INITIAL_FORM)
+    setSubmitting(true)
+    try {
+      await escolasService.createPublico({
+        nome_escola: form.nomeRazaoSocial.trim(),
+        nomeRazaoSocial: form.nomeRazaoSocial.trim(),
+        inep: form.inep,
+        cnpj: form.cnpj,
+        endereco: form.endereco.trim(),
+        cidade: form.cidade.trim(),
+        uf: form.uf,
+        email: form.email.trim(),
+        telefone: form.telefone.trim(),
+      })
+      setSuccess(true)
+      setForm(INITIAL_FORM)
+    } catch (err) {
+      setErrors({ submit: err.message || 'Erro ao enviar cadastro. Tente novamente.' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (success) {
@@ -260,6 +281,11 @@ export default function CadastroEscola() {
 
       <div className="max-w-3xl mx-auto px-4 py-10">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {errors.submit && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {errors.submit}
+            </div>
+          )}
           {/* SEÇÃO INSTITUIÇÃO */}
           <SectionCard icon={Building2} title="INSTITUIÇÃO">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -594,9 +620,10 @@ export default function CadastroEscola() {
             </button>
             <button
               type="submit"
-              className="px-8 py-2.5 rounded-lg bg-primary text-white font-semibold uppercase tracking-wider hover:bg-primary/90 transition"
+              disabled={submitting}
+              className="px-8 py-2.5 rounded-lg bg-primary text-white font-semibold uppercase tracking-wider hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Enviar Cadastro
+              {submitting ? 'Enviando...' : 'Enviar Cadastro'}
             </button>
           </div>
         </form>

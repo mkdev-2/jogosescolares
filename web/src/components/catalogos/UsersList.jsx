@@ -1,18 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
+import { escolasService } from '../../services/escolasService'
 
 const ROLE_LABELS = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Admin',
   DIRETOR: 'Diretor',
+  COORDENADOR: 'Coordenador',
   MESARIO: 'Mesário',
 }
 
 export default function UsersList({ onNewUser, onEditUser }) {
   const { users, loading, error, fetchUsers, deleteUser } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
+  const [escolasMap, setEscolasMap] = useState({})
+
+  useEffect(() => {
+    escolasService.list().then((list) => {
+      const map = {}
+      list.forEach((e) => { map[e.id] = e.nome_escola })
+      setEscolasMap(map)
+    }).catch(() => setEscolasMap({}))
+  }, [])
 
   const filteredUsers = users.filter((u) => {
     const matchSearch =
@@ -132,6 +143,9 @@ export default function UsersList({ onNewUser, onEditUser }) {
                       Perfil
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Escola
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Status
                     </th>
                     <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -155,6 +169,9 @@ export default function UsersList({ onNewUser, onEditUser }) {
                         <span className="inline-block px-2 py-1 rounded-[6px] text-[0.8125rem] font-medium bg-[#e2e8f0] text-[#475569]">
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                        {u.escola_id ? (escolasMap[u.escola_id] || `ID ${u.escola_id}`) : '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span

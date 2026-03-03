@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
+import { escolasService } from '../../services/escolasService'
 
 const ROLES = [
   { value: 'SUPER_ADMIN', label: 'Super Admin' },
   { value: 'ADMIN', label: 'Admin' },
   { value: 'DIRETOR', label: 'Diretor' },
+  { value: 'COORDENADOR', label: 'Coordenador' },
   { value: 'MESARIO', label: 'Mesário' },
 ]
 
@@ -18,17 +20,27 @@ function formatCpfInput(value) {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`
 }
 
+const REQUIRES_ESCOLA = ['DIRETOR', 'COORDENADOR']
+
 export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
   const { createUser, updateUser, loading } = useUsers()
+  const [escolas, setEscolas] = useState([])
   const [formData, setFormData] = useState({
     cpf: '',
     nome: '',
     email: '',
     password: '',
     role: 'ADMIN',
+    escola_id: '',
     ativo: true,
   })
   const [errors, setErrors] = useState({})
+
+  useEffect(() => {
+    if (isOpen) {
+      escolasService.list().then(setEscolas).catch(() => setEscolas([]))
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (user) {
@@ -38,6 +50,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         email: user.email || '',
         password: '',
         role: user.role || 'ADMIN',
+        escola_id: user.escola_id ?? '',
         ativo: user.ativo !== undefined ? user.ativo : true,
       })
     } else {
@@ -47,6 +60,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         email: '',
         password: '',
         role: 'ADMIN',
+        escola_id: '',
         ativo: true,
       })
     }
@@ -76,6 +90,9 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
     if (!user && formData.password?.length > 0 && formData.password.length < 6) {
       newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
     }
+    if (REQUIRES_ESCOLA.includes(formData.role) && !formData.escola_id) {
+      newErrors.escola_id = 'Escola é obrigatória para Diretor e Coordenador'
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -95,6 +112,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
           nome: dataToSubmit.nome,
           email: dataToSubmit.email,
           role: dataToSubmit.role,
+          escola_id: REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null,
           ativo: dataToSubmit.ativo,
         }
         if (dataToSubmit.password?.trim()) updateData.password = dataToSubmit.password
@@ -102,7 +120,11 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         onSuccess?.()
         onClose()
       } else {
-        await createUser(dataToSubmit)
+        const createPayload = {
+          ...dataToSubmit,
+          escola_id: REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null,
+        }
+        await createUser(createPayload)
         onSuccess?.()
         onClose()
       }
@@ -260,6 +282,32 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
               ))}
             </select>
           </div>
+          {REQUIRES_ESCOLA.includes(formData.role) && (
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-sm font-semibold text-[#334155]" htmlFor="escola_id">
+                Escola <span className="text-[#dc2626]">*</span>
+              </label>
+              <select
+                id="escola_id"
+                name="escola_id"
+                value={formData.escola_id}
+                onChange={handleChange}
+                className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
+                  errors.escola_id ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+                }`}
+              >
+                <option value="">Selecione a escola</option>
+                {escolas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome_escola}
+                  </option>
+                ))}
+              </select>
+              {errors.escola_id && (
+                <span className="text-[0.8rem] text-[#dc2626]">{errors.escola_id}</span>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-1.5 justify-end">
             <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
               <input

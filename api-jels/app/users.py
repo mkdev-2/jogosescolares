@@ -34,6 +34,7 @@ def _row_to_response(row: dict) -> dict:
         "email": row.get("email"),
         "nome": row["nome"],
         "role": row["role"],
+        "escola_id": row.get("escola_id"),
         "ativo": row.get("ativo", True),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
     }
@@ -48,7 +49,7 @@ async def list_users(
     require_admin(current_user)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, cpf, email, nome, role, ativo, created_at FROM users ORDER BY nome"
+            "SELECT id, cpf, email, nome, role, escola_id, ativo, created_at FROM users ORDER BY nome"
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
@@ -64,7 +65,7 @@ async def get_user(
     require_admin(current_user)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, cpf, email, nome, role, ativo, created_at FROM users WHERE id = %s",
+            "SELECT id, cpf, email, nome, role, escola_id, ativo, created_at FROM users WHERE id = %s",
             (user_id,),
         )
         row = await cur.fetchone()
@@ -94,9 +95,9 @@ async def create_user(
 
         await cur.execute(
             """
-            INSERT INTO users (cpf, email, password_hash, nome, role, ativo)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, cpf, email, nome, role, ativo, created_at
+            INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, ativo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, cpf, email, nome, role, escola_id, ativo, created_at
             """,
             (
                 cpf_clean,
@@ -104,6 +105,7 @@ async def create_user(
                 hashed_password,
                 data.nome.strip(),
                 data.role,
+                data.escola_id if data.role in ("DIRETOR", "COORDENADOR") else None,
                 data.ativo if data.ativo is not None else True,
             ),
         )
@@ -142,6 +144,12 @@ async def update_user(
     if data.role is not None:
         updates.append("role = %s")
         values.append(data.role)
+    if data.escola_id is not None:
+        updates.append("escola_id = %s")
+        values.append(data.escola_id)
+    elif data.role is not None and data.role not in ("DIRETOR", "COORDENADOR"):
+        updates.append("escola_id = %s")
+        values.append(None)
     if data.ativo is not None:
         updates.append("ativo = %s")
         values.append(data.ativo)
@@ -160,7 +168,7 @@ async def update_user(
             f"""
             UPDATE users SET {", ".join(updates)}
             WHERE id = %s
-            RETURNING id, cpf, email, nome, role, ativo, created_at
+            RETURNING id, cpf, email, nome, role, escola_id, ativo, created_at
             """,
             values,
         )

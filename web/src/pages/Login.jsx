@@ -123,7 +123,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="mt-2 px-6 py-4 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white rounded-[12px] text-base font-semibold cursor-pointer transition-transform transition-shadow disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-[0_10px_25px_-5px_rgba(15,118,110,0.4)] active:translate-y-0"
+            className="mt-2 px-6 py-4 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white rounded-[12px] text-base font-semibold cursor-pointer transition-transform disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-[0_10px_25px_-5px_rgba(15,118,110,0.4)] active:translate-y-0"
             disabled={submitting}
           >
             {submitting ? 'Entrando...' : 'Entrar'}

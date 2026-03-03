@@ -44,6 +44,7 @@ export const usersService = {
       email: data.email?.trim() || null,
       password: data.password || '',
       role: data.role || 'ADMIN',
+      escola_id: data.escola_id ?? null,
       ativo: data.ativo !== undefined ? data.ativo : true,
     }
     const res = await apiFetch(BASE, {
@@ -58,6 +59,7 @@ export const usersService = {
     if (data.nome !== undefined) payload.nome = data.nome?.trim() ?? ''
     if (data.email !== undefined) payload.email = data.email?.trim() || null
     if (data.role !== undefined) payload.role = data.role
+    if (data.escola_id !== undefined) payload.escola_id = data.escola_id
     if (data.ativo !== undefined) payload.ativo = data.ativo
     if (data.password?.trim()) payload.password = data.password.trim()
 
