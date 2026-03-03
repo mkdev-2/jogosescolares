@@ -49,7 +49,8 @@ class Database:
             url = unquote(url)
             self._conn = await psycopg.AsyncConnection.connect(
                 url,
-                row_factory=dict_row
+                row_factory=dict_row,
+                application_name="api-jels",
             )
         return self._conn
 
@@ -66,6 +67,7 @@ class Database:
             if conn.info.transaction_status == psycopg.pq.TransactionStatus.INERROR:
                 await conn.rollback()
             yield conn
+            await conn.commit()
         except Exception:
             try:
                 await conn.rollback()
