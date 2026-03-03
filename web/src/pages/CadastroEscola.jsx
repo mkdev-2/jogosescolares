@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, School, Building2, User, Users, Trophy } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy, KeyRound, Info } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 
@@ -39,6 +39,9 @@ const INITIAL_FORM = {
   diretorNome: '',
   diretorCpf: '',
   diretorRg: '',
+  // LOGIN DO DIRETOR
+  loginCpf: '',
+  loginSenha: '',
   // COORDENADOR
   coordenadorNome: '',
   coordenadorCpf: '',
@@ -90,6 +93,12 @@ function validateForm(form) {
   }
   if (!form.diretorRg?.trim() || form.diretorRg.trim().length < 4) {
     err.diretorRg = 'RG é obrigatório'
+  }
+  if (onlyDigits(form.loginCpf).length !== 11) {
+    err.loginCpf = 'CPF do login deve conter 11 dígitos'
+  }
+  if (!form.loginSenha || form.loginSenha.length < 6) {
+    err.loginSenha = 'A senha deve ter pelo menos 6 caracteres'
   }
 
   // COORDENADOR
@@ -464,6 +473,51 @@ export default function CadastroEscola() {
                   className={`${inputClass} ${errors.diretorRg ? inputErrorClass : ''}`}
                 />
                 {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
+              </div>
+            </div>
+
+            {/* Criação de login do diretor */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center gap-2 mb-3">
+                <KeyRound className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-gray-900">Criação de login para o diretor</h3>
+              </div>
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-4 flex gap-3">
+                <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">
+                  O acesso ao sistema deverá ser autorizado pela SEMCEJ após a análise do cadastro. 
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="loginCpf" className={labelClass}>
+                    CPF (login) *
+                  </label>
+                  <input
+                    id="loginCpf"
+                    type="text"
+                    inputMode="numeric"
+                    value={form.loginCpf}
+                    onChange={(e) => updateField('loginCpf', maskCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className={`${inputClass} ${errors.loginCpf ? inputErrorClass : ''}`}
+                  />
+                  {errors.loginCpf && <p className={errorClass}>{errors.loginCpf}</p>}
+                </div>
+                <div>
+                  <label htmlFor="loginSenha" className={labelClass}>
+                    Senha *
+                  </label>
+                  <input
+                    id="loginSenha"
+                    type="password"
+                    value={form.loginSenha}
+                    onChange={(e) => updateField('loginSenha', e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className={`${inputClass} ${errors.loginSenha ? inputErrorClass : ''}`}
+                  />
+                  {errors.loginSenha && <p className={errorClass}>{errors.loginSenha}</p>}
+                </div>
               </div>
             </div>
           </SectionCard>
