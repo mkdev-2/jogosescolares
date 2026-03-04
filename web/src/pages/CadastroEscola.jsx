@@ -1,9 +1,45 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, School, Building2, User, Users, Trophy } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function isValidCpf(cpf) {
+  const digits = (cpf || '').replace(/\D/g, '')
+  if (digits.length !== 11) return false
+  if (/^(\d)\1{10}$/.test(digits)) return false
+  let sum = 0
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i], 10) * (10 - i)
+  let d1 = (sum * 10) % 11
+  if (d1 === 10) d1 = 0
+  if (d1 !== parseInt(digits[9], 10)) return false
+  sum = 0
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i], 10) * (11 - i)
+  let d2 = (sum * 10) % 11
+  if (d2 === 10) d2 = 0
+  return d2 === parseInt(digits[10], 10)
+}
+
+function isValidCnpj(cnpj) {
+  const digits = (cnpj || '').replace(/\D/g, '')
+  if (digits.length !== 14) return false
+  if (/^(\d)\1{13}$/.test(digits)) return false
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+  let sum = 0
+  for (let i = 0; i < 12; i++) sum += parseInt(digits[i], 10) * weights1[i]
+  let d1 = sum % 11
+  d1 = d1 < 2 ? 0 : 11 - d1
+  if (d1 !== parseInt(digits[12], 10)) return false
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+  sum = 0
+  for (let i = 0; i < 13; i++) sum += parseInt(digits[i], 10) * weights2[i]
+  let d2 = sum % 11
+  d2 = d2 < 2 ? 0 : 11 - d2
+  return d2 === parseInt(digits[13], 10)
+}
 
 const UFS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -32,8 +68,8 @@ const INITIAL_FORM = {
   inep: '',
   cnpj: '',
   endereco: '',
-  cidade: '',
-  uf: '',
+  cidade: 'Paço do Lumiar',
+  uf: 'MA',
   email: '',
   telefone: '',
   // DIRETOR (CPF = credencial de login; senha definida no formulário)
@@ -41,6 +77,7 @@ const INITIAL_FORM = {
   diretorCpf: '',
   diretorRg: '',
   diretorSenha: '',
+  diretorSenhaConfirm: '',
   // COORDENADOR
   coordenadorNome: '',
   coordenadorCpf: '',
@@ -54,7 +91,6 @@ const INITIAL_FORM = {
 
 function validateForm(form) {
   const err = {}
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const onlyDigits = (s) => (s || '').replace(/\D/g, '')
 
   // INSTITUIÇÃO
@@ -68,6 +104,8 @@ function validateForm(form) {
   const cnpjDigits = onlyDigits(form.cnpj)
   if (!cnpjDigits || cnpjDigits.length !== 14) {
     err.cnpj = 'CNPJ deve conter 14 dígitos'
+  } else if (!isValidCnpj(form.cnpj)) {
+    err.cnpj = 'CNPJ inválido'
   }
   if (!form.endereco?.trim() || form.endereco.trim().length < 5) {
     err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
@@ -76,11 +114,14 @@ function validateForm(form) {
     err.cidade = 'Cidade é obrigatória'
   }
   if (!form.uf) err.uf = 'Selecione a UF'
-  if (!form.email?.trim() || !emailRe.test(form.email)) {
+  if (!form.email?.trim()) {
+    err.email = 'E-mail é obrigatório'
+  } else if (!EMAIL_REGEX.test(form.email.trim())) {
     err.email = 'E-mail inválido'
   }
-  if (!form.telefone?.trim() || onlyDigits(form.telefone).length < 8) {
-    err.telefone = 'Telefone inválido'
+  const telDigits = onlyDigits(form.telefone)
+  if (!telDigits || telDigits.length < 10) {
+    err.telefone = 'Telefone inválido (mínimo 10 dígitos)'
   }
 
   // DIRETOR
@@ -89,12 +130,20 @@ function validateForm(form) {
   }
   if (onlyDigits(form.diretorCpf).length !== 11) {
     err.diretorCpf = 'CPF deve conter 11 dígitos'
+  } else if (!isValidCpf(form.diretorCpf)) {
+    err.diretorCpf = 'CPF inválido'
   }
-  if (!form.diretorRg?.trim() || form.diretorRg.trim().length < 4) {
-    err.diretorRg = 'RG é obrigatório'
+  const diretorRgDigits = onlyDigits(form.diretorRg)
+  if (!diretorRgDigits || diretorRgDigits.length < 4) {
+    err.diretorRg = 'RG é obrigatório (apenas números, máx. 11 dígitos)'
+  } else if (diretorRgDigits.length > 11) {
+    err.diretorRg = 'RG deve ter no máximo 11 dígitos'
   }
   if (!form.diretorSenha || form.diretorSenha.length < 6) {
     err.diretorSenha = 'A senha deve ter pelo menos 6 caracteres'
+  }
+  if (form.diretorSenha && form.diretorSenha !== (form.diretorSenhaConfirm ?? '')) {
+    err.diretorSenhaConfirm = 'As senhas devem coincidir'
   }
 
   // COORDENADOR
@@ -103,18 +152,26 @@ function validateForm(form) {
   }
   if (onlyDigits(form.coordenadorCpf).length !== 11) {
     err.coordenadorCpf = 'CPF deve conter 11 dígitos'
+  } else if (!isValidCpf(form.coordenadorCpf)) {
+    err.coordenadorCpf = 'CPF inválido'
   }
-  if (!form.coordenadorRg?.trim() || form.coordenadorRg.trim().length < 4) {
-    err.coordenadorRg = 'RG é obrigatório'
+  const coordRgDigits = onlyDigits(form.coordenadorRg)
+  if (!coordRgDigits || coordRgDigits.length < 4) {
+    err.coordenadorRg = 'RG é obrigatório (apenas números, máx. 11 dígitos)'
+  } else if (coordRgDigits.length > 11) {
+    err.coordenadorRg = 'RG deve ter no máximo 11 dígitos'
   }
   if (!form.coordenadorEndereco?.trim() || form.coordenadorEndereco.trim().length < 5) {
     err.coordenadorEndereco = 'Endereço deve ter pelo menos 5 caracteres'
   }
-  if (!form.coordenadorEmail?.trim() || !emailRe.test(form.coordenadorEmail)) {
+  if (!form.coordenadorEmail?.trim()) {
+    err.coordenadorEmail = 'E-mail é obrigatório'
+  } else if (!EMAIL_REGEX.test(form.coordenadorEmail.trim())) {
     err.coordenadorEmail = 'E-mail inválido'
   }
-  if (!form.coordenadorTelefone?.trim() || onlyDigits(form.coordenadorTelefone).length < 8) {
-    err.coordenadorTelefone = 'Telefone inválido'
+  const coordTelDigits = onlyDigits(form.coordenadorTelefone)
+  if (!coordTelDigits || coordTelDigits.length < 10) {
+    err.coordenadorTelefone = 'Telefone inválido (mínimo 10 dígitos)'
   }
 
   // MODALIDADES - pelo menos uma selecionada
@@ -160,6 +217,19 @@ function maskInep(value) {
   return value.replace(/\D/g, '').slice(0, 8)
 }
 
+function maskTelefone(value) {
+  const v = value.replace(/\D/g, '').slice(0, 11)
+  if (v.length === 0) return ''
+  if (v.length <= 2) return `(${v}`
+  if (v.length <= 6) return `(${v.slice(0, 2)}) ${v.slice(2)}`
+  if (v.length <= 10) return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`
+  return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
+}
+
+function maskRg(value) {
+  return value.replace(/\D/g, '').slice(0, 11)
+}
+
 function SectionCard({ icon: Icon, title, children }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -197,8 +267,19 @@ export default function CadastroEscola() {
   }, [])
 
   const updateField = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [field]: value }
+      return next
+    })
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+    if (field === 'diretorSenha' || field === 'diretorSenhaConfirm') {
+      setErrors((prev) => {
+        const pwd = field === 'diretorSenha' ? value : form.diretorSenha
+        const conf = field === 'diretorSenhaConfirm' ? value : form.diretorSenhaConfirm
+        const mismatch = pwd && String(conf ?? '').length > 0 && pwd !== (conf ?? '')
+        return { ...prev, diretorSenhaConfirm: mismatch ? 'As senhas devem coincidir' : undefined }
+      })
+    }
   }
 
   const updateModalidade = (cat, naipe, tipo, checked) => {
@@ -239,7 +320,7 @@ export default function CadastroEscola() {
         cidade: form.cidade.trim(),
         uf: form.uf,
         email: form.email.trim(),
-        telefone: form.telefone.trim(),
+        telefone: onlyDigits(form.telefone),
         diretor: {
           nome: form.diretorNome.trim(),
           cpf: onlyDigits(form.diretorCpf).slice(0, 11),
@@ -249,10 +330,10 @@ export default function CadastroEscola() {
         coordenador: {
           nome: form.coordenadorNome.trim(),
           cpf: onlyDigits(form.coordenadorCpf).slice(0, 11),
-          rg: form.coordenadorRg.trim(),
+          rg: onlyDigits(form.coordenadorRg),
           endereco: form.coordenadorEndereco.trim(),
           email: form.coordenadorEmail.trim(),
-          telefone: form.coordenadorTelefone.trim(),
+          telefone: onlyDigits(form.coordenadorTelefone),
         },
         modalidades: form.modalidades,
       })
@@ -450,8 +531,8 @@ export default function CadastroEscola() {
                   id="telefone"
                   type="tel"
                   value={form.telefone}
-                  onChange={(e) => updateField('telefone', e.target.value)}
-                  placeholder="(XX) XXXX-XXXX"
+                  onChange={(e) => updateField('telefone', maskTelefone(e.target.value))}
+                  placeholder="(XX) XXXXX-XXXX"
                   className={`${inputClass} ${errors.telefone ? inputErrorClass : ''}`}
                 />
                 {errors.telefone && <p className={errorClass}>{errors.telefone}</p>}
@@ -500,27 +581,53 @@ export default function CadastroEscola() {
                 <input
                   id="diretorRg"
                   type="text"
+                  inputMode="numeric"
                   value={form.diretorRg}
-                  onChange={(e) => updateField('diretorRg', e.target.value)}
-                  placeholder="Número do RG"
+                  onChange={(e) => updateField('diretorRg', maskRg(e.target.value))}
+                  placeholder="Apenas números, máx. 11 dígitos"
+                  maxLength={11}
                   className={`${inputClass} ${errors.diretorRg ? inputErrorClass : ''}`}
                 />
                 {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="diretorSenha" className={labelClass}>
-                  Senha (acesso do diretor ao sistema) *
-                </label>
-                <input
-                  id="diretorSenha"
-                  type="password"
-                  value={form.diretorSenha}
-                  onChange={(e) => updateField('diretorSenha', e.target.value)}
-                  placeholder="Mínimo 6 caracteres. O acesso será liberado após aprovação pela SEMCEJ."
-                  className={`${inputClass} ${errors.diretorSenha ? inputErrorClass : ''}`}
-                />
-                {errors.diretorSenha && <p className={errorClass}>{errors.diretorSenha}</p>}
+                <div className="flex items-start gap-2 px-3 py-2.5 mb-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800">
+                    <strong>Atenção:</strong> O acesso ao sistema só será liberado mediante confirmação por parte de um administrador da SEMCEJ.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="diretorSenha" className={labelClass}>
+                      Senha (acesso do diretor ao sistema) *
+                    </label>
+                    <input
+                      id="diretorSenha"
+                      type="password"
+                      value={form.diretorSenha}
+                      onChange={(e) => updateField('diretorSenha', e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
+                      className={`${inputClass} ${errors.diretorSenha ? inputErrorClass : ''}`}
+                    />
+                    {errors.diretorSenha && <p className={errorClass}>{errors.diretorSenha}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="diretorSenhaConfirm" className={labelClass}>
+                      Confirmar Senha *
+                    </label>
+                    <input
+                      id="diretorSenhaConfirm"
+                      type="password"
+                      value={form.diretorSenhaConfirm ?? ''}
+                      onChange={(e) => updateField('diretorSenhaConfirm', e.target.value)}
+                      placeholder="Repita a senha"
+                      className={`${inputClass} ${errors.diretorSenhaConfirm ? inputErrorClass : ''}`}
+                    />
+                    {errors.diretorSenhaConfirm && <p className={errorClass}>{errors.diretorSenhaConfirm}</p>}
+                  </div>
+                </div>
               </div>
             </div>
           </SectionCard>
@@ -566,9 +673,11 @@ export default function CadastroEscola() {
                 <input
                   id="coordenadorRg"
                   type="text"
+                  inputMode="numeric"
                   value={form.coordenadorRg}
-                  onChange={(e) => updateField('coordenadorRg', e.target.value)}
-                  placeholder="Número do RG"
+                  onChange={(e) => updateField('coordenadorRg', maskRg(e.target.value))}
+                  placeholder="Apenas números, máx. 11 dígitos"
+                  maxLength={11}
                   className={`${inputClass} ${errors.coordenadorRg ? inputErrorClass : ''}`}
                 />
                 {errors.coordenadorRg && <p className={errorClass}>{errors.coordenadorRg}</p>}
@@ -612,7 +721,7 @@ export default function CadastroEscola() {
                   id="coordenadorTelefone"
                   type="tel"
                   value={form.coordenadorTelefone}
-                  onChange={(e) => updateField('coordenadorTelefone', e.target.value)}
+                  onChange={(e) => updateField('coordenadorTelefone', maskTelefone(e.target.value))}
                   placeholder="(XX) XXXXX-XXXX"
                   className={`${inputClass} ${errors.coordenadorTelefone ? inputErrorClass : ''}`}
                 />
