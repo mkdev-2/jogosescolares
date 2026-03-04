@@ -23,6 +23,15 @@ logger = logging.getLogger(__name__)
 
 ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
 
+ALLOWED_CREATE_ROLES = {
+    "SUPER_ADMIN": ["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO"],
+    "ADMIN": ["ADMIN", "DIRETOR", "MESARIO"],
+    "DIRETOR": ["COORDENADOR"],
+    "COORDENADOR": [],
+    "MESARIO": [],
+}
+MAX_USERS_PER_ESCOLA = 3
+
 
 def is_admin(user: dict) -> bool:
     """Retorna True se o usuário é SUPER_ADMIN ou ADMIN."""
@@ -289,6 +298,10 @@ async def get_me(current_user: dict = Depends(get_current_user)):
             else str(current_user["created_at"])
         )
 
+    role = current_user.get("role", "")
+    allowed = ALLOWED_CREATE_ROLES.get(role, [])
+    can_create = len(allowed) > 0
+
     return UserMeResponse(
         id=current_user["id"],
         cpf=current_user.get("cpf"),
@@ -300,6 +313,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         status=current_user["status"],
         created_at=created_at,
         foto_url=current_user.get("foto_url"),
+        can_create_users=can_create,
+        allowed_roles_for_create=allowed,
+        max_users_per_escola=MAX_USERS_PER_ESCOLA,
     )
 
 

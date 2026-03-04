@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Settings } from 'lucide-react'
+import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Settings, UserCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -28,10 +28,11 @@ const menuGroups = [
   {
     label: 'Administrativo',
     icon: Users,
-    requiredRoles: ['SUPER_ADMIN', 'ADMIN'],
+    requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
     items: [
       { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
-      { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes' },
+      { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
+      { label: 'Usuários pendentes', path: '/app/administrativo', icon: UserCheck, tab: 'usuarios-pendentes', adminOnly: true },
     ],
   },
 ]
@@ -151,7 +152,10 @@ export default function AppLayout({ children }) {
                   </button>
                   {isExpanded && (
                     <ul className="flex flex-col gap-0.5 mt-0.5 ml-4 pl-4 border-l-2 border-[rgba(15,118,110,0.2)] list-none">
-                      {group.items.map((item) => {
+                      {group.items.filter((item) => {
+                        if (item.adminOnly && !['SUPER_ADMIN', 'ADMIN'].includes(user?.role)) return false
+                        return true
+                      }).map((item) => {
                         const ItemIcon = item.icon
                         const active = isActive(item.path, item)
                         const defaultTab = DEFAULT_TAB[item.path] || 'alunos'

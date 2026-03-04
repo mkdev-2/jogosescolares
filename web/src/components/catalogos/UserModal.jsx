@@ -4,7 +4,7 @@ import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
 import { escolasService } from '../../services/escolasService'
 
-const ROLES = [
+const ALL_ROLES = [
   { value: 'SUPER_ADMIN', label: 'Super Admin' },
   { value: 'ADMIN', label: 'Admin' },
   { value: 'DIRETOR', label: 'Diretor' },
@@ -22,9 +22,14 @@ function formatCpfInput(value) {
 
 const REQUIRES_ESCOLA = ['DIRETOR', 'COORDENADOR']
 
-export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
+export default function UserModal({ isOpen, onClose, user = null, currentUser, onSuccess }) {
   const { createUser, updateUser, loading } = useUsers()
   const [escolas, setEscolas] = useState([])
+  const allowedRoles = currentUser?.allowed_roles_for_create ?? []
+  const isDiretor = currentUser?.role === 'DIRETOR'
+  const ROLES = allowedRoles.length > 0
+    ? ALL_ROLES.filter((r) => allowedRoles.includes(r.value))
+    : ALL_ROLES
   const [formData, setFormData] = useState({
     cpf: '',
     nome: '',
@@ -54,18 +59,19 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         status: user.status || 'ATIVO',
       })
     } else {
+      const defaultRole = allowedRoles[0] || 'ADMIN'
       setFormData({
         cpf: '',
         nome: '',
         email: '',
         password: '',
-        role: 'ADMIN',
-        escola_id: '',
+        role: defaultRole,
+        escola_id: isDiretor ? (currentUser?.escola_id ?? '') : '',
         status: 'ATIVO',
       })
     }
     setErrors({})
-  }, [user, isOpen])
+  }, [user, isOpen, isDiretor, currentUser?.escola_id, currentUser?.allowed_roles_for_create])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -90,7 +96,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
     if (!user && formData.password?.length > 0 && formData.password.length < 6) {
       newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
     }
-    if (REQUIRES_ESCOLA.includes(formData.role) && !formData.escola_id) {
+    if (REQUIRES_ESCOLA.includes(formData.role) && !isDiretor && !formData.escola_id) {
       newErrors.escola_id = 'Escola é obrigatória para Diretor e Coordenador'
     }
     setErrors(newErrors)
@@ -120,9 +126,12 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         onSuccess?.()
         onClose()
       } else {
+        const escolaId = isDiretor
+          ? currentUser?.escola_id
+          : (REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null)
         const createPayload = {
           ...dataToSubmit,
-          escola_id: REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null,
+          escola_id: escolaId,
           status: dataToSubmit.status || 'ATIVO',
         }
         await createUser(createPayload)
@@ -274,7 +283,8 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+              disabled={user && (isDiretor || currentUser?.role === 'COORDENADOR')}
+              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -283,7 +293,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
               ))}
             </select>
           </div>
-          {REQUIRES_ESCOLA.includes(formData.role) && (
+          {REQUIRES_ESCOLA.includes(formData.role) && !isDiretor && (
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-sm font-semibold text-[#334155]" htmlFor="escola_id">
                 Escola <span className="text-[#dc2626]">*</span>
@@ -307,6 +317,22 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
               {errors.escola_id && (
                 <span className="text-[0.8rem] text-[#dc2626]">{errors.escola_id}</span>
               )}
+            </div>
+          )}
+          {REQUIRES_ESCOLA.includes(formData.role) && isDiretor && !user && (
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-sm font-semibold text-[#334155]">Escola</label>
+              <p className="px-3 py-2.5 bg-[#f1f5f9] rounded-[8px] text-[#475569]">
+                O coordenador será vinculado à sua escola automaticamente.
+              </p>
+            </div>
+          )}
+          {REQUIRES_ESCOLA.includes(formData.role) && (isDiretor || currentUser?.role === 'COORDENADOR') && user && (
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-sm font-semibold text-[#334155]">Escola</label>
+              <p className="px-3 py-2.5 bg-[#f1f5f9] rounded-[8px] text-[#475569]">
+                {escolas.find((e) => e.id === Number(formData.escola_id))?.nome_escola || `ID ${formData.escola_id}`}
+              </p>
             </div>
           )}
           <div className="flex flex-col gap-1.5">

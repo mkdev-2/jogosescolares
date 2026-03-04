@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 import UsersList from '../components/catalogos/UsersList'
 import UserModal from '../components/catalogos/UserModal'
 
 export default function Usuarios({ embedded }) {
+  const { user } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
   const [userSelecionado, setUserSelecionado] = useState(null)
 
@@ -41,6 +43,7 @@ export default function Usuarios({ embedded }) {
 
       <div className="flex-1">
         <UsersList
+          currentUser={user}
           onNewUser={handleNewUser}
           onEditUser={handleEditUser}
         />
@@ -50,6 +53,7 @@ export default function Usuarios({ embedded }) {
         isOpen={modalOpen}
         onClose={handleModalClose}
         user={userSelecionado}
+        currentUser={user}
         onSuccess={handleModalSuccess}
       />
     </div>

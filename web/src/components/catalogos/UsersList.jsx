@@ -12,7 +12,7 @@ const ROLE_LABELS = {
   MESARIO: 'Mesário',
 }
 
-export default function UsersList({ onNewUser, onEditUser }) {
+export default function UsersList({ currentUser, onNewUser, onEditUser }) {
   const { users, loading, error, fetchUsers, deleteUser } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
   const [escolasMap, setEscolasMap] = useState({})
@@ -48,8 +48,19 @@ export default function UsersList({ onNewUser, onEditUser }) {
     }
   }
 
+  const canCreate = currentUser?.can_create_users ?? false
+  const isDiretor = currentUser?.role === 'DIRETOR'
+  const maxPerEscola = currentUser?.max_users_per_escola ?? 3
+  const usersInSchool = isDiretor ? users.filter((u) => u.escola_id === currentUser?.escola_id) : []
+
   return (
     <div className="flex flex-col gap-6">
+      {isDiretor && (
+        <div className="px-4 py-3 bg-[#ecfdf5] border border-[#a7f3d0] text-[#065f46] rounded-[10px] text-sm">
+          <strong>Limite por escola:</strong> Sua escola pode ter no máximo {maxPerEscola} usuários (1 diretor + 2 coordenadores).
+          Atualmente: {usersInSchool.length} de {maxPerEscola}.
+        </div>
+      )}
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
         <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex-1">
@@ -78,7 +89,7 @@ export default function UsersList({ onNewUser, onEditUser }) {
             className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
-        {onNewUser && (
+        {canCreate && onNewUser && (
           <button
             type="button"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
@@ -113,9 +124,9 @@ export default function UsersList({ onNewUser, onEditUser }) {
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
                 {searchTerm
                   ? 'Tente ajustar o termo de busca'
-                  : 'Comece criando um novo usuário'}
+                  : canCreate ? 'Comece criando um novo usuário' : 'Nenhum usuário vinculado à sua escola'}
               </p>
-              {onNewUser && (
+              {canCreate && onNewUser && (
                 <button
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
                   onClick={onNewUser}

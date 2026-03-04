@@ -1,27 +1,31 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Users, Settings, UserCheck } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
 import UsuariosPendentes from './UsuariosPendentes'
 
-const TABS = [
+const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
-  { id: 'usuarios-pendentes', label: 'Usuários pendentes', icon: UserCheck },
-  { id: 'configuracoes', label: 'Configurações', icon: Settings },
+  { id: 'usuarios-pendentes', label: 'Usuários pendentes', icon: UserCheck, adminOnly: true },
+  { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
 ]
 
-const TAB_IDS = ['usuarios', 'usuarios-pendentes', 'configuracoes']
-
 export default function Administrativo() {
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role)
+  const TABS = ALL_TABS.filter((t) => !t.adminOnly || isAdmin)
+  const TAB_IDS = TABS.map((t) => t.id)
   const tabFromUrl = searchParams.get('tab') || 'usuarios'
   const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'usuarios')
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'usuarios'
     if (TAB_IDS.includes(t)) setActiveTab(t)
-  }, [searchParams])
+    else setActiveTab('usuarios')
+  }, [searchParams, TAB_IDS])
 
   return (
     <div className="flex flex-col gap-6">

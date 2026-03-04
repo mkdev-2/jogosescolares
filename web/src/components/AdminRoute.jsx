@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import AppLayout from './layout/AppLayout'
 import PageTransition from './ui/PageTransition'
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR']
 
 export default function AdminRoute() {
   const { user, loading } = useAuth()

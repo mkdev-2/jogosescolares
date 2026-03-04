@@ -108,6 +108,9 @@ class UserMeResponse(BaseModel):
     status: VALID_STATUS
     created_at: Union[str, None] = None
     foto_url: Union[str, None] = None
+    can_create_users: bool = False
+    allowed_roles_for_create: list[str] = Field(default_factory=list)
+    max_users_per_escola: int = 3
 
     class Config:
         from_attributes = True
