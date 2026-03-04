@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Users, Search, Plus } from 'lucide-react'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
 
-export default function ProfessoresTecnicosList({ lista = [], loading, error, onNewProfessor }) {
+export default function ProfessoresTecnicosList({ lista = [], loading, error, onNewProfessor, showInstituicao = false }) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -12,10 +12,12 @@ export default function ProfessoresTecnicosList({ lista = [], loading, error, on
     const cpf = (item.cpf || '').replace(/\D/g, '')
     const cpfSearch = searchTerm.replace(/\D/g, '')
     const cref = (item.cref || '').toLowerCase()
+    const instituicao = (item.escola_nome || '').toLowerCase()
     return (
       nome.includes(term) ||
       (cpfSearch && cpf.includes(cpfSearch)) ||
-      cref.includes(term)
+      cref.includes(term) ||
+      (showInstituicao && instituicao.includes(term))
     )
   })
 
@@ -101,6 +103,11 @@ export default function ProfessoresTecnicosList({ lista = [], loading, error, on
               <table className="w-full border-collapse min-w-[400px]">
                 <thead>
                   <tr>
+                    {showInstituicao && (
+                      <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Instituição
+                      </th>
+                    )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Nome
                     </th>
@@ -115,6 +122,11 @@ export default function ProfessoresTecnicosList({ lista = [], loading, error, on
                 <tbody>
                   {filteredLista.map((item) => (
                     <tr key={item.id ?? item.cpf ?? item.nome} className="hover:bg-[#f8fafc]">
+                      {showInstituicao && (
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                          {item.escola_nome || '-'}
+                        </td>
+                      )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {item.nome}
                       </td>

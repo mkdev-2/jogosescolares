@@ -21,6 +21,13 @@ from app.database import get_db
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
 
+ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
+
+
+def is_admin(user: dict) -> bool:
+    """Retorna True se o usuário é SUPER_ADMIN ou ADMIN."""
+    return (user or {}).get("role") in ADMIN_ROLES
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 

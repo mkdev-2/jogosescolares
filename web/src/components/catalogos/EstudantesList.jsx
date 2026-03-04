@@ -14,7 +14,7 @@ function formatDate(str) {
   }
 }
 
-export default function EstudantesList({ lista = [], loading, error, onNewAluno }) {
+export default function EstudantesList({ lista = [], loading, error, onNewAluno, showInstituicao = false }) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -25,11 +25,13 @@ export default function EstudantesList({ lista = [], loading, error, onNewAluno 
     const cpf = (item.cpf || '').replace(/\D/g, '')
     const cpfSearch = searchTerm.replace(/\D/g, '')
     const responsavel = (item.responsavel_nome || '').toLowerCase()
+    const instituicao = (item.escola_nome || '').toLowerCase()
     return (
       nome.includes(term) ||
       email.includes(term) ||
       (cpfSearch && cpf.includes(cpfSearch)) ||
-      responsavel.includes(term)
+      responsavel.includes(term) ||
+      (showInstituicao && instituicao.includes(term))
     )
   })
 
@@ -115,6 +117,11 @@ export default function EstudantesList({ lista = [], loading, error, onNewAluno 
               <table className="w-full border-collapse min-w-[800px]">
                 <thead>
                   <tr>
+                    {showInstituicao && (
+                      <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Instituição
+                      </th>
+                    )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Nome
                     </th>
@@ -141,6 +148,11 @@ export default function EstudantesList({ lista = [], loading, error, onNewAluno 
                 <tbody>
                   {filteredLista.map((item) => (
                     <tr key={item.id ?? item.cpf ?? item.nome} className="hover:bg-[#f8fafc]">
+                      {showInstituicao && (
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                          {item.escola_nome || '-'}
+                        </td>
+                      )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {item.nome}
                       </td>

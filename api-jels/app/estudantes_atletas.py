@@ -7,7 +7,7 @@ import psycopg
 from psycopg import errors as pg_errors
 
 from app.schemas import EstudanteAtletaCreate, EstudanteAtletaResponse
-from app.auth import get_current_user_with_escola
+from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/estudantes-atletas", tags=["estudantes-atletas"])
@@ -19,6 +19,7 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
     return EstudanteAtletaResponse(
         id=row["id"],
         escola_id=row["escola_id"],
+        escola_nome=row.get("escola_nome"),
         nome=row["nome"],
         cpf=row.get("cpf", ""),
         rg=row.get("rg"),
@@ -42,23 +43,45 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
 @router.get("", response_model=list[EstudanteAtletaResponse])
 async def list_estudantes_atletas(
     conn: psycopg.AsyncConnection = Depends(get_db),
-    current_user: dict = Depends(get_current_user_with_escola),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Lista estudantes-atletas da escola do usuário logado."""
-    escola_id = current_user["escola_id"]
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            SELECT id, escola_id, nome, cpf, rg, data_nascimento, sexo, email, endereco, cep,
-                   numero_registro_confederacao, responsavel_nome, responsavel_cpf, responsavel_rg,
-                   responsavel_celular, responsavel_email, responsavel_nis, created_at, updated_at
-            FROM estudantes_atletas
-            WHERE escola_id = %s
-            ORDER BY nome
-            """,
-            (escola_id,),
-        )
-        rows = await cur.fetchall()
+    """Lista estudantes-atletas: admin vê todos; diretor/coordenador vê apenas da sua escola."""
+    if is_admin(current_user):
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                       e.endereco, e.cep, e.numero_registro_confederacao, e.responsavel_nome,
+                       e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                       e.responsavel_nis, e.created_at, e.updated_at, s.nome AS escola_nome
+                FROM estudantes_atletas e
+                LEFT JOIN escolas s ON s.id = e.escola_id
+                ORDER BY s.nome NULLS LAST, e.nome
+                """,
+            )
+            rows = await cur.fetchall()
+    else:
+        escola_id = current_user.get("escola_id")
+        if escola_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
+            )
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                       e.endereco, e.cep, e.numero_registro_confederacao, e.responsavel_nome,
+                       e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                       e.responsavel_nis, e.created_at, e.updated_at, s.nome AS escola_nome
+                FROM estudantes_atletas e
+                LEFT JOIN escolas s ON s.id = e.escola_id
+                WHERE e.escola_id = %s
+                ORDER BY e.nome
+                """,
+                (escola_id,),
+            )
+            rows = await cur.fetchall()
     return [_row_to_response(dict(r)) for r in rows]
 
 

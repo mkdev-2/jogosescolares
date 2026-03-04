@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Users, GraduationCap, UsersRound } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEquipes from '../hooks/useEquipes'
@@ -13,6 +14,8 @@ import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
 import ProfessorTecnicoModal from '../components/catalogos/ProfessorTecnicoModal'
 import EquipeModal from '../components/catalogos/EquipeModal'
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
+
 const TABS = [
   { id: 'alunos', label: 'Alunos', icon: Users },
   { id: 'professores', label: 'Professores', icon: GraduationCap },
@@ -22,6 +25,8 @@ const TABS = [
 const TAB_IDS = ['alunos', 'professores', 'equipes']
 
 export default function Gestao() {
+  const { user } = useAuth()
+  const isAdmin = user && ADMIN_ROLES.includes(user.role)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') || 'alunos'
   const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'alunos')
@@ -84,7 +89,8 @@ export default function Gestao() {
                 lista={listaEstudantes}
                 loading={loadingEstudantes}
                 error={errorEstudantes}
-                onNewAluno={() => setModalEstudanteOpen(true)}
+                onNewAluno={isAdmin ? undefined : () => setModalEstudanteOpen(true)}
+                showInstituicao={isAdmin}
               />
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
@@ -102,7 +108,8 @@ export default function Gestao() {
                 lista={listaProfessores}
                 loading={loadingProfessores}
                 error={errorProfessores}
-                onNewProfessor={() => setModalProfessorOpen(true)}
+                onNewProfessor={isAdmin ? undefined : () => setModalProfessorOpen(true)}
+                showInstituicao={isAdmin}
               />
               <ProfessorTecnicoModal
                 open={modalProfessorOpen}
@@ -120,7 +127,8 @@ export default function Gestao() {
                 lista={listaEquipes}
                 loading={loadingEquipes}
                 error={errorEquipes}
-                onNewEquipe={() => setModalEquipeOpen(true)}
+                onNewEquipe={isAdmin ? undefined : () => setModalEquipeOpen(true)}
+                showInstituicao={isAdmin}
               />
               <EquipeModal
                 open={modalEquipeOpen}

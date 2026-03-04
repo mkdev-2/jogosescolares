@@ -69,9 +69,9 @@ export default function Login() {
               className="block h-[130px] w-auto max-w-[280px] object-contain mb-4 mx-auto"
             />
             <h1 className="font-['Plus_Jakarta_Sans',system-ui,sans-serif] text-[1.75rem] font-bold text-[#042f2e] mb-1 tracking-[-0.02em]">
-              Jogos Escolares
+              
             </h1>
-            <p className="text-[0.9rem] text-[#64748b] m-0">Acesso administrativo</p>
+            <p className="text-[0.9rem] text-[#64748b] m-0"></p>
           </div>
         </header>
 
@@ -130,9 +130,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="mt-6 text-[0.8rem] text-[#94a3b8] text-center">
-          Use o CPF e senha do administrador para acessar o sistema.
-        </p>
+      
       </div>
     </div>
   )

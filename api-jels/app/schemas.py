@@ -243,6 +243,7 @@ class EstudanteAtletaResponse(BaseModel):
     """Schema para resposta de estudante-atleta."""
     id: int
     escola_id: int
+    escola_nome: Optional[str] = None
     nome: str
     cpf: str
     rg: Optional[str] = None
@@ -278,6 +279,7 @@ class ProfessorTecnicoResponse(BaseModel):
     """Schema para resposta de professor-técnico."""
     id: int
     escola_id: int
+    escola_nome: Optional[str] = None
     nome: str
     cpf: str
     cref: str
@@ -309,6 +311,7 @@ class EquipeResponse(BaseModel):
     """Schema para resposta de equipe (com modalidade, categoria, técnico e estudantes)."""
     id: int
     escola_id: int
+    escola_nome: Optional[str] = None
     modalidade_id: str
     categoria_id: str
     modalidade_nome: Optional[str] = None

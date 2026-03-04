@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 
 from app.schemas import ProfessorTecnicoCreate, ProfessorTecnicoResponse
-from app.auth import get_current_user_with_escola
+from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/professores-tecnicos", tags=["professores-tecnicos"])
@@ -18,6 +18,7 @@ def _row_to_response(row: dict) -> ProfessorTecnicoResponse:
     return ProfessorTecnicoResponse(
         id=row["id"],
         escola_id=row["escola_id"],
+        escola_nome=row.get("escola_nome"),
         nome=row["nome"],
         cpf=row.get("cpf", ""),
         cref=row["cref"],
@@ -29,21 +30,41 @@ def _row_to_response(row: dict) -> ProfessorTecnicoResponse:
 @router.get("", response_model=list[ProfessorTecnicoResponse])
 async def list_professores_tecnicos(
     conn: psycopg.AsyncConnection = Depends(get_db),
-    current_user: dict = Depends(get_current_user_with_escola),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Lista professores-técnicos da escola do usuário logado."""
-    escola_id = current_user["escola_id"]
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            SELECT id, escola_id, nome, cpf, cref, created_at, updated_at
-            FROM professores_tecnicos
-            WHERE escola_id = %s
-            ORDER BY nome
-            """,
-            (escola_id,),
-        )
-        rows = await cur.fetchall()
+    """Lista professores-técnicos: admin vê todos; diretor/coordenador vê apenas da sua escola."""
+    if is_admin(current_user):
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+                       s.nome AS escola_nome
+                FROM professores_tecnicos p
+                LEFT JOIN escolas s ON s.id = p.escola_id
+                ORDER BY s.nome NULLS LAST, p.nome
+                """,
+            )
+            rows = await cur.fetchall()
+    else:
+        escola_id = current_user.get("escola_id")
+        if escola_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
+            )
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+                       s.nome AS escola_nome
+                FROM professores_tecnicos p
+                LEFT JOIN escolas s ON s.id = p.escola_id
+                WHERE p.escola_id = %s
+                ORDER BY p.nome
+                """,
+                (escola_id,),
+            )
+            rows = await cur.fetchall()
     return [_row_to_response(dict(r)) for r in rows]
 
 

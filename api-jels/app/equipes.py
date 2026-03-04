@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 
 from app.schemas import EquipeCreate, EquipeResponse, EquipeEstudanteItem
-from app.auth import get_current_user_with_escola
+from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/equipes", tags=["equipes"])
@@ -18,6 +18,7 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
     return EquipeResponse(
         id=row["id"],
         escola_id=row["escola_id"],
+        escola_nome=row.get("escola_nome"),
         modalidade_id=row["modalidade_id"],
         categoria_id=row["categoria_id"],
         modalidade_nome=row.get("modalidade_nome"),
@@ -33,26 +34,51 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
 @router.get("", response_model=list[EquipeResponse])
 async def list_equipes(
     conn: psycopg.AsyncConnection = Depends(get_db),
-    current_user: dict = Depends(get_current_user_with_escola),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Lista equipes da escola do usuário logado, com modalidade, categoria, técnico e estudantes."""
-    escola_id = current_user["escola_id"]
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
-                   e.created_at, e.updated_at,
-                   m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome
-            FROM equipes e
-            LEFT JOIN modalidades m ON m.id = e.modalidade_id
-            LEFT JOIN categorias c ON c.id = e.categoria_id
-            LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
-            WHERE e.escola_id = %s
-            ORDER BY e.id
-            """,
-            (escola_id,),
-        )
-        rows = await cur.fetchall()
+    """Lista equipes: admin vê todas; diretor/coordenador vê apenas da sua escola."""
+    if is_admin(current_user):
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
+                       e.created_at, e.updated_at,
+                       m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
+                       s.nome AS escola_nome
+                FROM equipes e
+                LEFT JOIN modalidades m ON m.id = e.modalidade_id
+                LEFT JOIN categorias c ON c.id = e.categoria_id
+                LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+                LEFT JOIN escolas s ON s.id = e.escola_id
+                ORDER BY s.nome NULLS LAST, e.id
+                """,
+            )
+            rows = await cur.fetchall()
+    else:
+        escola_id = current_user.get("escola_id")
+        if escola_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
+            )
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
+                       e.created_at, e.updated_at,
+                       m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
+                       s.nome AS escola_nome
+                FROM equipes e
+                LEFT JOIN modalidades m ON m.id = e.modalidade_id
+                LEFT JOIN categorias c ON c.id = e.categoria_id
+                LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+                LEFT JOIN escolas s ON s.id = e.escola_id
+                WHERE e.escola_id = %s
+                ORDER BY e.id
+                """,
+                (escola_id,),
+            )
+            rows = await cur.fetchall()
 
     result = []
     async with conn.cursor() as cur:

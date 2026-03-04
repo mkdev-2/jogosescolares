@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Users, Search, Plus, Trophy } from 'lucide-react'
 
-export default function EquipesList({ lista = [], loading, error, onNewEquipe }) {
+export default function EquipesList({ lista = [], loading, error, onNewEquipe, showInstituicao = false }) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -10,7 +10,13 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe })
     const modalidade = (item.modalidade_nome || item.modalidade?.nome || '').toLowerCase()
     const categoria = (item.categoria_nome || item.categoria?.nome || '').toLowerCase()
     const tecnico = (item.professor_tecnico_nome || item.professor_tecnico?.nome || '').toLowerCase()
-    return modalidade.includes(term) || categoria.includes(term) || tecnico.includes(term)
+    const instituicao = (item.escola_nome || '').toLowerCase()
+    return (
+      modalidade.includes(term) ||
+      categoria.includes(term) ||
+      tecnico.includes(term) ||
+      (showInstituicao && instituicao.includes(term))
+    )
   })
 
   const getModalidadeNome = (item) => item.modalidade_nome || item.modalidade?.nome || '-'
@@ -100,6 +106,11 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe })
               <table className="w-full border-collapse min-w-[500px]">
                 <thead>
                   <tr>
+                    {showInstituicao && (
+                      <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Instituição
+                      </th>
+                    )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Modalidade
                     </th>
@@ -117,6 +128,11 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe })
                 <tbody>
                   {filteredLista.map((item) => (
                     <tr key={item.id} className="hover:bg-[#f8fafc]">
+                      {showInstituicao && (
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                          {item.escola_nome || '-'}
+                        </td>
+                      )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {getModalidadeNome(item)}
                       </td>
