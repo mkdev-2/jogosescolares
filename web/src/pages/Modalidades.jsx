@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import ModalidadesList from '../components/catalogos/ModalidadesList'
 import ModalidadeModal from '../components/catalogos/ModalidadeModal'
+import useModalidades from '../hooks/useModalidades'
 
 export default function Modalidades() {
+  const useModalidadesState = useModalidades()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalidadeSelecionada, setModalidadeSelecionada] = useState(null)
 
@@ -39,6 +41,7 @@ export default function Modalidades() {
 
       <div className="flex-1">
         <ModalidadesList
+          {...useModalidadesState}
           onNewModalidade={handleNewModalidade}
           onEditModalidade={handleEditModalidade}
         />
@@ -49,6 +52,9 @@ export default function Modalidades() {
         onClose={handleModalClose}
         modalidade={modalidadeSelecionada}
         onSuccess={handleModalSuccess}
+        createModalidade={useModalidadesState.createModalidade}
+        updateModalidade={useModalidadesState.updateModalidade}
+        loading={useModalidadesState.loading}
       />
     </div>
   )

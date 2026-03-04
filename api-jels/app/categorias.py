@@ -141,10 +141,11 @@ async def delete_categoria(
     """Remove categoria (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT COUNT(*) FROM modalidades WHERE categoria_id = %s",
+            "SELECT COUNT(*) AS cnt FROM modalidades WHERE categoria_id = %s",
             (categoria_id,),
         )
-        count = (await cur.fetchone())[0]
+        row = await cur.fetchone()
+        count = row["cnt"] if row else 0
     if count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

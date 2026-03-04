@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
-import useCategorias from '../../hooks/useCategorias'
 
-export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess }) {
-  const { createCategoria, updateCategoria, loading } = useCategorias()
+export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess, createCategoria, updateCategoria, loading }) {
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',

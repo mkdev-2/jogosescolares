@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { School, Search, CheckCircle, Loader2 } from 'lucide-react'
+import { Popconfirm } from 'antd'
 import { escolasService } from '../services/escolasService'
 
 export default function UsuariosPendentes({ embedded }) {
@@ -24,7 +25,6 @@ export default function UsuariosPendentes({ embedded }) {
   }, [])
 
   const handleAprovar = async (escolaId) => {
-    if (!window.confirm('Confirma a aprovação desta adesão? O usuário diretor será criado e poderá acessar o sistema.')) return
     setAprovandoId(escolaId)
     try {
       await escolasService.aprovarAdesao(escolaId)
@@ -134,19 +134,26 @@ export default function UsuariosPendentes({ embedded }) {
                     {a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '-'}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleAprovar(a.id)}
-                      disabled={aprovandoId === a.id}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
+                    <Popconfirm
+                      title="Aprovar adesão"
+                      description="Confirma a aprovação desta adesão? O usuário diretor será criado e poderá acessar o sistema."
+                      onConfirm={() => handleAprovar(a.id)}
+                      okText="Sim, aprovar"
+                      cancelText="Cancelar"
                     >
-                      {aprovandoId === a.id ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <CheckCircle size={16} />
-                      )}
-                      Aprovar
-                    </button>
+                      <button
+                        type="button"
+                        disabled={aprovandoId === a.id}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {aprovandoId === a.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <CheckCircle size={16} />
+                        )}
+                        Aprovar
+                      </button>
+                    </Popconfirm>
                   </td>
                 </tr>
               ))}

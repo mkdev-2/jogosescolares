@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react'
 import { Activity, LayoutGrid, Search, Filter, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Popconfirm } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 import useModalidades from '../../hooks/useModalidades'
 
-export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
-  const {
-    modalidades,
-    loading,
-    error,
-    fetchModalidades,
-    deleteModalidade,
-    getEstatisticas,
-  } = useModalidades()
+export default function ModalidadesList({
+  onNewModalidade,
+  onEditModalidade,
+  modalidades: modalidadesProp,
+  loading: loadingProp,
+  error: errorProp,
+  fetchModalidades: fetchModalidadesProp,
+  deleteModalidade: deleteModalidadeProp,
+  getEstatisticas: getEstatisticasProp,
+}) {
+  const hookState = useModalidades()
+  const modalidades = modalidadesProp ?? hookState.modalidades
+  const loading = loadingProp ?? hookState.loading
+  const error = errorProp ?? hookState.error
+  const fetchModalidades = fetchModalidadesProp ?? hookState.fetchModalidades
+  const deleteModalidade = deleteModalidadeProp ?? hookState.deleteModalidade
+  const getEstatisticas = getEstatisticasProp ?? hookState.getEstatisticas
 
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategoria, setFilterCategoria] = useState('')
@@ -28,17 +37,11 @@ export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
   }, [searchTerm, filterCategoria, fetchModalidades])
 
   const handleDelete = async (modalidade) => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja excluir a modalidade "${modalidade.nome}"?`
-      )
-    ) {
-      try {
-        await deleteModalidade(modalidade.id)
-        fetchModalidades({ search: searchTerm, categoria: filterCategoria })
-      } catch (err) {
-        alert(err.message || 'Erro ao excluir')
-      }
+    try {
+      await deleteModalidade(modalidade.id)
+      fetchModalidades({ search: searchTerm, categoria: filterCategoria })
+    } catch (err) {
+      alert(err.message || 'Erro ao excluir')
     }
   }
 
@@ -182,6 +185,9 @@ export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
                       Categoria
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Máx. Atletas
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Requisitos
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -217,6 +223,9 @@ export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                        {m.limite_atletas ?? '-'}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span className="block max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
                           {m.requisitos || '-'}
                         </span>
@@ -244,14 +253,22 @@ export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
                               <Pencil size={18} />
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                            onClick={() => handleDelete(m)}
-                            title="Excluir"
+                          <Popconfirm
+                            title="Excluir modalidade"
+                            description={`Tem certeza que deseja excluir a modalidade "${m.nome}"?`}
+                            onConfirm={() => handleDelete(m)}
+                            okText="Sim, excluir"
+                            cancelText="Cancelar"
+                            okButtonProps={{ danger: true }}
                           >
-                            <Trash2 size={18} />
-                          </button>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                              title="Excluir"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </Popconfirm>
                         </div>
                       </td>
                     </tr>

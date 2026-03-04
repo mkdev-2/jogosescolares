@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import CategoriasList from '../components/catalogos/CategoriasList'
 import CategoriaModal from '../components/catalogos/CategoriaModal'
+import useCategorias from '../hooks/useCategorias'
 
 export default function Categorias() {
+  const useCategoriasState = useCategorias()
   const [modalOpen, setModalOpen] = useState(false)
   const [categoriaSelecionada, setCategoriaSelecionada] = useState(null)
 
@@ -39,6 +41,7 @@ export default function Categorias() {
 
       <div className="flex-1">
         <CategoriasList
+          {...useCategoriasState}
           onNewCategoria={handleNewCategoria}
           onEditCategoria={handleEditCategoria}
         />
@@ -49,6 +52,9 @@ export default function Categorias() {
         onClose={handleModalClose}
         categoria={categoriaSelecionada}
         onSuccess={handleModalSuccess}
+        createCategoria={useCategoriasState.createCategoria}
+        updateCategoria={useCategoriasState.updateCategoria}
+        loading={useCategoriasState.loading}
       />
     </div>
   )

@@ -32,8 +32,8 @@ const menuGroups = [
     requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
     items: [
       { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
-      { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
       { label: 'Usuários pendentes', path: '/app/administrativo', icon: UserCheck, tab: 'usuarios-pendentes', adminOnly: true },
+      { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
     ],
   },
 ]

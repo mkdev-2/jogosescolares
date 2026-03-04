@@ -1,15 +1,23 @@
 import { useState } from 'react'
 import { LayoutGrid, Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Popconfirm } from 'antd'
 import useCategorias from '../../hooks/useCategorias'
 
-export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
-  const {
-    categorias,
-    loading,
-    error,
-    fetchCategorias,
-    deleteCategoria,
-  } = useCategorias()
+export default function CategoriasList({
+  onNewCategoria,
+  onEditCategoria,
+  categorias: categoriasProp,
+  loading: loadingProp,
+  error: errorProp,
+  fetchCategorias: fetchCategoriasProp,
+  deleteCategoria: deleteCategoriaProp,
+}) {
+  const hookState = useCategorias()
+  const categorias = categoriasProp ?? hookState.categorias
+  const loading = loadingProp ?? hookState.loading
+  const error = errorProp ?? hookState.error
+  const fetchCategorias = fetchCategoriasProp ?? hookState.fetchCategorias
+  const deleteCategoria = deleteCategoriaProp ?? hookState.deleteCategoria
 
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -22,16 +30,10 @@ export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
   })
 
   const handleDelete = async (categoria) => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja excluir a categoria "${categoria.nome}"?`
-      )
-    ) {
-      try {
-        await deleteCategoria(categoria.id)
-      } catch (err) {
-        alert(err.message || 'Erro ao excluir')
-      }
+    try {
+      await deleteCategoria(categoria.id)
+    } catch (err) {
+      alert(err.message || 'Erro ao excluir')
     }
   }
 
@@ -173,14 +175,22 @@ export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
                               <Pencil size={18} />
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                            onClick={() => handleDelete(c)}
-                            title="Excluir"
+                          <Popconfirm
+                            title="Excluir categoria"
+                            description={`Tem certeza que deseja excluir a categoria "${c.nome}"?`}
+                            onConfirm={() => handleDelete(c)}
+                            okText="Sim, excluir"
+                            cancelText="Cancelar"
+                            okButtonProps={{ danger: true }}
                           >
-                            <Trash2 size={18} />
-                          </button>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                              title="Excluir"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </Popconfirm>
                         </div>
                       </td>
                     </tr>

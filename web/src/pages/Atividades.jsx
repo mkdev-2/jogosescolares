@@ -5,6 +5,8 @@ import ModalidadesList from '../components/catalogos/ModalidadesList'
 import CategoriasList from '../components/catalogos/CategoriasList'
 import ModalidadeModal from '../components/catalogos/ModalidadeModal'
 import CategoriaModal from '../components/catalogos/CategoriaModal'
+import useCategorias from '../hooks/useCategorias'
+import useModalidades from '../hooks/useModalidades'
 
 const TABS = [
   { id: 'modalidades', label: 'Modalidades', icon: Trophy },
@@ -14,6 +16,8 @@ const TABS = [
 const TAB_IDS = ['modalidades', 'categorias']
 
 export default function Atividades() {
+  const useCategoriasState = useCategorias()
+  const useModalidadesState = useModalidades()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') || 'modalidades'
   const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'modalidades')
@@ -108,6 +112,7 @@ export default function Atividades() {
           {activeTab === 'modalidades' && (
             <>
               <ModalidadesList
+                {...useModalidadesState}
                 onNewModalidade={handleNewModalidade}
                 onEditModalidade={handleEditModalidade}
               />
@@ -116,12 +121,16 @@ export default function Atividades() {
                 onClose={handleModalModalidadeClose}
                 modalidade={modalidadeSelecionada}
                 onSuccess={handleModalModalidadeSuccess}
+                createModalidade={useModalidadesState.createModalidade}
+                updateModalidade={useModalidadesState.updateModalidade}
+                loading={useModalidadesState.loading}
               />
             </>
           )}
           {activeTab === 'categorias' && (
             <>
               <CategoriasList
+                {...useCategoriasState}
                 onNewCategoria={handleNewCategoria}
                 onEditCategoria={handleEditCategoria}
               />
@@ -130,6 +139,9 @@ export default function Atividades() {
                 onClose={handleModalCategoriaClose}
                 categoria={categoriaSelecionada}
                 onSuccess={handleModalCategoriaSuccess}
+                createCategoria={useCategoriasState.createCategoria}
+                updateCategoria={useCategoriasState.updateCategoria}
+                loading={useCategoriasState.loading}
               />
             </>
           )}

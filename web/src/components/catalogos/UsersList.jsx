@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Popconfirm } from 'antd'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
 import { escolasService } from '../../services/escolasService'
@@ -35,16 +36,10 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
   })
 
   const handleDelete = async (user) => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja excluir o usuário "${user.nome}"?`
-      )
-    ) {
-      try {
-        await deleteUser(user.id)
-      } catch (err) {
-        alert(err.message || 'Erro ao excluir')
-      }
+    try {
+      await deleteUser(user.id)
+    } catch (err) {
+      alert(err.message || 'Erro ao excluir')
     }
   }
 
@@ -207,14 +202,22 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
                               <Pencil size={18} />
                             </button>
                           )}
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                            onClick={() => handleDelete(u)}
-                            title="Excluir"
+                          <Popconfirm
+                            title="Excluir usuário"
+                            description={`Tem certeza que deseja excluir o usuário "${u.nome}"?`}
+                            onConfirm={() => handleDelete(u)}
+                            okText="Sim, excluir"
+                            cancelText="Cancelar"
+                            okButtonProps={{ danger: true }}
                           >
-                            <Trash2 size={18} />
-                          </button>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                              title="Excluir"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </Popconfirm>
                         </div>
                       </td>
                     </tr>

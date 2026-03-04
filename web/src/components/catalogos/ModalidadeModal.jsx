@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import Modal from '../ui/Modal'
-import useModalidades from '../../hooks/useModalidades'
 import useCategorias from '../../hooks/useCategorias'
 import ModalidadeIcon, { MODALIDADE_ICONES } from './ModalidadeIcon'
 
-export default function ModalidadeModal({ isOpen, onClose, modalidade = null, onSuccess }) {
-  const { createModalidade, updateModalidade, loading } = useModalidades()
+export default function ModalidadeModal({ isOpen, onClose, modalidade = null, onSuccess, createModalidade, updateModalidade, loading }) {
   const { categorias } = useCategorias()
   const [iconeDropdownOpen, setIconeDropdownOpen] = useState(false)
   const iconeDropdownRef = useRef(null)
