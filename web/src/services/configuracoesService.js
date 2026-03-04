@@ -23,6 +23,13 @@ export const configuracoesService = {
     return data
   },
 
+  /** Data limite de cadastro (público, para formulário de adesão). */
+  async getCadastroDataLimite() {
+    const res = await apiFetch(`${BASE}/publico`)
+    const data = await handleResponse(res, 'Erro ao verificar prazo')
+    return data?.cadastro_data_limite ?? null
+  },
+
   async update(payload) {
     const res = await apiFetch(BASE, {
       method: 'PUT',

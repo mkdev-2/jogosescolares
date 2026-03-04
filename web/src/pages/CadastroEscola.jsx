@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, School, Building2, User, Users, Trophy, KeyRound, Info } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
+import { configuracoesService } from '../services/configuracoesService'
 
 const UFS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -35,13 +36,11 @@ const INITIAL_FORM = {
   uf: '',
   email: '',
   telefone: '',
-  // DIRETOR
+  // DIRETOR (CPF = credencial de login; senha definida no formulário)
   diretorNome: '',
   diretorCpf: '',
   diretorRg: '',
-  // LOGIN DO DIRETOR
-  loginCpf: '',
-  loginSenha: '',
+  diretorSenha: '',
   // COORDENADOR
   coordenadorNome: '',
   coordenadorCpf: '',
@@ -94,11 +93,8 @@ function validateForm(form) {
   if (!form.diretorRg?.trim() || form.diretorRg.trim().length < 4) {
     err.diretorRg = 'RG é obrigatório'
   }
-  if (onlyDigits(form.loginCpf).length !== 11) {
-    err.loginCpf = 'CPF do login deve conter 11 dígitos'
-  }
-  if (!form.loginSenha || form.loginSenha.length < 6) {
-    err.loginSenha = 'A senha deve ter pelo menos 6 caracteres'
+  if (!form.diretorSenha || form.diretorSenha.length < 6) {
+    err.diretorSenha = 'A senha deve ter pelo menos 6 caracteres'
   }
 
   // COORDENADOR
@@ -183,6 +179,22 @@ export default function CadastroEscola() {
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState(false)
+  const [formEncerrado, setFormEncerrado] = useState(false)
+  const [dataLimite, setDataLimite] = useState(null)
+
+  useEffect(() => {
+    configuracoesService.getCadastroDataLimite()
+      .then((valor) => {
+        setDataLimite(valor || null)
+        if (valor) {
+          const limit = valor.trim().slice(0, 10)
+          if (limit && new Date(limit) < new Date()) {
+            setFormEncerrado(true)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -217,17 +229,32 @@ export default function CadastroEscola() {
     }
     setErrors({})
     setSubmitting(true)
+    const onlyDigits = (s) => (s || '').replace(/\D/g, '')
     try {
       await escolasService.createPublico({
         nome_escola: form.nomeRazaoSocial.trim(),
-        nomeRazaoSocial: form.nomeRazaoSocial.trim(),
-        inep: form.inep,
-        cnpj: form.cnpj,
+        inep: onlyDigits(form.inep).slice(0, 8),
+        cnpj: onlyDigits(form.cnpj).slice(0, 14),
         endereco: form.endereco.trim(),
         cidade: form.cidade.trim(),
         uf: form.uf,
         email: form.email.trim(),
         telefone: form.telefone.trim(),
+        diretor: {
+          nome: form.diretorNome.trim(),
+          cpf: onlyDigits(form.diretorCpf).slice(0, 11),
+          rg: form.diretorRg.trim(),
+          senha: form.diretorSenha,
+        },
+        coordenador: {
+          nome: form.coordenadorNome.trim(),
+          cpf: onlyDigits(form.coordenadorCpf).slice(0, 11),
+          rg: form.coordenadorRg.trim(),
+          endereco: form.coordenadorEndereco.trim(),
+          email: form.coordenadorEmail.trim(),
+          telefone: form.coordenadorTelefone.trim(),
+        },
+        modalidades: form.modalidades,
       })
       setSuccess(true)
       setForm(INITIAL_FORM)
@@ -289,6 +316,12 @@ export default function CadastroEscola() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-10">
+        {formEncerrado && (
+          <div className="mb-6 px-4 py-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+            <p className="font-medium">Período de adesão encerrado.</p>
+            <p className="text-sm mt-1">O prazo para envio do formulário já foi encerrado. Entre em contato com a SEMCEJ para mais informações.</p>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-8">
           {errors.submit && (
             <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -474,50 +507,20 @@ export default function CadastroEscola() {
                 />
                 {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
               </div>
-            </div>
 
-            {/* Criação de login do diretor */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex items-center gap-2 mb-3">
-                <KeyRound className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-gray-900">Criação de login para o diretor</h3>
-              </div>
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-4 flex gap-3">
-                <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
-                  O acesso ao sistema deverá ser autorizado pela SEMCEJ após a análise do cadastro. 
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="loginCpf" className={labelClass}>
-                    CPF (login) *
-                  </label>
-                  <input
-                    id="loginCpf"
-                    type="text"
-                    inputMode="numeric"
-                    value={form.loginCpf}
-                    onChange={(e) => updateField('loginCpf', maskCpf(e.target.value))}
-                    placeholder="000.000.000-00"
-                    className={`${inputClass} ${errors.loginCpf ? inputErrorClass : ''}`}
-                  />
-                  {errors.loginCpf && <p className={errorClass}>{errors.loginCpf}</p>}
-                </div>
-                <div>
-                  <label htmlFor="loginSenha" className={labelClass}>
-                    Senha *
-                  </label>
-                  <input
-                    id="loginSenha"
-                    type="password"
-                    value={form.loginSenha}
-                    onChange={(e) => updateField('loginSenha', e.target.value)}
-                    placeholder="Mínimo 6 caracteres"
-                    className={`${inputClass} ${errors.loginSenha ? inputErrorClass : ''}`}
-                  />
-                  {errors.loginSenha && <p className={errorClass}>{errors.loginSenha}</p>}
-                </div>
+              <div className="md:col-span-2">
+                <label htmlFor="diretorSenha" className={labelClass}>
+                  Senha (acesso do diretor ao sistema) *
+                </label>
+                <input
+                  id="diretorSenha"
+                  type="password"
+                  value={form.diretorSenha}
+                  onChange={(e) => updateField('diretorSenha', e.target.value)}
+                  placeholder="Mínimo 6 caracteres. O acesso será liberado após aprovação pela SEMCEJ."
+                  className={`${inputClass} ${errors.diretorSenha ? inputErrorClass : ''}`}
+                />
+                {errors.diretorSenha && <p className={errorClass}>{errors.diretorSenha}</p>}
               </div>
             </div>
           </SectionCard>
@@ -674,10 +677,10 @@ export default function CadastroEscola() {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || formEncerrado}
               className="px-8 py-2.5 rounded-lg bg-primary text-white font-semibold uppercase tracking-wider hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Enviando...' : 'Enviar Cadastro'}
+              {submitting ? 'Enviando...' : formEncerrado ? 'Período encerrado' : 'Enviar Cadastro'}
             </button>
           </div>
         </form>
