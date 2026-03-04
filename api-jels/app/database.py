@@ -64,8 +64,8 @@ class Database:
         """Context manager para obter uma conexão com o banco."""
         conn = await self.connect()
         try:
-            if conn.info.transaction_status == psycopg.pq.TransactionStatus.INERROR:
-                await conn.rollback()
+            # Sempre limpa estado de transação abortada (evita InFailedSqlTransaction ao reutilizar conexão)
+            await conn.rollback()
             yield conn
             await conn.commit()
         except Exception:
