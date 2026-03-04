@@ -106,7 +106,7 @@ async def create_user(
                 data.nome.strip(),
                 data.role,
                 data.escola_id if data.role in ("DIRETOR", "COORDENADOR") else None,
-                data.status if data.status is not None else "ATIVO",
+                data.status,
             ),
         )
         row = await cur.fetchone()

@@ -151,7 +151,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BROWSER_REDIRECT_URL: https://storage-console-${DOMAIN}
       MINIO_SERVER_URL: https://storage-${DOMAIN}
-      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ORIGIN}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${CORS_ORIGINS}
     volumes:
       - jogosescolares_minio_data:/data
     command: server /data --console-address ":9001"

@@ -176,12 +176,12 @@ export default function UsersList({ onNewUser, onEditUser }) {
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span
                           className={`inline-block px-2 py-1 rounded-[6px] text-[0.8125rem] font-medium ${
-                            u.ativo
+                            u.status === 'ATIVO'
                               ? 'bg-[#ccfbf1] text-[#0f766e]'
                               : 'bg-[#f1f5f9] text-[#64748b]'
                           }`}
                         >
-                          {u.ativo ? 'Ativo' : 'Inativo'}
+                          {u.status}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right border-b border-[#f1f5f9]">

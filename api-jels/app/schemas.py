@@ -89,7 +89,7 @@ class UserResponse(BaseModel):
     nome: str
     role: str
     escola_id: Optional[int] = None
-    status: str = "ATIVO"
+    status: VALID_STATUS
     created_at: Optional[str] = None
 
     class Config:
@@ -105,8 +105,7 @@ class UserMeResponse(BaseModel):
     role: str
     escola_id: Union[int, None] = None
     escola_inep: Union[str, None] = None
-    ativo: bool
-    status: str
+    status: VALID_STATUS
     created_at: Union[str, None] = None
     foto_url: Union[str, None] = None
 

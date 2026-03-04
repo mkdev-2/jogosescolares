@@ -32,7 +32,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
     password: '',
     role: 'ADMIN',
     escola_id: '',
-    ativo: true,
+    status: 'ATIVO',
   })
   const [errors, setErrors] = useState({})
 
@@ -51,7 +51,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         password: '',
         role: user.role || 'ADMIN',
         escola_id: user.escola_id ?? '',
-        ativo: user.ativo !== undefined ? user.ativo : true,
+        status: user.status || 'ATIVO',
       })
     } else {
       setFormData({
@@ -61,7 +61,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         password: '',
         role: 'ADMIN',
         escola_id: '',
-        ativo: true,
+        status: 'ATIVO',
       })
     }
     setErrors({})
@@ -113,7 +113,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
           email: dataToSubmit.email,
           role: dataToSubmit.role,
           escola_id: REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null,
-          ativo: dataToSubmit.ativo,
+          status: dataToSubmit.status,
         }
         if (dataToSubmit.password?.trim()) updateData.password = dataToSubmit.password
         await updateUser(user.id, updateData)
@@ -123,6 +123,7 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
         const createPayload = {
           ...dataToSubmit,
           escola_id: REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null,
+          status: dataToSubmit.status || 'ATIVO',
         }
         await createUser(createPayload)
         onSuccess?.()
@@ -308,17 +309,20 @@ export default function UserModal({ isOpen, onClose, user = null, onSuccess }) {
               )}
             </div>
           )}
-          <div className="flex flex-col gap-1.5 justify-end">
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
-              <input
-                type="checkbox"
-                name="ativo"
-                checked={formData.ativo}
-                onChange={handleChange}
-                className="w-[1.125rem] h-[1.125rem]"
-              />
-              Usuário ativo
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="status">
+              Status
             </label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+            >
+              <option value="ATIVO">Ativo</option>
+              <option value="INATIVO">Inativo</option>
+            </select>
           </div>
         </div>
       </form>

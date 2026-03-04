@@ -45,7 +45,7 @@ export const usersService = {
       password: data.password || '',
       role: data.role || 'ADMIN',
       escola_id: data.escola_id ?? null,
-      ativo: data.ativo !== undefined ? data.ativo : true,
+      status: data.status,
     }
     const res = await apiFetch(BASE, {
       method: 'POST',
@@ -60,7 +60,7 @@ export const usersService = {
     if (data.email !== undefined) payload.email = data.email?.trim() || null
     if (data.role !== undefined) payload.role = data.role
     if (data.escola_id !== undefined) payload.escola_id = data.escola_id
-    if (data.ativo !== undefined) payload.ativo = data.ativo
+    if (data.status !== undefined) payload.status = data.status
     if (data.password?.trim()) payload.password = data.password.trim()
 
     const res = await apiFetch(`${BASE}/${id}`, {
