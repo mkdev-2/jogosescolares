@@ -44,13 +44,13 @@ async def list_equipes(
                 SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
                        e.created_at, e.updated_at,
                        m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
-                       s.nome AS escola_nome
+                       s.nome_escola AS escola_nome
                 FROM equipes e
                 LEFT JOIN modalidades m ON m.id = e.modalidade_id
                 LEFT JOIN categorias c ON c.id = e.categoria_id
                 LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
                 LEFT JOIN escolas s ON s.id = e.escola_id
-                ORDER BY s.nome NULLS LAST, e.id
+                ORDER BY s.nome_escola NULLS LAST, e.id
                 """,
             )
             rows = await cur.fetchall()
@@ -67,7 +67,7 @@ async def list_equipes(
                 SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
                        e.created_at, e.updated_at,
                        m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
-                       s.nome AS escola_nome
+                       s.nome_escola AS escola_nome
                 FROM equipes e
                 LEFT JOIN modalidades m ON m.id = e.modalidade_id
                 LEFT JOIN categorias c ON c.id = e.categoria_id

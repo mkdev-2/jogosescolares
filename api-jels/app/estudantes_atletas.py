@@ -53,10 +53,10 @@ async def list_estudantes_atletas(
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                        e.endereco, e.cep, e.numero_registro_confederacao, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                       e.responsavel_nis, e.created_at, e.updated_at, s.nome AS escola_nome
+                       e.responsavel_nis, e.created_at, e.updated_at, s.nome_escola AS escola_nome
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
-                ORDER BY s.nome NULLS LAST, e.nome
+                ORDER BY s.nome_escola NULLS LAST, e.nome
                 """,
             )
             rows = await cur.fetchall()
@@ -73,7 +73,7 @@ async def list_estudantes_atletas(
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                        e.endereco, e.cep, e.numero_registro_confederacao, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                       e.responsavel_nis, e.created_at, e.updated_at, s.nome AS escola_nome
+                       e.responsavel_nis, e.created_at, e.updated_at, s.nome_escola AS escola_nome
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
                 WHERE e.escola_id = %s

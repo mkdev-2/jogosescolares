@@ -38,10 +38,10 @@ async def list_professores_tecnicos(
             await cur.execute(
                 """
                 SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
-                       s.nome AS escola_nome
+                       s.nome_escola AS escola_nome
                 FROM professores_tecnicos p
                 LEFT JOIN escolas s ON s.id = p.escola_id
-                ORDER BY s.nome NULLS LAST, p.nome
+                ORDER BY s.nome_escola NULLS LAST, p.nome
                 """,
             )
             rows = await cur.fetchall()
@@ -56,7 +56,7 @@ async def list_professores_tecnicos(
             await cur.execute(
                 """
                 SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
-                       s.nome AS escola_nome
+                       s.nome_escola AS escola_nome
                 FROM professores_tecnicos p
                 LEFT JOIN escolas s ON s.id = p.escola_id
                 WHERE p.escola_id = %s
