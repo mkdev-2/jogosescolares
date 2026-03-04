@@ -17,7 +17,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const { user, login } = useAuth()
+  const { user, login, loading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from?.pathname || '/app'
@@ -27,6 +27,16 @@ export default function Login() {
       navigate(from, { replace: true })
     }
   }, [user, navigate, from])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-white">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#0f766e_0%,#134e4a_50%,#042f2e_100%)] z-0" />
+        <div className="relative z-10 w-10 h-10 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
+        <p className="relative z-10">Carregando...</p>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()

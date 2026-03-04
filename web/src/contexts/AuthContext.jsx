@@ -34,17 +34,15 @@ export function AuthProvider({ children }) {
     async function init() {
       const token = getAccessToken()
       if (!token) {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
         return
       }
 
       const data = await fetchMe()
-      if (!cancelled && data) {
-        setUser(data)
-      } else if (!cancelled) {
-        setUser(null)
+      if (!cancelled) {
+        setUser(data || null)
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     init()
