@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, Settings } from 'lucide-react'
+import { Users, Settings, UserCheck } from 'lucide-react'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
+import UsuariosPendentes from './UsuariosPendentes'
 
 const TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
+  { id: 'usuarios-pendentes', label: 'Usuários pendentes', icon: UserCheck },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ]
 
-const TAB_IDS = ['usuarios', 'configuracoes']
+const TAB_IDS = ['usuarios', 'usuarios-pendentes', 'configuracoes']
 
 export default function Administrativo() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -60,6 +62,7 @@ export default function Administrativo() {
 
         <div className="p-6">
           {activeTab === 'usuarios' && <Usuarios embedded />}
+          {activeTab === 'usuarios-pendentes' && <UsuariosPendentes embedded />}
           {activeTab === 'configuracoes' && <Configuracoes embedded />}
         </div>
       </div>

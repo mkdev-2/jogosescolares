@@ -30,6 +30,20 @@ def require_admin(current_user: dict) -> dict:
     return current_user
 
 
+@router.get("/publico")
+async def get_configuracoes_publico(
+    conn: psycopg.AsyncConnection = Depends(get_db),
+):
+    """Retorna apenas a data limite de cadastro (público, para o formulário de adesão verificar se pode enviar)."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT valor FROM configuracoes WHERE chave = %s",
+            ("cadastro_data_limite",),
+        )
+        row = await cur.fetchone()
+    return {"cadastro_data_limite": row["valor"] if row and row.get("valor") else None}
+
+
 @router.get("")
 async def get_configuracoes(
     conn: psycopg.AsyncConnection = Depends(get_db),

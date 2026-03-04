@@ -142,7 +142,7 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6, description="Nova senha com no mínimo 6 caracteres")
 
 
-# ========== ESCOLAS ==========
+# ========== ESCOLAS / ADESÃO ==========
 
 class EscolaCreate(BaseModel):
     """Schema para criação de escola."""
@@ -156,6 +156,43 @@ class EscolaCreate(BaseModel):
     telefone: str = Field(..., min_length=8, description="Telefone")
 
 
+class AdesaoDiretor(BaseModel):
+    """Dados do diretor no termo de adesão (senha enviada em texto; backend grava apenas hash)."""
+    nome: str = Field(..., min_length=1)
+    cpf: str = Field(..., min_length=11, max_length=14)
+    rg: str = Field(..., min_length=1)
+    senha: str = Field(..., min_length=6, description="Senha definida no formulário (será hasheada no backend)")
+
+
+class AdesaoCoordenador(BaseModel):
+    """Dados do coordenador de esportes no termo de adesão."""
+    nome: str = Field(..., min_length=1)
+    cpf: str = Field(..., min_length=11, max_length=14)
+    rg: str = Field(..., min_length=1)
+    endereco: str = Field(..., min_length=1)
+    email: str = Field(..., description="E-mail do coordenador")
+    telefone: str = Field(..., min_length=8)
+
+
+class AdesaoCreate(BaseModel):
+    """Payload completo do formulário público de adesão (cadastro de escola)."""
+    # Instituição
+    nome_escola: str = Field(..., min_length=1)
+    inep: str = Field(..., min_length=8, max_length=8)
+    cnpj: str = Field(..., min_length=14, max_length=14)
+    endereco: str = Field(..., min_length=1)
+    cidade: str = Field(..., min_length=1)
+    uf: str = Field(..., min_length=2, max_length=2)
+    email: str = Field(..., description="E-mail da instituição")
+    telefone: str = Field(..., min_length=8)
+    # Diretor (CPF será credencial de login; senha armazenada como hash)
+    diretor: AdesaoDiretor
+    # Coordenador de esportes
+    coordenador: AdesaoCoordenador
+    # Matriz categoria x naipe x tipo (ex.: {"12-14": {"M": {"individuais": true, ...}}, ...})
+    modalidades: dict = Field(..., description="Matriz de modalidades selecionadas (categoria/naipe/tipo)")
+
+
 class EscolaResponse(BaseModel):
     """Schema para resposta de escola."""
     id: int
@@ -167,6 +204,28 @@ class EscolaResponse(BaseModel):
     uf: str
     email: str
     telefone: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EscolaAdesaoResponse(BaseModel):
+    """Resposta de escola com dados de adesão (para listagem de pendentes pelo admin)."""
+    id: int
+    nome_escola: str
+    inep: str
+    cnpj: str
+    endereco: str
+    cidade: str
+    uf: str
+    email: str
+    telefone: str
+    status_adesao: Optional[str] = None
+    dados_diretor: Optional[dict] = None
+    dados_coordenador: Optional[dict] = None
+    modalidades_adesao: Optional[dict] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
