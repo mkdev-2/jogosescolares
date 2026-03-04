@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
+import ModalidadeIcon from './ModalidadeIcon'
 import Modal from '../ui/Modal'
 import { equipesService } from '../../services/equipesService'
 import { estudantesService } from '../../services/estudantesService'
@@ -137,17 +138,26 @@ export default function EquipeModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="eq-modalidade" className={labelClass}>Modalidade *</label>
-              <select
-                id="eq-modalidade"
-                value={modalidadeId}
-                onChange={(e) => { setModalidadeId(e.target.value); if (errors.modalidade_id) setErrors((x) => ({ ...x, modalidade_id: undefined })) }}
-                className={`${inputClass} ${errors.modalidade_id ? inputErrorClass : ''}`}
-              >
-                <option value="">Selecione</option>
-                {modalidades.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nome}</option>
-                ))}
-              </select>
+              <div className="flex gap-2 items-center">
+                {modalidadeId && modalidades.find((m) => m.id === modalidadeId) && (
+                  <ModalidadeIcon
+                    icone={modalidades.find((m) => m.id === modalidadeId)?.icone}
+                    size={22}
+                    className="text-[#0f766e] shrink-0"
+                  />
+                )}
+                <select
+                  id="eq-modalidade"
+                  value={modalidadeId}
+                  onChange={(e) => { setModalidadeId(e.target.value); if (errors.modalidade_id) setErrors((x) => ({ ...x, modalidade_id: undefined })) }}
+                  className={`flex-1 ${inputClass} ${errors.modalidade_id ? inputErrorClass : ''}`}
+                >
+                  <option value="">Selecione</option>
+                  {modalidades.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+              </div>
               {errors.modalidade_id && <p className={errorClass}>{errors.modalidade_id}</p>}
             </div>
             <div>

@@ -1,32 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, GraduationCap, UsersRound } from 'lucide-react'
+import { Users, GraduationCap, UsersRound, Building2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEquipes from '../hooks/useEquipes'
+import useEscolas from '../hooks/useEscolas'
 import useModalidades from '../hooks/useModalidades'
 import useCategorias from '../hooks/useCategorias'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import ProfessoresTecnicosList from '../components/catalogos/ProfessoresTecnicosList'
 import EquipesList from '../components/catalogos/EquipesList'
+import EscolasList from '../components/catalogos/EscolasList'
 import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
 import ProfessorTecnicoModal from '../components/catalogos/ProfessorTecnicoModal'
 import EquipeModal from '../components/catalogos/EquipeModal'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
-const TABS = [
+const TABS_BASE = [
   { id: 'alunos', label: 'Alunos', icon: Users },
   { id: 'professores', label: 'Professores', icon: GraduationCap },
   { id: 'equipes', label: 'Equipes', icon: UsersRound },
 ]
-
-const TAB_IDS = ['alunos', 'professores', 'equipes']
+const TAB_ESCOLAS = { id: 'escolas', label: 'Escolas', icon: Building2 }
 
 export default function Gestao() {
   const { user } = useAuth()
   const isAdmin = user && ADMIN_ROLES.includes(user.role)
+  const TABS = isAdmin ? [...TABS_BASE, TAB_ESCOLAS] : TABS_BASE
+  const TAB_IDS = TABS.map((t) => t.id)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') || 'alunos'
   const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'alunos')
@@ -34,14 +37,16 @@ export default function Gestao() {
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
-    if (TAB_IDS.includes(t)) setActiveTab(t)
-  }, [searchParams])
+    const validIds = isAdmin ? ['alunos', 'professores', 'equipes', 'escolas'] : ['alunos', 'professores', 'equipes']
+    if (validIds.includes(t)) setActiveTab(t)
+  }, [searchParams, isAdmin])
   const [modalProfessorOpen, setModalProfessorOpen] = useState(false)
   const [modalEquipeOpen, setModalEquipeOpen] = useState(false)
 
   const { lista: listaEstudantes, loading: loadingEstudantes, error: errorEstudantes, fetchEstudantes } = useEstudantes()
   const { lista: listaProfessores, loading: loadingProfessores, error: errorProfessores, fetchLista: fetchProfessores } = useProfessoresTecnicos()
   const { lista: listaEquipes, loading: loadingEquipes, error: errorEquipes, fetchLista: fetchEquipes } = useEquipes()
+  const { lista: listaEscolas, loading: loadingEscolas, error: errorEscolas, fetchEscolas } = useEscolas()
   const { modalidades } = useModalidades()
   const { categorias } = useCategorias()
 
@@ -143,6 +148,13 @@ export default function Gestao() {
                 professoresTecnicos={listaProfessores}
               />
             </>
+          )}
+          {activeTab === 'escolas' && isAdmin && (
+            <EscolasList
+              lista={listaEscolas}
+              loading={loadingEscolas}
+              error={errorEscolas}
+            />
           )}
         </div>
       </div>

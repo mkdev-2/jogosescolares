@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Activity, LayoutGrid, Search, Filter, Plus, Pencil, Trash2 } from 'lucide-react'
+import ModalidadeIcon from './ModalidadeIcon'
 import useModalidades from '../../hooks/useModalidades'
 
 export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
@@ -199,7 +200,10 @@ export default function ModalidadesList({ onNewModalidade, onEditModalidade }) {
                     >
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-[#042f2e]">{m.nome}</span>
+                          <span className="font-semibold text-[#042f2e] flex items-center gap-2">
+                            <ModalidadeIcon icone={m.icone} size={18} className="text-[#0f766e] shrink-0" />
+                            {m.nome}
+                          </span>
                           {m.descricao && (
                             <span className="text-[0.8125rem] text-[#64748b] max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">
                               {m.descricao}

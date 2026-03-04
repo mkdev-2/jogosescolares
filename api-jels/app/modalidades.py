@@ -13,30 +13,17 @@ router = APIRouter(prefix="/api/modalidades", tags=["modalidades"])
 logger = logging.getLogger(__name__)
 
 
-def _generate_id() -> str:
-    """Gera ID único para modalidade."""
-    import time
-    import random
-    import string
-    return f"modalidade_{int(time.time() * 1000)}_{''.join(random.choices(string.ascii_lowercase + string.digits, k=7))}"
-
-
-def _normalize_id(raw: str) -> str:
-    """Normaliza ID: maiúsculo, espaços -> underscore."""
-    if not raw or not str(raw).strip():
-        return _generate_id()
-    return str(raw).strip().upper().replace(" ", "_")
-
-
 def _row_to_response(row: dict) -> ModalidadeResponse:
     """Converte row do banco para ModalidadeResponse."""
     return ModalidadeResponse(
-        id=row["id"],
+        id=str(row["id"]),
         nome=row["nome"],
         descricao=row.get("descricao") or "",
-        categoria_id=row.get("categoria_id"),
+        categoria_id=str(row.get("categoria_id") or ""),
         categoria=row.get("categoria_nome"),
+        icone=row.get("icone") or "Zap",
         requisitos=row.get("requisitos") or "",
+        limite_atletas=row.get("limite_atletas", 3),
         ativa=row.get("ativa", True),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
@@ -52,7 +39,7 @@ async def list_modalidades(
         await cur.execute(
             """
             SELECT m.id, m.nome, m.descricao, m.categoria_id, c.nome AS categoria_nome,
-                   m.requisitos, m.ativa, m.created_at, m.updated_at
+                   m.icone, m.requisitos, m.limite_atletas, m.ativa, m.created_at, m.updated_at
             FROM modalidades m
             LEFT JOIN categorias c ON c.id = m.categoria_id
             ORDER BY m.nome
@@ -72,7 +59,7 @@ async def get_modalidade(
         await cur.execute(
             """
             SELECT m.id, m.nome, m.descricao, m.categoria_id, c.nome AS categoria_nome,
-                   m.requisitos, m.ativa, m.created_at, m.updated_at
+                   m.icone, m.requisitos, m.limite_atletas, m.ativa, m.created_at, m.updated_at
             FROM modalidades m
             LEFT JOIN categorias c ON c.id = m.categoria_id
             WHERE m.id = %s
@@ -91,47 +78,38 @@ async def create_modalidade(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Cria nova modalidade (requer autenticação)."""
-    id_final = _normalize_id(data.id) if data.id else _normalize_id(data.nome) or _generate_id()
-    if not id_final:
-        id_final = _generate_id()
-
-    categoria_id = (data.categoria_id or "").strip().upper()
+    """Cria nova modalidade (requer autenticação). ID gerado pelo banco como UUID."""
+    categoria_id = (data.categoria_id or "").strip()
     if not categoria_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="categoria_id é obrigatório",
         )
 
+    limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
+    icone = (data.icone or "Zap").strip() or "Zap"
+
     async with conn.cursor() as cur:
         await cur.execute("SELECT id FROM categorias WHERE id = %s", (categoria_id,))
         if not await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Categoria '{categoria_id}' não encontrada",
-            )
-        await cur.execute(
-            "SELECT id FROM modalidades WHERE id = %s",
-            (id_final,),
-        )
-        if await cur.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Modalidade com ID '{id_final}' já existe",
+                detail="Categoria não encontrada",
             )
 
         await cur.execute(
             """
-            INSERT INTO modalidades (id, nome, descricao, categoria_id, requisitos, ativa)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, nome, descricao, categoria_id, requisitos, ativa, created_at, updated_at
+            INSERT INTO modalidades (nome, descricao, categoria_id, icone, requisitos, limite_atletas, ativa)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, nome, descricao, categoria_id, icone, requisitos, limite_atletas, ativa, created_at, updated_at
             """,
             (
-                id_final,
                 data.nome.strip(),
                 (data.descricao or "").strip(),
                 categoria_id,
+                icone,
                 (data.requisitos or "").strip(),
+                limite_atletas,
                 data.ativa if data.ativa is not None else True,
             ),
         )
@@ -143,12 +121,12 @@ async def create_modalidade(
         await cur.execute(
             """
             SELECT m.id, m.nome, m.descricao, m.categoria_id, c.nome AS categoria_nome,
-                   m.requisitos, m.ativa, m.created_at, m.updated_at
+                   m.icone, m.requisitos, m.limite_atletas, m.ativa, m.created_at, m.updated_at
             FROM modalidades m
             LEFT JOIN categorias c ON c.id = m.categoria_id
             WHERE m.id = %s
             """,
-            (id_final,),
+            (str(row["id"]),),
         )
         row = await cur.fetchone()
     return _row_to_response(row)
@@ -166,7 +144,7 @@ async def update_modalidade(
         await cur.execute(
             """
             SELECT m.id, m.nome, m.descricao, m.categoria_id, c.nome AS categoria_nome,
-                   m.requisitos, m.ativa
+                   m.icone, m.requisitos, m.limite_atletas, m.ativa
             FROM modalidades m
             LEFT JOIN categorias c ON c.id = m.categoria_id
             WHERE m.id = %s
@@ -186,20 +164,26 @@ async def update_modalidade(
         updates.append("descricao = %s")
         values.append(data.descricao.strip())
     if data.categoria_id is not None:
-        cat_id = str(data.categoria_id).strip().upper()
+        cat_id = str(data.categoria_id).strip()
         if cat_id:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT id FROM categorias WHERE id = %s", (cat_id,))
                 if not await cur.fetchone():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Categoria '{cat_id}' não encontrada",
+                        detail="Categoria não encontrada",
                     )
             updates.append("categoria_id = %s")
             values.append(cat_id)
+    if data.icone is not None:
+        updates.append("icone = %s")
+        values.append((data.icone or "Zap").strip() or "Zap")
     if data.requisitos is not None:
         updates.append("requisitos = %s")
         values.append(data.requisitos.strip())
+    if data.limite_atletas is not None:
+        updates.append("limite_atletas = %s")
+        values.append(data.limite_atletas)
     if data.ativa is not None:
         updates.append("ativa = %s")
         values.append(data.ativa)
@@ -225,7 +209,7 @@ async def update_modalidade(
         await cur.execute(
             """
             SELECT m.id, m.nome, m.descricao, m.categoria_id, c.nome AS categoria_nome,
-                   m.requisitos, m.ativa, m.created_at, m.updated_at
+                   m.icone, m.requisitos, m.limite_atletas, m.ativa, m.created_at, m.updated_at
             FROM modalidades m
             LEFT JOIN categorias c ON c.id = m.categoria_id
             WHERE m.id = %s

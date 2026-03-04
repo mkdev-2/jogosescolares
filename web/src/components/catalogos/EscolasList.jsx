@@ -1,30 +1,37 @@
 import { useState } from 'react'
-import { Users, Search, Plus, Trophy } from 'lucide-react'
-import ModalidadeIcon from './ModalidadeIcon'
+import { Building2, Search } from 'lucide-react'
+import { escolasService } from '../../services/escolasService'
 
-export default function EquipesList({ lista = [], loading, error, onNewEquipe, showInstituicao = false }) {
+function formatDate(str) {
+  if (!str) return '-'
+  try {
+    const d = new Date(str)
+    return d.toLocaleDateString('pt-BR')
+  } catch {
+    return str
+  }
+}
+
+export default function EscolasList({ lista = [], loading, error }) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
-    const modalidade = (item.modalidade_nome || item.modalidade?.nome || '').toLowerCase()
-    const categoria = (item.categoria_nome || item.categoria?.nome || '').toLowerCase()
-    const tecnico = (item.professor_tecnico_nome || item.professor_tecnico?.nome || '').toLowerCase()
-    const instituicao = (item.escola_nome || '').toLowerCase()
+    const nome = (item.nome_escola || '').toLowerCase()
+    const cidade = (item.cidade || '').toLowerCase()
+    const email = (item.email || '').toLowerCase()
+    const inep = (item.inep || '').replace(/\D/g, '')
+    const cnpj = (item.cnpj || '').replace(/\D/g, '')
+    const searchDigits = searchTerm.replace(/\D/g, '')
     return (
-      modalidade.includes(term) ||
-      categoria.includes(term) ||
-      tecnico.includes(term) ||
-      (showInstituicao && instituicao.includes(term))
+      nome.includes(term) ||
+      cidade.includes(term) ||
+      email.includes(term) ||
+      (searchDigits && inep.includes(searchDigits)) ||
+      (searchDigits && cnpj.includes(searchDigits))
     )
   })
-
-  const getModalidadeNome = (item) => item.modalidade_nome || item.modalidade?.nome || '-'
-  const getModalidadeIcone = (item) => item.modalidade_icone || item.modalidade?.icone || 'Zap'
-  const getCategoriaNome = (item) => item.categoria_nome || item.categoria?.nome || '-'
-  const getTecnicoNome = (item) => item.professor_tecnico_nome || item.professor_tecnico?.nome || '-'
-  const getQtdAlunos = (item) => (item.estudantes && item.estudantes.length) || item.estudante_ids?.length || 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,13 +39,13 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
         <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex-1">
             <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
-              Total de Equipes
+              Total de Escolas
             </p>
             <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
               {lista.length}
             </p>
           </div>
-          <Trophy size={28} className="text-[#0f766e]" />
+          <Building2 size={28} className="text-[#0f766e]" />
         </div>
       </div>
 
@@ -50,22 +57,12 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
           />
           <input
             type="text"
-            placeholder="Buscar por modalidade, categoria ou técnico..."
+            placeholder="Buscar por nome, cidade, e-mail, INEP ou CNPJ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
-        {onNewEquipe && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-            onClick={onNewEquipe}
-          >
-            <Plus size={18} className="shrink-0" />
-            Nova equipe
-          </button>
-        )}
       </div>
 
       {error && (
@@ -86,69 +83,65 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
           {filteredLista.length === 0 ? (
             <div className="text-center px-8 py-12 bg-white rounded-[12px] border border-dashed border-[#e2e8f0]">
               <p className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-2">
-                Nenhuma equipe encontrada
+                Nenhuma escola encontrada
               </p>
-              <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
+              <p className="text-[0.9375rem] text-[#64748b] m-0">
                 {searchTerm
                   ? 'Tente ajustar o termo de busca'
-                  : 'Monte sua primeira equipe selecionando modalidade, categoria, alunos e técnico'}
+                  : 'Nenhuma escola cadastrada no sistema'}
               </p>
-              {onNewEquipe && (
-                <button
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-                  onClick={onNewEquipe}
-                >
-                  <Plus size={18} className="shrink-0" />
-                  Nova equipe
-                </button>
-              )}
             </div>
           ) : (
             <div className="overflow-x-auto bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <table className="w-full border-collapse min-w-[500px]">
+              <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr>
-                    {showInstituicao && (
-                      <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                        Instituição
-                      </th>
-                    )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Modalidade
+                      Nome
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Categoria
+                      INEP
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Técnico
+                      CNPJ
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Alunos
+                      Cidade / UF
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      E-mail
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Telefone
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Cadastrado em
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLista.map((item) => (
                     <tr key={item.id} className="hover:bg-[#f8fafc]">
-                      {showInstituicao && (
-                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                          {item.escola_nome || '-'}
-                        </td>
-                      )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
-                        <span className="inline-flex items-center gap-2">
-                          <ModalidadeIcon icone={getModalidadeIcone(item)} size={18} className="text-[#0f766e] shrink-0" />
-                          {getModalidadeNome(item)}
-                        </span>
+                        {item.nome_escola || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
+                        {item.inep || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
+                        {escolasService.formatCnpj(item.cnpj)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getCategoriaNome(item)}
+                        {[item.cidade, item.uf].filter(Boolean).join(' / ') || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getTecnicoNome(item)}
+                        {item.email || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
+                        {escolasService.formatTelefone(item.telefone)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getQtdAlunos(item)} aluno(s)
+                        {formatDate(item.created_at)}
                       </td>
                     </tr>
                   ))}

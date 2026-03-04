@@ -127,9 +127,6 @@ export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
                       Descrição
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Ordem
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Status
                     </th>
                     <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -141,7 +138,9 @@ export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
                   {filteredCategorias.map((c) => (
                     <tr key={c.id} className="hover:bg-[#f8fafc]">
                       <td className="px-5 py-4 text-[0.9375rem] font-mono text-[#475569] border-b border-[#f1f5f9]">
-                        {c.id}
+                        <span className="block max-w-[120px] overflow-hidden text-ellipsis" title={c.id}>
+                          {c.id?.slice(0, 8)}…
+                        </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {c.nome}
@@ -150,9 +149,6 @@ export default function CategoriasList({ onNewCategoria, onEditCategoria }) {
                         <span className="block max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">
                           {c.descricao || '-'}
                         </span>
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {c.ordem}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span

@@ -16,7 +16,26 @@ function handleResponse(res, fallbackError = 'Erro ao processar requisição') {
   })
 }
 
+function formatCnpj(str) {
+  if (!str) return '-'
+  const v = String(str).replace(/\D/g, '')
+  if (v.length < 14) return v || '-'
+  return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5')
+}
+
+function formatTelefone(str) {
+  if (!str) return '-'
+  const v = String(str).replace(/\D/g, '')
+  if (v.length <= 2) return v ? `(${v}` : str
+  if (v.length <= 6) return `(${v.slice(0, 2)}) ${v.slice(2)}`
+  if (v.length <= 10) return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`
+  return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
+}
+
 export const escolasService = {
+  formatCnpj,
+  formatTelefone,
+
   async list() {
     const res = await apiFetch(`${BASE}`)
     const data = await handleResponse(res, 'Erro ao listar escolas')

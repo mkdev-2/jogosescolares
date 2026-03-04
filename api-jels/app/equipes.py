@@ -19,9 +19,10 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
         id=row["id"],
         escola_id=row["escola_id"],
         escola_nome=row.get("escola_nome"),
-        modalidade_id=row["modalidade_id"],
-        categoria_id=row["categoria_id"],
+        modalidade_id=str(row["modalidade_id"]),
+        categoria_id=str(row["categoria_id"]),
         modalidade_nome=row.get("modalidade_nome"),
+        modalidade_icone=row.get("modalidade_icone"),
         categoria_nome=row.get("categoria_nome"),
         professor_tecnico_id=row["professor_tecnico_id"],
         professor_tecnico_nome=row.get("professor_tecnico_nome"),
@@ -43,8 +44,8 @@ async def list_equipes(
                 """
                 SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
                        e.created_at, e.updated_at,
-                       m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
-                       s.nome_escola AS escola_nome
+                       m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
+                       p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
                 FROM equipes e
                 LEFT JOIN modalidades m ON m.id = e.modalidade_id
                 LEFT JOIN categorias c ON c.id = e.categoria_id
@@ -66,8 +67,8 @@ async def list_equipes(
                 """
                 SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
                        e.created_at, e.updated_at,
-                       m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome,
-                       s.nome_escola AS escola_nome
+                       m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
+                       p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
                 FROM equipes e
                 LEFT JOIN modalidades m ON m.id = e.modalidade_id
                 LEFT JOIN categorias c ON c.id = e.categoria_id
@@ -181,7 +182,8 @@ async def create_equipe(
             """
             SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
                    e.created_at, e.updated_at,
-                   m.nome AS modalidade_nome, c.nome AS categoria_nome, p.nome AS professor_tecnico_nome
+                   m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
+                   p.nome AS professor_tecnico_nome
             FROM equipes e
             LEFT JOIN modalidades m ON m.id = e.modalidade_id
             LEFT JOIN categorias c ON c.id = e.categoria_id

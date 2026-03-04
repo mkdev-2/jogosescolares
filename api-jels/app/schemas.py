@@ -14,11 +14,9 @@ VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 # ========== CATEGORIAS ==========
 
 class CategoriaCreate(BaseModel):
-    """Schema para criação de categoria."""
-    id: Optional[str] = Field(None, description="ID customizado (opcional)")
+    """Schema para criação de categoria (id é gerado pelo banco como UUID)."""
     nome: str = Field(..., min_length=1, description="Nome da categoria")
     descricao: Optional[str] = Field("", description="Descrição da categoria")
-    ordem: Optional[int] = Field(0, description="Ordem de exibição")
     ativa: bool = Field(default=True, description="Se a categoria está ativa")
 
 
@@ -26,7 +24,6 @@ class CategoriaUpdate(BaseModel):
     """Schema para atualização de categoria."""
     nome: Optional[str] = Field(None, min_length=1)
     descricao: Optional[str] = None
-    ordem: Optional[int] = None
     ativa: Optional[bool] = None
 
 
@@ -35,7 +32,6 @@ class CategoriaResponse(BaseModel):
     id: str
     nome: str
     descricao: str
-    ordem: int
     ativa: bool
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -244,12 +240,13 @@ class ConfiguracoesUpdate(BaseModel):
 # ========== MODALIDADES ==========
 
 class ModalidadeCreate(BaseModel):
-    """Schema para criação de modalidade."""
-    id: Optional[str] = Field(None, description="ID customizado (opcional)")
+    """Schema para criação de modalidade (id é gerado pelo banco como UUID)."""
     nome: str = Field(..., min_length=1, description="Nome da modalidade")
     descricao: Optional[str] = Field("", description="Descrição da modalidade")
-    categoria_id: str = Field(..., description="ID da categoria (conjunto de modalidades)")
+    categoria_id: str = Field(..., description="UUID da categoria (conjunto de modalidades)")
+    icone: Optional[str] = Field("Zap", description="Nome do ícone (lucide-react ou react-icons)")
     requisitos: Optional[str] = Field("", description="Requisitos para participação")
+    limite_atletas: Optional[int] = Field(3, description="Limite de atletas por equipe")
     ativa: bool = Field(default=True, description="Se a modalidade está ativa")
 
 
@@ -258,7 +255,9 @@ class ModalidadeUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=1)
     descricao: Optional[str] = None
     categoria_id: Optional[str] = None
+    icone: Optional[str] = None
     requisitos: Optional[str] = None
+    limite_atletas: Optional[int] = None
     ativa: Optional[bool] = None
 
 
@@ -269,7 +268,9 @@ class ModalidadeResponse(BaseModel):
     descricao: str
     categoria_id: str
     categoria: str  # nome da categoria (para exibição)
+    icone: str = "Zap"
     requisitos: str
+    limite_atletas: int = 3
     ativa: bool
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -376,6 +377,7 @@ class EquipeResponse(BaseModel):
     modalidade_id: str
     categoria_id: str
     modalidade_nome: Optional[str] = None
+    modalidade_icone: Optional[str] = None
     categoria_nome: Optional[str] = None
     professor_tecnico_id: int
     professor_tecnico_nome: Optional[str] = None

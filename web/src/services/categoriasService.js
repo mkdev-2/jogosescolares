@@ -32,11 +32,7 @@ export const categoriasService = {
     const payload = {
       nome: data.nome?.trim() || '',
       descricao: data.descricao?.trim() || '',
-      ordem: data.ordem ?? 0,
       ativa: data.ativa !== undefined ? data.ativa : true,
-    }
-    if (data.id?.trim()) {
-      payload.id = data.id.trim().toUpperCase().replace(/\s/g, '_')
     }
     const res = await apiFetch(BASE, {
       method: 'POST',
@@ -49,7 +45,6 @@ export const categoriasService = {
     const payload = {}
     if (data.nome !== undefined) payload.nome = data.nome?.trim() ?? ''
     if (data.descricao !== undefined) payload.descricao = data.descricao?.trim() ?? ''
-    if (data.ordem !== undefined) payload.ordem = data.ordem
     if (data.ativa !== undefined) payload.ativa = data.ativa
 
     const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {

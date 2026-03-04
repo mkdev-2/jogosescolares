@@ -1,18 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronDown } from 'lucide-react'
 import Modal from '../ui/Modal'
 import useModalidades from '../../hooks/useModalidades'
 import useCategorias from '../../hooks/useCategorias'
+import ModalidadeIcon, { MODALIDADE_ICONES } from './ModalidadeIcon'
 
 export default function ModalidadeModal({ isOpen, onClose, modalidade = null, onSuccess }) {
   const { createModalidade, updateModalidade, loading } = useModalidades()
   const { categorias } = useCategorias()
+  const [iconeDropdownOpen, setIconeDropdownOpen] = useState(false)
+  const iconeDropdownRef = useRef(null)
+
   const [formData, setFormData] = useState({
-    id: '',
     nome: '',
     descricao: '',
     categoria_id: modalidade?.categoria_id,
+    icone: modalidade?.icone ?? 'Zap',
     requisitos: '',
-    limite_atletas: modalidade?.limite_atletas ?? 12,
+    limite_atletas: modalidade?.limite_atletas ?? 3,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
@@ -20,27 +25,37 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
   useEffect(() => {
     if (modalidade) {
       setFormData({
-        id: modalidade.id || '',
         nome: modalidade.nome || '',
         descricao: modalidade.descricao || '',
         categoria_id: modalidade.categoria_id,
+        icone: modalidade.icone ?? 'Zap',
         requisitos: modalidade.requisitos || '',
-        limite_atletas: modalidade.limite_atletas ?? 12,
+        limite_atletas: modalidade.limite_atletas ?? 3,
         ativa: modalidade.ativa !== undefined ? modalidade.ativa : true,
       })
     } else {
       setFormData({
-        id: '',
         nome: '',
         descricao: '',
         categoria_id: categorias[0]?.id,
+        icone: 'Zap',
         requisitos: '',
-        limite_atletas: 12,
+        limite_atletas: 3,
         ativa: true,
       })
     }
     setErrors({})
   }, [modalidade, isOpen, categorias])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (iconeDropdownRef.current && !iconeDropdownRef.current.contains(e.target)) {
+        setIconeDropdownOpen(false)
+      }
+    }
+    if (iconeDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [iconeDropdownOpen])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -69,8 +84,9 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
       const dataToSubmit = {
         ...formData,
         categoria_id: formData.categoria_id,
+        icone: formData.icone || 'Zap',
         requisitos: formData.requisitos?.trim() || null,
-        limite_atletas: Number(formData.limite_atletas) || 12,
+        limite_atletas: Number(formData.limite_atletas) || 3,
       }
       if (modalidade) {
         await updateModalidade(modalidade.id, dataToSubmit)
@@ -132,41 +148,65 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
           </div>
         )}
 
-        {!modalidade && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="id">
-              ID da Modalidade (opcional)
-            </label>
-            <input
-              id="id"
-              name="id"
-              type="text"
-              value={formData.id}
-              onChange={handleChange}
-              placeholder="Ex: FUTEBOL, VOLEI, NATACAO"
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
-            />
-            <span className="text-[0.75rem] text-[#64748b]">
-              Identificador único em maiúsculas (sem acentos)
-            </span>
-          </div>
-        )}
-
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
           </label>
-          <input
-            id="nome"
-            name="nome"
-            type="text"
-            value={formData.nome}
-            onChange={handleChange}
-            placeholder="Ex: Futebol"
-            className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-              errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-            }`}
-          />
+          <div className="flex gap-2">
+            <div className="relative shrink-0" ref={iconeDropdownRef}>
+              <span className="text-[0.75rem] text-[#64748b] block mb-1">Ícone</span>
+              <button
+                type="button"
+                onClick={() => setIconeDropdownOpen((v) => !v)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] bg-white hover:border-[#0f766e] transition-colors"
+                title="Selecionar ícone"
+              >
+                <ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e]" />
+                <ChevronDown size={16} className={`text-[#64748b] transition-transform ${iconeDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {iconeDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1 z-50 p-3 bg-white border-2 border-[#e2e8f0] rounded-[8px] shadow-lg min-w-[320px]">
+                  <div className="grid grid-cols-5 gap-2">
+                    {MODALIDADE_ICONES.map((nome) => (
+                      <button
+                        key={nome}
+                        type="button"
+                        onClick={() => {
+                          setFormData((p) => ({ ...p, icone: nome }))
+                          setIconeDropdownOpen(false)
+                        }}
+                        className={`flex items-center justify-center p-2.5 rounded-[6px] transition-colors w-full aspect-square ${
+                          formData.icone === nome
+                            ? 'bg-[#0f766e] text-white'
+                            : 'text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#334155]'
+                        }`}
+                        title={nome}
+                      >
+                        <ModalidadeIcon icone={nome} size={22} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 flex flex-col gap-1 min-w-0">
+              <span className="text-[0.75rem] text-[#64748b] invisible">Ícone</span>
+              <div className={`flex items-center gap-2 px-3 py-2.5 border-2 rounded-[8px] bg-white ${
+                errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+              }`}>
+                <ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e] shrink-0" />
+                <input
+                  id="nome"
+                  name="nome"
+                  type="text"
+                  value={formData.nome}
+                  onChange={handleChange}
+                  placeholder="Ex: Futebol"
+                  className="flex-1 min-w-0 border-0 bg-transparent text-base font-inherit focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
           {errors.nome && (
             <span className="text-[0.8rem] text-[#dc2626]">{errors.nome}</span>
           )}
@@ -195,24 +235,56 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             <select
               id="categoria_id"
               name="categoria_id"
-              value={formData.categoria_id}
+              value={formData.categoria_id || ''}
               onChange={handleChange}
+              disabled={categorias.length === 0}
               className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
                 errors.categoria_id ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
+              } ${categorias.length === 0 ? 'bg-[#f8fafc] text-[#94a3b8]' : 'bg-white'}`}
             >
-              {categorias.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nome}
-                </option>
-              ))}
+              {categorias.length === 0 ? (
+                <option value="">—</option>
+              ) : (
+                categorias.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))
+              )}
             </select>
+            {categorias.length === 0 && (
+              <span className="text-[0.75rem] text-[#64748b]">
+                Ainda não há categorias disponíveis. Crie uma categoria antes de cadastrar modalidades.
+              </span>
+            )}
             {errors.categoria_id && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.categoria_id}</span>
             )}
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
+              Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
+            </label>
+            <input
+              id="limite_atletas"
+              name="limite_atletas"
+              type="number"
+              min={1}
+              value={formData.limite_atletas}
+              onChange={handleChange}
+              placeholder="Ex: 3"
+              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
+                errors.limite_atletas ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+              }`}
+            />
+            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe nesta modalidade</span>
+            {errors.limite_atletas && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="requisitos">
               Requisitos (opcional)
             </label>
@@ -225,27 +297,6 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               placeholder="Ex: Necessita quadra"
               className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
-              Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
-            </label>
-            <input
-              id="limite_atletas"
-              name="limite_atletas"
-              type="number"
-              min={1}
-              value={formData.limite_atletas}
-              onChange={handleChange}
-              placeholder="Ex: 12"
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.limite_atletas ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
-            />
-            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe nesta modalidade (ex: 12 no Futsal)</span>
-            {errors.limite_atletas && (
-              <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
-            )}
           </div>
         </div>
 

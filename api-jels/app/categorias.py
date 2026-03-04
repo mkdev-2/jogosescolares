@@ -2,9 +2,6 @@
 Roteador de categorias: CRUD de categorias (conjuntos de modalidades).
 """
 import logging
-import time
-import random
-import string
 from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 
@@ -16,25 +13,12 @@ router = APIRouter(prefix="/api/categorias", tags=["categorias"])
 logger = logging.getLogger(__name__)
 
 
-def _generate_id() -> str:
-    """Gera ID único para categoria."""
-    return f"categoria_{int(time.time() * 1000)}_{''.join(random.choices(string.ascii_lowercase + string.digits, k=7))}"
-
-
-def _normalize_id(raw: str) -> str:
-    """Normaliza ID: maiúsculo, espaços -> underscore."""
-    if not raw or not str(raw).strip():
-        return _generate_id()
-    return str(raw).strip().upper().replace(" ", "_")
-
-
 def _row_to_response(row: dict) -> CategoriaResponse:
     """Converte row do banco para CategoriaResponse."""
     return CategoriaResponse(
-        id=row["id"],
+        id=str(row["id"]),
         nome=row["nome"],
         descricao=row.get("descricao") or "",
-        ordem=row.get("ordem", 0),
         ativa=row.get("ativa", True),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
@@ -48,7 +32,7 @@ async def list_categorias(
     """Lista todas as categorias."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ordem, ativa, created_at, updated_at FROM categorias ORDER BY ordem, nome"
+            "SELECT id, nome, descricao, ativa, created_at, updated_at FROM categorias ORDER BY nome"
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
@@ -62,7 +46,7 @@ async def get_categoria(
     """Obtém categoria por ID."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ordem, ativa, created_at, updated_at FROM categorias WHERE id = %s",
+            "SELECT id, nome, descricao, ativa, created_at, updated_at FROM categorias WHERE id = %s",
             (categoria_id,),
         )
         row = await cur.fetchone()
@@ -77,33 +61,17 @@ async def create_categoria(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Cria nova categoria (requer autenticação)."""
-    id_final = _normalize_id(data.id) if data.id else _normalize_id(data.nome) or _generate_id()
-    if not id_final:
-        id_final = _generate_id()
-
+    """Cria nova categoria (requer autenticação). ID gerado pelo banco como UUID."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id FROM categorias WHERE id = %s",
-            (id_final,),
-        )
-        if await cur.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Categoria com ID '{id_final}' já existe",
-            )
-
-        await cur.execute(
             """
-            INSERT INTO categorias (id, nome, descricao, ordem, ativa)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, nome, descricao, ordem, ativa, created_at, updated_at
+            INSERT INTO categorias (nome, descricao, ativa)
+            VALUES (%s, %s, %s)
+            RETURNING id, nome, descricao, ativa, created_at, updated_at
             """,
             (
-                id_final,
                 data.nome.strip(),
                 (data.descricao or "").strip(),
-                data.ordem if data.ordem is not None else 0,
                 data.ativa if data.ativa is not None else True,
             ),
         )
@@ -123,7 +91,7 @@ async def update_categoria(
     """Atualiza categoria (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ordem, ativa FROM categorias WHERE id = %s",
+            "SELECT id, nome, descricao, ativa FROM categorias WHERE id = %s",
             (categoria_id,),
         )
         existing = await cur.fetchone()
@@ -138,9 +106,6 @@ async def update_categoria(
     if data.descricao is not None:
         updates.append("descricao = %s")
         values.append(data.descricao.strip())
-    if data.ordem is not None:
-        updates.append("ordem = %s")
-        values.append(data.ordem)
     if data.ativa is not None:
         updates.append("ativa = %s")
         values.append(data.ativa)
@@ -157,7 +122,7 @@ async def update_categoria(
             UPDATE categorias
             SET {", ".join(updates)}
             WHERE id = %s
-            RETURNING id, nome, descricao, ordem, ativa, created_at, updated_at
+            RETURNING id, nome, descricao, ativa, created_at, updated_at
             """,
             values,
         )

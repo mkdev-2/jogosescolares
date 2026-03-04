@@ -33,12 +33,10 @@ export const modalidadesService = {
       nome: data.nome?.trim() || '',
       descricao: data.descricao?.trim() || '',
       categoria_id: data.categoria_id,
+      icone: data.icone || 'Zap',
       requisitos: data.requisitos?.trim() || '',
-      limite_atletas: data.limite_atletas != null ? Number(data.limite_atletas) : 12,
+      limite_atletas: data.limite_atletas != null ? Number(data.limite_atletas) : 3,
       ativa: data.ativa !== undefined ? data.ativa : true,
-    }
-    if (data.id?.trim()) {
-      payload.id = data.id.trim().toUpperCase().replace(/\s/g, '_')
     }
     const res = await apiFetch(BASE, {
       method: 'POST',
@@ -52,8 +50,9 @@ export const modalidadesService = {
     if (data.nome !== undefined) payload.nome = data.nome?.trim() ?? ''
     if (data.descricao !== undefined) payload.descricao = data.descricao?.trim() ?? ''
     if (data.categoria_id !== undefined) payload.categoria_id = data.categoria_id
+    if (data.icone !== undefined) payload.icone = data.icone || 'Zap'
     if (data.requisitos !== undefined) payload.requisitos = data.requisitos?.trim() ?? ''
-    if (data.limite_atletas !== undefined) payload.limite_atletas = Number(data.limite_atletas) ?? 12
+    if (data.limite_atletas !== undefined) payload.limite_atletas = Number(data.limite_atletas) ?? 3
     if (data.ativa !== undefined) payload.ativa = data.ativa
 
     const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {

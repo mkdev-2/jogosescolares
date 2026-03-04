@@ -5,10 +5,8 @@ import useCategorias from '../../hooks/useCategorias'
 export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess }) {
   const { createCategoria, updateCategoria, loading } = useCategorias()
   const [formData, setFormData] = useState({
-    id: '',
     nome: '',
     descricao: '',
-    ordem: 0,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
@@ -16,18 +14,14 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
   useEffect(() => {
     if (categoria) {
       setFormData({
-        id: categoria.id || '',
         nome: categoria.nome || '',
         descricao: categoria.descricao || '',
-        ordem: categoria.ordem ?? 0,
         ativa: categoria.ativa !== undefined ? categoria.ativa : true,
       })
     } else {
       setFormData({
-        id: '',
         nome: '',
         descricao: '',
-        ordem: 0,
         ativa: true,
       })
     }
@@ -38,7 +32,7 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
     const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? parseInt(value, 10) || 0 : value,
+      [name]: type === 'checkbox' ? checked : value,
     }))
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
@@ -119,26 +113,6 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
           </div>
         )}
 
-        {!categoria && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="id">
-              ID da Categoria (opcional)
-            </label>
-            <input
-              id="id"
-              name="id"
-              type="text"
-              value={formData.id}
-              onChange={handleChange}
-              placeholder="Ex: COLETIVA, INDIVIDUAL"
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
-            />
-            <span className="text-[0.75rem] text-[#64748b]">
-              Identificador único em maiúsculas (sem acentos)
-            </span>
-          </div>
-        )}
-
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
@@ -174,33 +148,17 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="ordem">
-              Ordem de exibição
-            </label>
+        <div className="flex flex-col gap-1.5">
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
             <input
-              id="ordem"
-              name="ordem"
-              type="number"
-              min={0}
-              value={formData.ordem}
+              type="checkbox"
+              name="ativa"
+              checked={formData.ativa}
               onChange={handleChange}
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+              className="w-[1.125rem] h-[1.125rem]"
             />
-          </div>
-          <div className="flex flex-col gap-1.5 justify-end">
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
-              <input
-                type="checkbox"
-                name="ativa"
-                checked={formData.ativa}
-                onChange={handleChange}
-                className="w-[1.125rem] h-[1.125rem]"
-              />
-              Categoria ativa
-            </label>
-          </div>
+            Categoria ativa
+          </label>
         </div>
       </form>
     </Modal>
