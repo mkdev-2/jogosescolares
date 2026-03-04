@@ -35,6 +35,7 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     nome: '',
     email: '',
     password: '',
+    password_confirm: '',
     role: 'ADMIN',
     escola_id: '',
     status: 'ATIVO',
@@ -54,6 +55,7 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
         nome: user.nome || '',
         email: user.email || '',
         password: '',
+        password_confirm: '',
         role: user.role || 'ADMIN',
         escola_id: user.escola_id ?? '',
         status: user.status || 'ATIVO',
@@ -65,6 +67,7 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
         nome: '',
         email: '',
         password: '',
+        password_confirm: '',
         role: defaultRole,
         escola_id: isDiretor ? (currentUser?.escola_id ?? '') : '',
         status: 'ATIVO',
@@ -81,6 +84,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     }
     setFormData((prev) => ({ ...prev, [name]: finalValue }))
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }))
+    if (!user && (name === 'password' || name === 'password_confirm')) {
+      const nextPwd = name === 'password' ? finalValue : formData.password
+      const nextConf = name === 'password_confirm' ? finalValue : formData.password_confirm
+      const mismatch = String(nextPwd ?? '') !== String(nextConf ?? '') && String(nextConf ?? '').length > 0
+      setErrors((prev) => ({ ...prev, password_confirm: mismatch ? 'senhas devem coincidir' : undefined }))
+    }
   }
 
   const validateForm = () => {
@@ -95,6 +104,9 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     }
     if (!user && formData.password?.length > 0 && formData.password.length < 6) {
       newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
+    }
+    if (!user && formData.password?.trim() && formData.password !== (formData.password_confirm ?? '')) {
+      newErrors.password_confirm = 'senhas devem coincidir'
     }
     if (REQUIRES_ESCOLA.includes(formData.role) && !isDiretor && !formData.escola_id) {
       newErrors.escola_id = 'Escola é obrigatória para Diretor e Coordenador'
@@ -129,8 +141,9 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
         const escolaId = isDiretor
           ? currentUser?.escola_id
           : (REQUIRES_ESCOLA.includes(dataToSubmit.role) ? Number(dataToSubmit.escola_id) : null)
+        const { password_confirm, ...rest } = dataToSubmit
         const createPayload = {
-          ...dataToSubmit,
+          ...rest,
           escola_id: escolaId,
           status: dataToSubmit.status || 'ATIVO',
         }
@@ -252,24 +265,47 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-[#334155]" htmlFor="password">
-            {user ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
-            {!user && <span className="text-[#dc2626]"> *</span>}
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder={user ? '••••••••' : 'Mínimo 6 caracteres'}
-            className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-              errors.password ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-            }`}
-          />
-          {errors.password && (
-            <span className="text-[0.8rem] text-[#dc2626]">{errors.password}</span>
+        <div className={user ? 'flex flex-col gap-1.5' : 'grid grid-cols-1 gap-4 sm:grid-cols-2'}>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="password">
+              {user ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
+              {!user && <span className="text-[#dc2626]"> *</span>}
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder={user ? '••••••••' : 'Mínimo 6 caracteres'}
+              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
+                errors.password ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+              }`}
+            />
+            {errors.password && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.password}</span>
+            )}
+          </div>
+          {!user && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-[#334155]" htmlFor="password_confirm">
+                Confirmar Senha <span className="text-[#dc2626]">*</span>
+              </label>
+              <input
+                id="password_confirm"
+                name="password_confirm"
+                type="password"
+                value={formData.password_confirm ?? ''}
+                onChange={handleChange}
+                placeholder="Repita a senha"
+                className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
+                  errors.password_confirm ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
+                }`}
+              />
+              {errors.password_confirm && (
+                <span className="text-[0.8rem] text-[#dc2626]">{errors.password_confirm}</span>
+              )}
+            </div>
           )}
         </div>
 
