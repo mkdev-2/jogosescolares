@@ -71,6 +71,9 @@ class EsporteCreate(BaseModel):
     requisitos: Optional[str] = Field("", description="Requisitos para participação")
     limite_atletas: Optional[int] = Field(3, description="Limite de atletas por equipe")
     ativa: bool = Field(default=True, description="Se o esporte está ativo")
+    categoria_ids: Optional[list[str]] = Field(default_factory=list, description="IDs das categorias para variantes")
+    naipe_ids: Optional[list[str]] = Field(default_factory=list, description="IDs dos naipes para variantes")
+    tipo_modalidade_ids: Optional[list[str]] = Field(default_factory=list, description="IDs dos tipos de modalidade para variantes")
 
 
 class EsporteUpdate(BaseModel):
@@ -81,6 +84,9 @@ class EsporteUpdate(BaseModel):
     requisitos: Optional[str] = None
     limite_atletas: Optional[int] = None
     ativa: Optional[bool] = None
+    categoria_ids: Optional[list[str]] = None
+    naipe_ids: Optional[list[str]] = None
+    tipo_modalidade_ids: Optional[list[str]] = None
 
 
 class EsporteResponse(BaseModel):
@@ -116,6 +122,8 @@ class EsporteVarianteResponse(BaseModel):
     esporte_nome: Optional[str] = None
     esporte_icone: Optional[str] = None
     esporte_limite_atletas: int = 3
+    esporte_requisitos: Optional[str] = None
+    esporte_ativa: bool = True
     categoria_id: str
     categoria_nome: Optional[str] = None
     categoria_idade_min: Optional[int] = None
@@ -276,8 +284,8 @@ class AdesaoCreate(BaseModel):
     diretor: AdesaoDiretor
     # Coordenador de esportes
     coordenador: AdesaoCoordenador
-    # Matriz categoria x naipe x tipo (ex.: {"12-14": {"M": {"individuais": true, ...}}, ...})
-    modalidades: dict = Field(..., description="Matriz de modalidades selecionadas (categoria/naipe/tipo)")
+    # IDs das variantes de esportes selecionadas (escola competirá nestas modalidades)
+    variante_ids: list[str] = Field(..., min_length=1, description="IDs das variantes de esportes (esporte+categoria+naipe+tipo) em que a escola pretende competir")
 
 
 class EscolaResponse(BaseModel):

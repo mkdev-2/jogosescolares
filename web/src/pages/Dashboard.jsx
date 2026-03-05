@@ -30,7 +30,7 @@ export default function Dashboard() {
               Atividades
             </h3>
             <p className="text-[0.875rem] text-[#64748b] m-0">
-              Esportes, variantes e categorias
+              Esportes e variantes
             </p>
           </Link>
           {isAdmin ? (

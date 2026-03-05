@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Input, Select, Checkbox, Button } from 'antd'
+import { Input, Select, Checkbox, Button, Spin } from 'antd'
 import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
+import { esporteVariantesService } from '../services/esporteVariantesService'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -47,22 +48,6 @@ const UFS = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ]
 
-const CATEGORIAS = ['12-14', '15-17']
-const NAIPES = { M: 'Masculino', F: 'Feminino' }
-const TIPOS_MODALIDADE = ['individuais', 'coletivas', 'novas']
-
-const getInitialModalidades = () => {
-  const obj = {}
-  CATEGORIAS.forEach((cat) => {
-    obj[cat] = {}
-    Object.keys(NAIPES).forEach((naipe) => {
-      obj[cat][naipe] = {}
-      TIPOS_MODALIDADE.forEach((tipo) => { obj[cat][naipe][tipo] = false })
-    })
-  })
-  return obj
-}
-
 const INITIAL_FORM = {
   // INSTITUIÇÃO
   nomeRazaoSocial: '',
@@ -86,8 +71,8 @@ const INITIAL_FORM = {
   coordenadorEndereco: '',
   coordenadorEmail: '',
   coordenadorTelefone: '',
-  // MODALIDADES
-  modalidades: getInitialModalidades(),
+  // VARIANTES DE ESPORTES (IDs selecionados)
+  varianteIds: [],
 }
 
 function validateForm(form) {
@@ -175,17 +160,9 @@ function validateForm(form) {
     err.coordenadorTelefone = 'Telefone inválido (mínimo 10 dígitos)'
   }
 
-  // MODALIDADES - pelo menos uma selecionada
-  let hasModalidade = false
-  CATEGORIAS.forEach((cat) => {
-    Object.keys(NAIPES).forEach((naipe) => {
-      TIPOS_MODALIDADE.forEach((tipo) => {
-        if (form.modalidades?.[cat]?.[naipe]?.[tipo]) hasModalidade = true
-      })
-    })
-  })
-  if (!hasModalidade) {
-    err.modalidades = 'Selecione pelo menos uma modalidade'
+  // VARIANTES - pelo menos uma selecionada
+  if (!Array.isArray(form.varianteIds) || form.varianteIds.length === 0) {
+    err.varianteIds = 'Selecione pelo menos uma modalidade em que sua escola pretende competir'
   }
 
   return err
@@ -282,22 +259,39 @@ export default function CadastroEscola() {
     }
   }
 
-  const updateModalidade = (cat, naipe, tipo, checked) => {
-    setForm((prev) => ({
-      ...prev,
-      modalidades: {
-        ...prev.modalidades,
-        [cat]: {
-          ...prev.modalidades[cat],
-          [naipe]: {
-            ...prev.modalidades[cat][naipe],
-            [tipo]: checked,
-          },
-        },
-      },
-    }))
-    if (errors.modalidades) setErrors((prev) => ({ ...prev, modalidades: undefined }))
+  const toggleVariante = (varianteId) => {
+    setForm((prev) => {
+      const ids = Array.isArray(prev.varianteIds) ? [...prev.varianteIds] : []
+      const idx = ids.indexOf(varianteId)
+      if (idx >= 0) ids.splice(idx, 1)
+      else ids.push(varianteId)
+      return { ...prev, varianteIds: ids }
+    })
+    if (errors.varianteIds) setErrors((prev) => ({ ...prev, varianteIds: undefined }))
   }
+
+  const [variantes, setVariantes] = useState([])
+  const [loadingVariantes, setLoadingVariantes] = useState(true)
+  const [esporteSelecionado, setEsporteSelecionado] = useState(null)
+  useEffect(() => {
+    esporteVariantesService.list()
+      .then((data) => setVariantes(Array.isArray(data) ? data : []))
+      .catch(() => setVariantes([]))
+      .finally(() => setLoadingVariantes(false))
+  }, [])
+
+  const variantesPorEsporte = variantes.reduce((acc, v) => {
+    const nome = v.esporte_nome || 'Outros'
+    if (!acc[nome]) acc[nome] = []
+    acc[nome].push(v)
+    return acc
+  }, {})
+
+  const esportesOptions = Object.keys(variantesPorEsporte)
+    .sort()
+    .map((nome) => ({ value: nome, label: nome }))
+
+  const variantesSelecionadas = variantes.filter((v) => (form.varianteIds || []).includes(v.id))
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -335,7 +329,7 @@ export default function CadastroEscola() {
           email: form.coordenadorEmail.trim(),
           telefone: onlyDigits(form.coordenadorTelefone),
         },
-        modalidades: form.modalidades,
+        variante_ids: form.varianteIds,
       })
       setSuccess(true)
       setForm(INITIAL_FORM)
@@ -717,45 +711,78 @@ export default function CadastroEscola() {
           {/* SEÇÃO MODALIDADES */}
           <SectionCard icon={Trophy} title="MODALIDADES">
             <p className="text-sm text-gray-600 mb-4">
-              Selecione as modalidades de interesse cruzando Categoria, Naipe e Tipo. Marque pelo menos uma opção.
+              Selecione um esporte e marque as combinações (masculino/feminino, infantil/infanto) em que sua escola pretende competir.
             </p>
-            {errors.modalidades && <p className={`${errorClass} mb-4`}>{errors.modalidades}</p>}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b-2 border-gray-200">
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Categoria</th>
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Naipe</th>
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Individuais</th>
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Coletivas</th>
-                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Novas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {CATEGORIAS.map((cat) =>
-                    Object.entries(NAIPES).map(([naipeKey, naipeLabel]) => (
-                      <tr key={`${cat}-${naipeKey}`} className="border-b border-gray-100 hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-medium text-gray-800">
-                          {cat === '12-14' ? '12 a 14 anos' : '15 a 17 anos'}
-                        </td>
-                        <td className="py-3 px-2 text-gray-700">{naipeLabel}</td>
-                        {TIPOS_MODALIDADE.map((tipo) => (
-                          <td key={tipo} className="py-3 px-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={form.modalidades?.[cat]?.[naipeKey]?.[tipo] ?? false}
-                                onChange={(e) => updateModalidade(cat, naipeKey, tipo, e.target.checked)}
-                              />
-                              <span className="text-gray-600 capitalize">{tipo}</span>
-                            </label>
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {errors.varianteIds && <p className={`${errorClass} mb-4`}>{errors.varianteIds}</p>}
+            {loadingVariantes ? (
+              <div className="flex justify-center py-8">
+                <Spin tip="Carregando modalidades..." />
+              </div>
+            ) : variantes.length === 0 ? (
+              <p className="text-gray-500 py-4">Nenhuma modalidade cadastrada no sistema. Entre em contato com a SEMCEJ.</p>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label htmlFor="esporteSelect" className={labelClass}>
+                    Escolha o esporte
+                  </label>
+                  <Select
+                    id="esporteSelect"
+                    placeholder="Selecione um esporte para ver as opções"
+                    value={esporteSelecionado || undefined}
+                    onChange={setEsporteSelecionado}
+                    options={esportesOptions}
+                    className="w-full"
+                    allowClear
+                    showSearch
+                    filterOption={(input, opt) =>
+                      (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </div>
+
+                {esporteSelecionado && variantesPorEsporte[esporteSelecionado]?.length > 0 && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-3">
+                      Opções de {esporteSelecionado} — marque as que sua escola pretende participar:
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {variantesPorEsporte[esporteSelecionado].map((v) => {
+                        const label = `${v.naipe_nome || ''} • ${v.categoria_nome || ''} • ${v.tipo_modalidade_nome || ''}`
+                        return (
+                          <label
+                            key={v.id}
+                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-md border border-gray-200 hover:border-primary/50 cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={(form.varianteIds || []).includes(v.id)}
+                              onChange={() => toggleVariante(v.id)}
+                            />
+                            <span className="text-sm text-gray-700">{label}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {variantesSelecionadas.length > 0 && (
+                  <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">
+                      Modalidades selecionadas ({variantesSelecionadas.length})
+                    </p>
+                    <ul className="space-y-1.5 text-sm text-gray-700">
+                      {variantesSelecionadas.map((v) => (
+                        <li key={v.id} className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                          {v.esporte_nome} — {v.naipe_nome} • {v.categoria_nome} • {v.tipo_modalidade_nome}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
           </SectionCard>
 
           <div className="flex gap-4 pt-4">

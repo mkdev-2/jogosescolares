@@ -66,15 +66,30 @@ async def get_esporte(
     return _row_to_response(row)
 
 
+def _cartesian_product(categoria_ids: list[str], naipe_ids: list[str], tipo_modalidade_ids: list[str]) -> list[tuple[str, str, str]]:
+    """Gera produto cartesiano das combinações (categoria_id, naipe_id, tipo_modalidade_id)."""
+    if not categoria_ids or not naipe_ids or not tipo_modalidade_ids:
+        return []
+    result = []
+    for c in categoria_ids:
+        for n in naipe_ids:
+            for t in tipo_modalidade_ids:
+                result.append((c, n, t))
+    return result
+
+
 @router.post("", response_model=EsporteResponse, status_code=status.HTTP_201_CREATED)
 async def create_esporte(
     data: EsporteCreate,
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Cria novo esporte (requer autenticação)."""
+    """Cria novo esporte e variantes em lote (requer autenticação)."""
     limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
     icone = (data.icone or "Zap").strip() or "Zap"
+    categoria_ids = data.categoria_ids or []
+    naipe_ids = data.naipe_ids or []
+    tipo_modalidade_ids = data.tipo_modalidade_ids or []
 
     async with conn.cursor() as cur:
         await cur.execute(
@@ -93,6 +108,30 @@ async def create_esporte(
             ),
         )
         row = await cur.fetchone()
+        esporte_id = str(row["id"])
+
+        combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)
+        if combos:
+            for tbl, col, vals, name in [
+                ("categorias", "id", categoria_ids, "Categoria"),
+                ("naipes", "id", naipe_ids, "Naipe"),
+                ("tipos_modalidade", "id", tipo_modalidade_ids, "Tipo de modalidade"),
+            ]:
+                for v in vals:
+                    await cur.execute(f"SELECT id FROM {tbl} WHERE id = %s", (v,))
+                    if not await cur.fetchone():
+                        await conn.rollback()
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{name} não encontrado(a)")
+
+            for cat_id, naipe_id, tipo_id in combos:
+                await cur.execute(
+                    """
+                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id) DO NOTHING
+                    """,
+                    (esporte_id, cat_id, naipe_id, tipo_id),
+                )
         await conn.commit()
 
     return _row_to_response(row)
@@ -105,7 +144,7 @@ async def update_esporte(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Atualiza esporte (requer autenticação)."""
+    """Atualiza esporte e sincroniza variantes (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s",
@@ -136,21 +175,81 @@ async def update_esporte(
         updates.append("ativa = %s")
         values.append(data.ativa)
 
-    if not updates:
-        return _row_to_response(existing)
+    if updates:
+        updates.append("updated_at = NOW()")
+        values.append(esporte_id)
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"""
+                UPDATE esportes
+                SET {", ".join(updates)}
+                WHERE id = %s
+                """,
+                values,
+            )
 
-    updates.append("updated_at = NOW()")
-    values.append(esporte_id)
+    categoria_ids = data.categoria_ids
+    naipe_ids = data.naipe_ids
+    tipo_modalidade_ids = data.tipo_modalidade_ids
+    if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
+        combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id, categoria_id, naipe_id, tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s",
+                (esporte_id,),
+            )
+            existing_vars = await cur.fetchall()
+        existing_set = {(str(r["categoria_id"]), str(r["naipe_id"]), str(r["tipo_modalidade_id"])) for r in existing_vars}
+        desired_set = {(c, n, t) for c, n, t in combos}
 
-    async with conn.cursor() as cur:
-        await cur.execute(
-            f"""
-            UPDATE esportes
-            SET {", ".join(updates)}
-            WHERE id = %s
-            """,
-            values,
-        )
+        to_remove = existing_set - desired_set
+        to_add = desired_set - existing_set
+
+        async with conn.cursor() as cur:
+            for cat_id, naipe_id, tipo_id in to_remove:
+                await cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM equipes e JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id "
+                    "WHERE ev.esporte_id = %s AND ev.categoria_id = %s AND ev.naipe_id = %s AND ev.tipo_modalidade_id = %s",
+                    (esporte_id, cat_id, naipe_id, tipo_id),
+                )
+                r = await cur.fetchone()
+                if r and r["cnt"] > 0:
+                    await conn.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Não é possível remover variante: existem equipe(s) vinculada(s)",
+                    )
+                await cur.execute(
+                    "DELETE FROM esporte_variantes WHERE esporte_id = %s AND categoria_id = %s AND naipe_id = %s AND tipo_modalidade_id = %s",
+                    (esporte_id, cat_id, naipe_id, tipo_id),
+                )
+
+            for tbl, col, vals, name in [
+                ("categorias", "id", [c for c, _, _ in to_add], "Categoria"),
+                ("naipes", "id", [n for _, n, _ in to_add], "Naipe"),
+                ("tipos_modalidade", "id", [t for _, _, t in to_add], "Tipo de modalidade"),
+            ]:
+                seen = set()
+                for v in vals:
+                    if v in seen:
+                        continue
+                    seen.add(v)
+                    await cur.execute(f"SELECT id FROM {tbl} WHERE id = %s", (v,))
+                    if not await cur.fetchone():
+                        await conn.rollback()
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{name} não encontrado(a)")
+
+            for cat_id, naipe_id, tipo_id in to_add:
+                await cur.execute(
+                    """
+                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id) DO NOTHING
+                    """,
+                    (esporte_id, cat_id, naipe_id, tipo_id),
+                )
+        await conn.commit()
+    else:
         await conn.commit()
 
     async with conn.cursor() as cur:

@@ -36,6 +36,9 @@ export const esportesService = {
       requisitos: data.requisitos?.trim() || '',
       limite_atletas: data.limite_atletas != null ? Number(data.limite_atletas) : 3,
       ativa: data.ativa !== undefined ? data.ativa : true,
+      categoria_ids: Array.isArray(data.categoria_ids) ? data.categoria_ids : [],
+      naipe_ids: Array.isArray(data.naipe_ids) ? data.naipe_ids : [],
+      tipo_modalidade_ids: Array.isArray(data.tipo_modalidade_ids) ? data.tipo_modalidade_ids : [],
     }
     const res = await apiFetch(BASE, {
       method: 'POST',
@@ -52,6 +55,9 @@ export const esportesService = {
     if (data.requisitos !== undefined) payload.requisitos = data.requisitos?.trim() ?? ''
     if (data.limite_atletas !== undefined) payload.limite_atletas = Number(data.limite_atletas) ?? 3
     if (data.ativa !== undefined) payload.ativa = data.ativa
+    if (data.categoria_ids !== undefined) payload.categoria_ids = data.categoria_ids
+    if (data.naipe_ids !== undefined) payload.naipe_ids = data.naipe_ids
+    if (data.tipo_modalidade_ids !== undefined) payload.tipo_modalidade_ids = data.tipo_modalidade_ids
 
     const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {
       method: 'PUT',

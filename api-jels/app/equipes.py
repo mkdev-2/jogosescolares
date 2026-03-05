@@ -132,6 +132,21 @@ async def create_equipe(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada")
 
+        # Validar que a variante está entre as selecionadas no cadastro da escola
+        await cur.execute(
+            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        escola_row = await cur.fetchone()
+        variante_ids = []
+        if escola_row and isinstance(escola_row.get("modalidades_adesao"), dict):
+            variante_ids = escola_row["modalidades_adesao"].get("variante_ids") or []
+        if variante_ids and data.esporte_variante_id not in variante_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Esta modalidade não foi selecionada no cadastro da escola. O diretor/coordenador só pode criar equipes para as variantes escolhidas na adesão.",
+            )
+
         # Validar todos os estudantes existem e pertencem à escola
         for sid in data.estudante_ids:
             await cur.execute(

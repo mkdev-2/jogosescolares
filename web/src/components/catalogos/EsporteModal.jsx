@@ -1,12 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Input, Checkbox, Button } from 'antd'
+import { Input, Checkbox, Button, Select } from 'antd'
 import Modal from '../ui/Modal'
 import ModalidadeIcon, { MODALIDADE_ICONES } from './ModalidadeIcon'
+import useCategorias from '../../hooks/useCategorias'
+import useNaipes from '../../hooks/useNaipes'
+import useTiposModalidade from '../../hooks/useTiposModalidade'
 
-export default function EsporteModal({ isOpen, onClose, esporte = null, onSuccess, createEsporte, updateEsporte, loading }) {
+export default function EsporteModal({
+  isOpen,
+  onClose,
+  esporte = null,
+  variantesForEdit = [],
+  onSuccess,
+  createEsporte,
+  updateEsporte,
+  loading,
+}) {
   const [iconeDropdownOpen, setIconeDropdownOpen] = useState(false)
   const iconeDropdownRef = useRef(null)
+  const { categorias } = useCategorias()
+  const { naipes } = useNaipes()
+  const { tipos } = useTiposModalidade()
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -15,11 +30,17 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
     requisitos: '',
     limite_atletas: 3,
     ativa: true,
+    categoria_ids: [],
+    naipe_ids: [],
+    tipo_modalidade_ids: [],
   })
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (esporte) {
+      const catIds = [...new Set(variantesForEdit.map((v) => v.categoria_id).filter(Boolean))]
+      const naipeIds = [...new Set(variantesForEdit.map((v) => v.naipe_id).filter(Boolean))]
+      const tipoIds = [...new Set(variantesForEdit.map((v) => v.tipo_modalidade_id).filter(Boolean))]
       setFormData({
         nome: esporte.nome || '',
         descricao: esporte.descricao || '',
@@ -27,8 +48,13 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
         requisitos: esporte.requisitos || '',
         limite_atletas: esporte.limite_atletas ?? 3,
         ativa: esporte.ativa !== undefined ? esporte.ativa : true,
+        categoria_ids: catIds,
+        naipe_ids: naipeIds,
+        tipo_modalidade_ids: tipoIds,
       })
     } else {
+      const allCatIds = categorias.map((c) => c.id)
+      const allNaipeIds = naipes.map((n) => n.id)
       setFormData({
         nome: '',
         descricao: '',
@@ -36,10 +62,13 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
         requisitos: '',
         limite_atletas: 3,
         ativa: true,
+        categoria_ids: allCatIds,
+        naipe_ids: allNaipeIds,
+        tipo_modalidade_ids: [],
       })
     }
     setErrors({})
-  }, [esporte, isOpen])
+  }, [esporte, variantesForEdit, isOpen, categorias, naipes])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -60,11 +89,29 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
+  const toggleCheckbox = (field, id) => {
+    setFormData((prev) => {
+      const arr = prev[field] || []
+      const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]
+      return { ...prev, [field]: next }
+    })
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  const toggleAll = (field, allIds) => {
+    const allSelected = (formData[field] || []).length === allIds.length
+    setFormData((prev) => ({ ...prev, [field]: allSelected ? [] : [...allIds] }))
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
   const validateForm = () => {
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
     const limite = Number(formData.limite_atletas)
     if (Number.isNaN(limite) || limite < 1) newErrors.limite_atletas = 'Informe o máximo de atletas (mín. 1)'
+    if (!formData.categoria_ids?.length) newErrors.categoria_ids = 'Selecione ao menos uma categoria'
+    if (!formData.naipe_ids?.length) newErrors.naipe_ids = 'Selecione ao menos um naipe'
+    if (!formData.tipo_modalidade_ids?.length) newErrors.tipo_modalidade_ids = 'Selecione ao menos um tipo de modalidade'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -79,6 +126,9 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
         icone: formData.icone || 'Zap',
         requisitos: formData.requisitos?.trim() || '',
         limite_atletas: Number(formData.limite_atletas) || 3,
+        categoria_ids: formData.categoria_ids || [],
+        naipe_ids: formData.naipe_ids || [],
+        tipo_modalidade_ids: formData.tipo_modalidade_ids || [],
       }
       if (esporte) {
         await updateEsporte(esporte.id, dataToSubmit)
@@ -101,8 +151,8 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
       title={esporte ? 'Editar Esporte' : 'Novo Esporte'}
       subtitle={
         esporte
-          ? 'Atualize as informações do esporte'
-          : 'Preencha os dados para criar um novo esporte'
+          ? 'Atualize as informações do esporte e variantes'
+          : 'Preencha os dados e selecione categorias, naipes e tipo para criar variantes automaticamente'
       }
       size="lg"
       footer={
@@ -221,6 +271,24 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
             )}
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="tipo_modalidade">
+              Tipo de modalidade <span className="text-[#dc2626]">*</span>
+            </label>
+            <Select
+              id="tipo_modalidade"
+              placeholder="Selecione"
+              value={formData.tipo_modalidade_ids?.[0] || undefined}
+              onChange={(v) => setFormData((p) => ({ ...p, tipo_modalidade_ids: v ? [v] : [] }))}
+              options={tipos.map((t) => ({ value: t.id, label: t.nome }))}
+              className="w-full"
+              status={errors.tipo_modalidade_ids ? 'error' : undefined}
+            />
+            {errors.tipo_modalidade_ids && (
+              <span className="text-[0.8rem] text-[#dc2626] block mt-1">{errors.tipo_modalidade_ids}</span>
+            )}
+          </div>
+
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="requisitos">
               Requisitos (opcional)
@@ -231,6 +299,64 @@ export default function EsporteModal({ isOpen, onClose, esporte = null, onSucces
               onChange={(e) => handleChange({ target: { name: 'requisitos', value: e.target.value, type: 'text' } })}
               placeholder="Ex: Necessita quadra"
             />
+          </div>
+        </div>
+
+        <div className="border-t border-[#e2e8f0] pt-5">
+          <h4 className="text-sm font-semibold text-[#334155] mb-3">Variantes</h4>
+          <p className="text-[0.8125rem] text-[#64748b] mb-4">
+            Selecione categorias e naipes. O sistema criará automaticamente todas as combinações.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  checked={(formData.categoria_ids?.length || 0) === categorias.length && categorias.length > 0}
+                  indeterminate={(formData.categoria_ids?.length || 0) > 0 && (formData.categoria_ids?.length || 0) < categorias.length}
+                  onChange={() => toggleAll('categoria_ids', categorias.map((c) => c.id))}
+                />
+                <label className="text-sm font-bold cursor-pointer text-[#334155]">Categorias (faixa etária) <span className="text-[#dc2626]">*</span></label>
+              </div>
+              <div className="flex flex-col gap-2">
+                {categorias.map((c) => (
+                  <Checkbox
+                    key={c.id}
+                    checked={formData.categoria_ids?.includes(c.id)}
+                    onChange={() => toggleCheckbox('categoria_ids', c.id)}
+                  >
+                    {c.nome}
+                  </Checkbox>
+                ))}
+              </div>
+              {errors.categoria_ids && (
+                <span className="text-[0.8rem] text-[#dc2626] block mt-1">{errors.categoria_ids}</span>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  checked={(formData.naipe_ids?.length || 0) === naipes.length && naipes.length > 0}
+                  indeterminate={(formData.naipe_ids?.length || 0) > 0 && (formData.naipe_ids?.length || 0) < naipes.length}
+                  onChange={() => toggleAll('naipe_ids', naipes.map((n) => n.id))}
+                >
+                <label className="text-sm font-bold cursor-pointer text-[#334155]">Naipes <span className="text-[#dc2626]">*</span></label>
+                </Checkbox>
+              </div>
+              <div className="flex flex-col gap-2">
+                {naipes.map((n) => (
+                  <Checkbox
+                    key={n.id}
+                    checked={formData.naipe_ids?.includes(n.id)}
+                    onChange={() => toggleCheckbox('naipe_ids', n.id)}
+                  >
+                    {n.nome}
+                  </Checkbox>
+                ))}
+              </div>
+              {errors.naipe_ids && (
+                <span className="text-[0.8rem] text-[#dc2626] block mt-1">{errors.naipe_ids}</span>
+              )}
+            </div>
           </div>
         </div>
 

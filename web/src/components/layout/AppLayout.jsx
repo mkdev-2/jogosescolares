@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, LayoutGrid, Layers, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -23,8 +23,6 @@ const menuGroups = [
     icon: Activity,
     items: [
       { label: 'Esportes', path: '/app/atividades', icon: Trophy, tab: 'esportes' },
-      { label: 'Variantes', path: '/app/atividades', icon: Layers, tab: 'variantes' },
-      { label: 'Categorias', path: '/app/atividades', icon: LayoutGrid, tab: 'categorias' },
     ],
   },
   {

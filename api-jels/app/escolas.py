@@ -309,7 +309,7 @@ async def create_escola_publico(
     if len(dados_coordenador["cpf"]) != 11:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CPF do coordenador deve conter 11 dígitos")
 
-    modalidades_json = json.dumps(data.modalidades) if data.modalidades else None
+    modalidades_json = json.dumps({"variante_ids": data.variante_ids}) if data.variante_ids else None
     dados_diretor_json = json.dumps(dados_diretor)
     dados_coordenador_json = json.dumps(dados_coordenador)
 

@@ -1,71 +1,80 @@
-import { useState, useEffect } from 'react'
-import { Activity, Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Trophy, Search, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Popconfirm, Input, Button } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
-import useEsportes from '../../hooks/useEsportes'
 
 export default function EsportesList({
+  variantes = [],
+  loading = false,
+  error = null,
+  fetchVariantes,
+  deleteVariante,
   onNewEsporte,
-  onEditEsporte,
-  esportes: esportesProp,
-  loading: loadingProp,
-  error: errorProp,
-  fetchEsportes: fetchEsportesProp,
-  deleteEsporte: deleteEsporteProp,
+  onEditVariante,
 }) {
-  const hookState = useEsportes()
-  const esportes = esportesProp ?? hookState.esportes
-  const loading = loadingProp ?? hookState.loading
-  const error = errorProp ?? hookState.error
-  const fetchEsportes = fetchEsportesProp ?? hookState.fetchEsportes
-  const deleteEsporte = deleteEsporteProp ?? hookState.deleteEsporte
-
   const [searchTerm, setSearchTerm] = useState('')
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchEsportes({ search: searchTerm })
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [searchTerm, fetchEsportes])
+  const filteredVariantes = variantes.filter((v) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      !searchTerm ||
+      v.esporte_nome?.toLowerCase().includes(term) ||
+      v.categoria_nome?.toLowerCase().includes(term) ||
+      v.naipe_nome?.toLowerCase().includes(term) ||
+      v.tipo_modalidade_nome?.toLowerCase().includes(term)
+    )
+  })
 
-  const handleDelete = async (esporte) => {
+  const handleDelete = async (v) => {
     try {
-      await deleteEsporte(esporte.id)
-      fetchEsportes({ search: searchTerm })
+      await deleteVariante(v.id)
+      fetchVariantes?.()
     } catch (err) {
       alert(err.message || 'Erro ao excluir')
     }
   }
 
-  const filteredEsportes = esportes.filter((e) => {
-    const matchSearch =
-      !searchTerm ||
-      e.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchSearch
-  })
+  const getCategoriaBadge = (nome) => {
+    if (!nome) return null
+    const m = nome.match(/(\d+)\s*a\s*(\d+)/)
+    const label = m ? `${m[1]} a ${m[2]}` : nome
+    const is1214 = m && m[1] === '12' && m[2] === '14'
+    const is1517 = m && m[1] === '15' && m[2] === '17'
+    const className = is1214
+      ? 'bg-[#f3e8ff] text-[#6b21a8]'
+      : is1517
+        ? 'bg-[#fee2e2] text-[#b91c1c]'
+        : 'bg-[#f1f5f9] text-[#64748b]'
+    return { label, className }
+  }
+
+  const getNaipeBadge = (nome) => {
+    if (!nome) return null
+    const label = nome === 'MASCULINO' ? 'Masculino' : nome === 'FEMININO' ? 'Feminino' : nome
+    const className = nome === 'MASCULINO'
+      ? 'bg-[#dbeafe] text-[#1d4ed8]'
+      : nome === 'FEMININO'
+        ? 'bg-[#fce7f3] text-[#9d174d]'
+        : 'bg-[#f1f5f9] text-[#64748b]'
+    return { label, className }
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
         <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
-              Total de Esportes
-            </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
-              {esportes.length}
-            </p>
+            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Variantes</p>
+            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{variantes.length}</p>
           </div>
-          <Activity size={28} className="text-[#0f766e]" />
+          <Trophy size={28} className="text-[#0f766e]" />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Buscar por nome ou descrição..."
+            placeholder="Buscar por esporte, categoria, naipe ou tipo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
@@ -93,23 +102,23 @@ export default function EsportesList({
 
       {!loading && !error && (
         <>
-          {filteredEsportes.length === 0 ? (
+          {filteredVariantes.length === 0 ? (
             <div className="text-center px-8 py-12 bg-white rounded-[12px] border border-dashed border-[#e2e8f0]">
               <p className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-2">
-                Nenhum esporte encontrado
+                Nenhuma variante encontrada
               </p>
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
                 {searchTerm
                   ? 'Tente ajustar o filtro de busca'
-                  : 'Comece criando um novo esporte'}
+                  : 'Crie um novo esporte para gerar variantes automaticamente'}
               </p>
               {onNewEsporte && (
                 <button
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95"
                   onClick={onNewEsporte}
                 >
                   <Plus size={18} className="shrink-0" />
-                  Criar Esporte
+                  Novo Esporte
                 </button>
               )}
             </div>
@@ -136,56 +145,64 @@ export default function EsportesList({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEsportes.map((e) => (
-                    <tr key={e.id} className="hover:bg-[#f8fafc]">
+                  {filteredVariantes.map((v) => {
+                    const catBadge = getCategoriaBadge(v.categoria_nome)
+                    const naipeBadge = getNaipeBadge(v.naipe_nome)
+                    return (
+                    <tr key={v.id} className="hover:bg-[#f8fafc]">
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-[#042f2e] flex items-center gap-2">
-                            <ModalidadeIcon icone={e.icone} size={18} className="text-[#0f766e] shrink-0" />
-                            {e.nome}
+                        <span className="font-semibold text-[#042f2e] flex items-center gap-2">
+                          <ModalidadeIcon icone={v.esporte_icone} size={18} className="text-[#0f766e] shrink-0" />
+                          {v.esporte_nome}
+                          <span className="inline-flex gap-1.5 flex-wrap">
+                            {catBadge && (
+                              <span className={`inline-block px-2 py-0.5 rounded-[6px] text-[0.75rem] font-medium ${catBadge.className}`}>
+                                {catBadge.label}
+                              </span>
+                            )}
+                            {naipeBadge && (
+                              <span className={`inline-block px-2 py-0.5 rounded-[6px] text-[0.75rem] font-medium ${naipeBadge.className}`}>
+                                {naipeBadge.label}
+                              </span>
+                            )}
                           </span>
-                          {e.descricao && (
-                            <span className="text-[0.8125rem] text-[#64748b] max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">
-                              {e.descricao}
-                            </span>
-                          )}
-                        </div>
+                        </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {e.limite_atletas ?? '-'}
+                        {v.esporte_limite_atletas ?? '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span className="block max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
-                          {e.requisitos || '-'}
+                          {v.esporte_requisitos || '-'}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span
                           className={`inline-block px-2 py-1 rounded-[6px] text-[0.8125rem] font-medium ${
-                            e.ativa
+                            v.esporte_ativa
                               ? 'bg-[#ccfbf1] text-[#0f766e]'
                               : 'bg-[#f1f5f9] text-[#64748b]'
                           }`}
                         >
-                          {e.ativa ? 'Ativa' : 'Inativa'}
+                          {v.esporte_ativa ? 'Ativa' : 'Inativa'}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right border-b border-[#f1f5f9]">
                         <div className="flex justify-end gap-2">
-                          {onEditEsporte && (
+                          {onEditVariante && (
                             <button
                               type="button"
                               className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                              onClick={() => onEditEsporte(e)}
-                              title="Editar"
+                              onClick={() => onEditVariante(v)}
+                              title="Editar esporte"
                             >
                               <Pencil size={18} />
                             </button>
                           )}
                           <Popconfirm
-                            title="Excluir esporte"
-                            description={`Tem certeza que deseja excluir o esporte "${e.nome}"?`}
-                            onConfirm={() => handleDelete(e)}
+                            title="Excluir variante"
+                            description={`Excluir "${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome}"?`}
+                            onConfirm={() => handleDelete(v)}
                             okText="Sim, excluir"
                             cancelText="Cancelar"
                             okButtonProps={{ danger: true }}
@@ -193,7 +210,7 @@ export default function EsportesList({
                             <button
                               type="button"
                               className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                              title="Excluir"
+                              title="Excluir variante"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -201,7 +218,7 @@ export default function EsportesList({
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
