@@ -184,7 +184,7 @@ export default function EsporteModal({
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-start">
             <div className="relative shrink-0" ref={iconeDropdownRef}>
               <span className="text-[0.75rem] text-[#64748b] block mb-1">Ícone</span>
               <button
@@ -231,6 +231,14 @@ export default function EsporteModal({
                 prefix={<ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e] shrink-0" />}
                 status={errors.nome ? 'error' : undefined}
               />
+            </div>
+            <div className="flex flex-col gap-1 shrink-0 pt-6">
+              <Checkbox
+                checked={formData.ativa}
+                onChange={(e) => handleChange({ target: { name: 'ativa', type: 'checkbox', checked: e.target.checked } })}
+              >
+                Esporte ativo
+              </Checkbox>
             </div>
           </div>
           {errors.nome && (
@@ -358,15 +366,6 @@ export default function EsporteModal({
               )}
             </div>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Checkbox
-            checked={formData.ativa}
-            onChange={(e) => handleChange({ target: { name: 'ativa', type: 'checkbox', checked: e.target.checked } })}
-          >
-            Esporte ativo
-          </Checkbox>
         </div>
       </form>
     </Modal>

@@ -67,6 +67,7 @@ export default function Atividades() {
             error={useVariantesState.error}
             fetchVariantes={useVariantesState.fetchVariantes}
             deleteVariante={useVariantesState.deleteVariante}
+            deleteEsporte={useEsportesState.deleteEsporte}
             onNewEsporte={handleNewEsporte}
             onEditVariante={handleEditVariante}
           />

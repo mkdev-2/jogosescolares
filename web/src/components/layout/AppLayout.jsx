@@ -84,7 +84,7 @@ export default function AppLayout({ children }) {
             <img
               src="/Jels-2026-horizontal.png"
               alt="JELS - Jogos Escolares Luminenses"
-              className="h-9 w-auto max-w-full object-contain object-left"
+              className="h-[100px] w-auto max-w-full object-contain object-center"
             />
           </Link>
           <button

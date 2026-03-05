@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Input, Select, Checkbox, Button, Spin } from 'antd'
-import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle, X } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
+import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -270,6 +271,17 @@ export default function CadastroEscola() {
     if (errors.varianteIds) setErrors((prev) => ({ ...prev, varianteIds: undefined }))
   }
 
+  const selecionarTodasVariantesDoEsporte = (esporteNome) => {
+    const variantesDoEsporte = variantesPorEsporte[esporteNome] || []
+    const idsNovos = variantesDoEsporte.map((v) => v.id)
+    setForm((prev) => {
+      const ids = Array.isArray(prev.varianteIds) ? [...prev.varianteIds] : []
+      const setIds = new Set([...ids, ...idsNovos])
+      return { ...prev, varianteIds: Array.from(setIds) }
+    })
+    if (errors.varianteIds) setErrors((prev) => ({ ...prev, varianteIds: undefined }))
+  }
+
   const [variantes, setVariantes] = useState([])
   const [loadingVariantes, setLoadingVariantes] = useState(true)
   const [esporteSelecionado, setEsporteSelecionado] = useState(null)
@@ -287,9 +299,24 @@ export default function CadastroEscola() {
     return acc
   }, {})
 
+  const iconePorEsporte = Object.fromEntries(
+    Object.entries(variantesPorEsporte).map(([nome, arr]) => [
+      nome,
+      arr[0]?.esporte_icone || 'Zap',
+    ])
+  )
+
   const esportesOptions = Object.keys(variantesPorEsporte)
     .sort()
-    .map((nome) => ({ value: nome, label: nome }))
+    .map((nome) => ({
+      value: nome,
+      label: (
+        <span className="flex items-center gap-2">
+          <ModalidadeIcon icone={iconePorEsporte[nome]} size={18} className="text-primary shrink-0" />
+          {nome}
+        </span>
+      ),
+    }))
 
   const variantesSelecionadas = variantes.filter((v) => (form.varianteIds || []).includes(v.id))
 
@@ -743,17 +770,27 @@ export default function CadastroEscola() {
 
                 {esporteSelecionado && variantesPorEsporte[esporteSelecionado]?.length > 0 && (
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium text-gray-700 mb-3">
-                      Opções de {esporteSelecionado} — marque as que sua escola pretende participar:
-                    </p>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <p className="text-sm font-medium text-gray-700">
+                        Opções de {esporteSelecionado} — marque as que sua escola pretende participar:
+                      </p>
+                      <Button
+                        type="default"
+                        size="small"
+                        onClick={() => selecionarTodasVariantesDoEsporte(esporteSelecionado)}
+                      >
+                        Selecionar todos
+                      </Button>
+                    </div>
                     <div className="flex flex-wrap gap-3">
                       {variantesPorEsporte[esporteSelecionado].map((v) => {
-                        const label = `${v.naipe_nome || ''} • ${v.categoria_nome || ''} • ${v.tipo_modalidade_nome || ''}`
+                        const label = `${v.naipe_nome || ''} • ${v.categoria_nome || ''}`
                         return (
                           <label
                             key={v.id}
                             className="flex items-center gap-2 px-3 py-2 bg-white rounded-md border border-gray-200 hover:border-primary/50 cursor-pointer transition-colors"
                           >
+                            <ModalidadeIcon icone={v.esporte_icone || 'Zap'} size={18} className="text-primary shrink-0" />
                             <Checkbox
                               checked={(form.varianteIds || []).includes(v.id)}
                               onChange={() => toggleVariante(v.id)}
@@ -771,11 +808,21 @@ export default function CadastroEscola() {
                     <p className="text-sm font-semibold text-gray-800 mb-2">
                       Modalidades selecionadas ({variantesSelecionadas.length})
                     </p>
-                    <ul className="space-y-1.5 text-sm text-gray-700">
+                    <ul className="space-y-1.5 text-sm text-gray-700 max-h-48 overflow-y-auto pr-1">
                       {variantesSelecionadas.map((v) => (
-                        <li key={v.id} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                          {v.esporte_nome} — {v.naipe_nome} • {v.categoria_nome} • {v.tipo_modalidade_nome}
+                        <li key={v.id} className="flex items-center gap-2 group">
+                          <ModalidadeIcon icone={v.esporte_icone || 'Zap'} size={18} className="text-primary shrink-0" />
+                          <span className="flex-1 min-w-0">
+                            {v.esporte_nome} — {v.naipe_nome} • {v.categoria_nome}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleVariante(v.id)}
+                            className="p-1 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors flex-shrink-0"
+                            title="Remover"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </li>
                       ))}
                     </ul>

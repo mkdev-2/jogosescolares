@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Trophy, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Popconfirm, Input, Button } from 'antd'
+import { Popconfirm, Input, Button, Select, Switch } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EsportesList({
@@ -9,25 +9,75 @@ export default function EsportesList({
   error = null,
   fetchVariantes,
   deleteVariante,
+  deleteEsporte,
   onNewEsporte,
   onEditVariante,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState(null)
+  const [filtroNaipe, setFiltroNaipe] = useState(null)
+  const [filtroTipo, setFiltroTipo] = useState(null)
+  const [exibirUnicos, setExibirUnicos] = useState(true)
+
+  const opcoesCategoria = useMemo(() => {
+    const map = new Map()
+    variantes.forEach((v) => {
+      if (v.categoria_id && v.categoria_nome) map.set(v.categoria_id, v.categoria_nome)
+    })
+    return Array.from(map.entries()).map(([id, nome]) => ({ value: id, label: nome })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [variantes])
+
+  const opcoesNaipe = useMemo(() => {
+    const map = new Map()
+    variantes.forEach((v) => {
+      if (v.naipe_id && v.naipe_nome) map.set(v.naipe_id, v.naipe_nome)
+    })
+    return Array.from(map.entries()).map(([id, nome]) => ({ value: id, label: nome })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [variantes])
+
+  const opcoesTipo = useMemo(() => {
+    const map = new Map()
+    variantes.forEach((v) => {
+      if (v.tipo_modalidade_id && v.tipo_modalidade_nome) map.set(v.tipo_modalidade_id, v.tipo_modalidade_nome)
+    })
+    return Array.from(map.entries()).map(([id, nome]) => ({ value: id, label: nome })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [variantes])
 
   const filteredVariantes = variantes.filter((v) => {
     const term = searchTerm.toLowerCase()
-    return (
-      !searchTerm ||
+    const matchSearch = !searchTerm ||
       v.esporte_nome?.toLowerCase().includes(term) ||
       v.categoria_nome?.toLowerCase().includes(term) ||
       v.naipe_nome?.toLowerCase().includes(term) ||
       v.tipo_modalidade_nome?.toLowerCase().includes(term)
-    )
+    const matchCategoria = !filtroCategoria || v.categoria_id === filtroCategoria
+    const matchNaipe = !filtroNaipe || v.naipe_id === filtroNaipe
+    const matchTipo = !filtroTipo || v.tipo_modalidade_id === filtroTipo
+    return matchSearch && matchCategoria && matchNaipe && matchTipo
   })
 
-  const handleDelete = async (v) => {
+  const totalEsportes = useMemo(() => {
+    const ids = new Set(filteredVariantes.map((v) => v.esporte_id).filter(Boolean))
+    return ids.size
+  }, [filteredVariantes])
+
+  const variantesParaExibir = useMemo(() => {
+    if (!exibirUnicos) return filteredVariantes
+    const seen = new Set()
+    return filteredVariantes.filter((v) => {
+      if (seen.has(v.esporte_id)) return false
+      seen.add(v.esporte_id)
+      return true
+    })
+  }, [filteredVariantes, exibirUnicos])
+
+  const handleDelete = async (v, isEsporteUnico = false) => {
     try {
-      await deleteVariante(v.id)
+      if (isEsporteUnico && deleteEsporte) {
+        await deleteEsporte(v.esporte_id)
+      } else {
+        await deleteVariante(v.id)
+      }
       fetchVariantes?.()
     } catch (err) {
       alert(err.message || 'Erro ao excluir')
@@ -65,7 +115,14 @@ export default function EsportesList({
         <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex-1">
             <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Variantes</p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{variantes.length}</p>
+            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{filteredVariantes.length}</p>
+          </div>
+          <Trophy size={28} className="text-[#0f766e]" />
+        </div>
+        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex-1">
+            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Esportes</p>
+            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{totalEsportes}</p>
           </div>
           <Trophy size={28} className="text-[#0f766e]" />
         </div>
@@ -79,6 +136,41 @@ export default function EsportesList({
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
           />
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            placeholder="Categoria"
+            allowClear
+            value={filtroCategoria || undefined}
+            onChange={(v) => setFiltroCategoria(v ?? null)}
+            options={opcoesCategoria}
+            className="min-w-[140px]"
+          />
+          <Select
+            placeholder="Naipe"
+            allowClear
+            value={filtroNaipe || undefined}
+            onChange={(v) => setFiltroNaipe(v ?? null)}
+            options={opcoesNaipe}
+            className="min-w-[120px]"
+          />
+          <Select
+            placeholder="Tipo"
+            allowClear
+            value={filtroTipo || undefined}
+            onChange={(v) => setFiltroTipo(v ?? null)}
+            options={opcoesTipo}
+            className="min-w-[130px]"
+          />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Switch
+            checked={!exibirUnicos}
+            onChange={(checked) => setExibirUnicos(!checked)}
+          />
+          <span className="text-[0.875rem] text-[#64748b] whitespace-nowrap">
+            {exibirUnicos ? 'Esportes únicos' : 'Todas as variantes'}
+          </span>
         </div>
         {onNewEsporte && (
           <Button type="primary" onClick={onNewEsporte} icon={<Plus size={18} />}>
@@ -102,14 +194,14 @@ export default function EsportesList({
 
       {!loading && !error && (
         <>
-          {filteredVariantes.length === 0 ? (
+          {variantesParaExibir.length === 0 ? (
             <div className="text-center px-8 py-12 bg-white rounded-[12px] border border-dashed border-[#e2e8f0]">
               <p className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-2">
-                Nenhuma variante encontrada
+                {exibirUnicos ? 'Nenhum esporte encontrado' : 'Nenhuma variante encontrada'}
               </p>
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
-                {searchTerm
-                  ? 'Tente ajustar o filtro de busca'
+                {(searchTerm || filtroCategoria || filtroNaipe || filtroTipo)
+                  ? 'Tente ajustar os filtros de busca'
                   : 'Crie um novo esporte para gerar variantes automaticamente'}
               </p>
               {onNewEsporte && (
@@ -145,15 +237,22 @@ export default function EsportesList({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVariantes.map((v) => {
+                  {variantesParaExibir.map((v) => {
                     const catBadge = getCategoriaBadge(v.categoria_nome)
                     const naipeBadge = getNaipeBadge(v.naipe_nome)
+                    const isEsporteUnico = exibirUnicos
                     return (
-                    <tr key={v.id} className="hover:bg-[#f8fafc]">
+                    <tr key={exibirUnicos ? v.esporte_id : v.id} className="hover:bg-[#f8fafc]">
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span className="font-semibold text-[#042f2e] flex items-center gap-2">
                           <ModalidadeIcon icone={v.esporte_icone} size={18} className="text-[#0f766e] shrink-0" />
                           {v.esporte_nome}
+                          {exibirUnicos && (
+                            <span className="inline-block px-2 py-0.5 rounded-[6px] text-[0.75rem] font-medium bg-[#f1f5f9] text-[#64748b]">
+                              {filteredVariantes.filter((x) => x.esporte_id === v.esporte_id).length} variante(s)
+                            </span>
+                          )}
+                          {!exibirUnicos && (
                           <span className="inline-flex gap-1.5 flex-wrap">
                             {catBadge && (
                               <span className={`inline-block px-2 py-0.5 rounded-[6px] text-[0.75rem] font-medium ${catBadge.className}`}>
@@ -166,6 +265,7 @@ export default function EsportesList({
                               </span>
                             )}
                           </span>
+                          )}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
@@ -199,10 +299,13 @@ export default function EsportesList({
                               <Pencil size={18} />
                             </button>
                           )}
+                          {(isEsporteUnico ? deleteEsporte : deleteVariante) && (
                           <Popconfirm
-                            title="Excluir variante"
-                            description={`Excluir "${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome}"?`}
-                            onConfirm={() => handleDelete(v)}
+                            title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'}
+                            description={isEsporteUnico
+                              ? `Excluir o esporte "${v.esporte_nome}" e todas as suas variantes?`
+                              : `Excluir "${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome}"?`}
+                            onConfirm={() => handleDelete(v, isEsporteUnico)}
                             okText="Sim, excluir"
                             cancelText="Cancelar"
                             okButtonProps={{ danger: true }}
@@ -210,11 +313,12 @@ export default function EsportesList({
                             <button
                               type="button"
                               className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                              title="Excluir variante"
+                              title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'}
                             >
                               <Trash2 size={18} />
                             </button>
                           </Popconfirm>
+                          )}
                         </div>
                       </td>
                     </tr>
