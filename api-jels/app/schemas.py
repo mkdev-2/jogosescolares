@@ -285,16 +285,17 @@ class EstudanteAtletaCreate(BaseModel):
     """Schema para criação de estudante-atleta (escola_id vem do usuário logado)."""
     nome: str = Field(..., min_length=1)
     cpf: str = Field(..., min_length=11, max_length=14)
-    rg: str = Field(..., min_length=1)
+    rg: str = Field(..., min_length=1, max_length=11)
     data_nascimento: str = Field(..., description="YYYY-MM-DD")
     sexo: str = Field(..., pattern="^[MF]$")
     email: str = Field(..., min_length=1)
     endereco: str = Field(..., min_length=1)
     cep: str = Field(..., min_length=8, max_length=9)
-    numero_registro_confederacao: Optional[str] = None
+    numero_registro_confederacao: Optional[str] = Field(None, max_length=20)
+    foto_url: Optional[str] = None
     responsavel_nome: str = Field(..., min_length=1)
     responsavel_cpf: str = Field(..., min_length=11, max_length=14)
-    responsavel_rg: str = Field(..., min_length=1)
+    responsavel_rg: str = Field(..., min_length=1, max_length=11)
     responsavel_celular: str = Field(..., min_length=1)
     responsavel_email: str = Field(..., min_length=1)
     responsavel_nis: str = Field(..., min_length=1)
@@ -315,6 +316,7 @@ class EstudanteAtletaResponse(BaseModel):
     endereco: Optional[str] = None
     cep: Optional[str] = None
     numero_registro_confederacao: Optional[str] = None
+    foto_url: Optional[str] = None
     responsavel_nome: str
     responsavel_cpf: str
     responsavel_rg: Optional[str] = None

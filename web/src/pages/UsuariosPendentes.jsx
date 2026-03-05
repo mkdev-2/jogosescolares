@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { School, Search, CheckCircle, Loader2 } from 'lucide-react'
-import { Popconfirm } from 'antd'
+import { Popconfirm, Input } from 'antd'
 import { escolasService } from '../services/escolasService'
 
 export default function UsuariosPendentes({ embedded }) {
@@ -70,14 +70,13 @@ export default function UsuariosPendentes({ embedded }) {
         </div>
       </div>
 
-      <div className="flex-1 min-w-[200px] relative">
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none" />
-        <input
-          type="text"
+      <div className="flex-1 min-w-[200px]">
+        <Input
           placeholder="Buscar por escola, INEP ou nome do diretor..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+          prefix={<Search size={18} className="text-[#64748b]" />}
+          size="large"
         />
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Input, Button } from 'antd'
 import { useAuth } from '../contexts/AuthContext'
 import { ArrowLeft } from 'lucide-react'
 
@@ -99,9 +100,9 @@ export default function Login() {
             <label className="text-sm font-semibold text-[#334155]" htmlFor="cpf">
               CPF
             </label>
-            <input
+            <Input
               id="cpf"
-              type="text"
+              size="large"
               value={cpf}
               onChange={(e) => setCpf(formatCpf(e.target.value))}
               placeholder="000.000.000-00"
@@ -110,7 +111,6 @@ export default function Login() {
               required
               disabled={submitting}
               autoFocus
-              className="px-4 py-3 border-2 border-[#e2e8f0] rounded-[12px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] focus:shadow-[0_0_0_3px_rgba(15,118,110,0.2)] placeholder:text-slate-400 disabled:bg-[#f8fafc] disabled:cursor-not-allowed"
             />
           </div>
 
@@ -118,26 +118,28 @@ export default function Login() {
             <label className="text-sm font-semibold text-[#334155]" htmlFor="password">
               Senha
             </label>
-            <input
+            <Input.Password
               id="password"
-              type="password"
+              size="large"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="current-password"
               required
               disabled={submitting}
-              className="px-4 py-3 border-2 border-[#e2e8f0] rounded-[12px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] focus:shadow-[0_0_0_3px_rgba(15,118,110,0.2)] placeholder:text-slate-400 disabled:bg-[#f8fafc] disabled:cursor-not-allowed"
             />
           </div>
 
-          <button
-            type="submit"
-            className="mt-2 px-6 py-4 bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white rounded-[12px] text-base font-semibold cursor-pointer transition-transform disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-[0_10px_25px_-5px_rgba(15,118,110,0.4)] active:translate-y-0"
+          <Button
+            type="primary"
+            htmlType="submit"
+            size="large"
+            loading={submitting}
             disabled={submitting}
+            className="mt-2 w-full"
           >
             {submitting ? 'Entrando...' : 'Entrar'}
-          </button>
+          </Button>
         </form>
 
       

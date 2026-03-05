@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Input, Checkbox, Button } from 'antd'
 import Modal from '../ui/Modal'
 
 export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess, createCategoria, updateCategoria, loading }) {
@@ -78,22 +79,12 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold border-2 border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#cbd5e1] hover:text-[#334155] disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={onClose}
-            disabled={loading}
-          >
+          <Button type="default" onClick={onClose} disabled={loading}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="categoria-form"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-95 hover:-translate-y-px transition-transform"
-            disabled={loading}
-          >
+          </Button>
+          <Button type="primary" htmlType="submit" form="categoria-form" loading={loading} disabled={loading}>
             {loading ? 'Salvando...' : categoria ? 'Atualizar' : 'Criar'}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -115,16 +106,12 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
           </label>
-          <input
+          <Input
             id="nome"
-            name="nome"
-            type="text"
             value={formData.nome}
-            onChange={handleChange}
+            onChange={(e) => handleChange({ target: { name: 'nome', value: e.target.value, type: 'text' } })}
             placeholder="Ex: Coletiva"
-            className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-              errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-            }`}
+            status={errors.nome ? 'error' : undefined}
           />
           {errors.nome && (
             <span className="text-[0.8rem] text-[#dc2626]">{errors.nome}</span>
@@ -135,28 +122,22 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
           <label className="text-sm font-semibold text-[#334155]" htmlFor="descricao">
             Descrição
           </label>
-          <textarea
+          <Input.TextArea
             id="descricao"
-            name="descricao"
             value={formData.descricao}
-            onChange={handleChange}
+            onChange={(e) => handleChange({ target: { name: 'descricao', value: e.target.value } })}
             placeholder="Descreva a categoria..."
             rows={3}
-            className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
-            <input
-              type="checkbox"
-              name="ativa"
-              checked={formData.ativa}
-              onChange={handleChange}
-              className="w-[1.125rem] h-[1.125rem]"
-            />
+          <Checkbox
+            checked={formData.ativa}
+            onChange={(e) => handleChange({ target: { name: 'ativa', type: 'checkbox', checked: e.target.checked } })}
+          >
             Categoria ativa
-          </label>
+          </Checkbox>
         </div>
       </form>
     </Modal>

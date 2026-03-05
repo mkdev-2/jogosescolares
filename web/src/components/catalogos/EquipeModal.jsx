@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
+import { Input, Select, Checkbox, Button } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 import Modal from '../ui/Modal'
 import { equipesService } from '../../services/equipesService'
 import { estudantesService } from '../../services/estudantesService'
 
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
-const inputClass = 'w-full px-4 py-2.5 rounded-lg border border-[#e2e8f0] bg-white text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#0f766e] focus:border-transparent'
-const inputErrorClass = 'border-[#dc2626] focus:ring-[#dc2626]'
 const errorClass = 'text-[#dc2626] text-sm mt-1'
 
 export default function EquipeModal({
@@ -108,12 +107,12 @@ export default function EquipeModal({
 
   const footer = (
     <div className="flex justify-end gap-3">
-      <button type="button" onClick={handleClose} className="px-5 py-2.5 rounded-lg border border-[#e2e8f0] text-[#475569] font-medium hover:bg-[#f1f5f9]">
+      <Button type="default" onClick={handleClose}>
         Cancelar
-      </button>
-      <button type="button" onClick={handleSubmit} disabled={loading} className="px-6 py-2.5 rounded-lg bg-[#0f766e] text-white font-semibold hover:opacity-90 disabled:opacity-60">
+      </Button>
+      <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
         {loading ? 'Salvando...' : 'Cadastrar equipe'}
-      </button>
+      </Button>
     </div>
   )
 
@@ -138,41 +137,28 @@ export default function EquipeModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="eq-modalidade" className={labelClass}>Modalidade *</label>
-              <div className="flex gap-2 items-center">
-                {modalidadeId && modalidades.find((m) => m.id === modalidadeId) && (
-                  <ModalidadeIcon
-                    icone={modalidades.find((m) => m.id === modalidadeId)?.icone}
-                    size={22}
-                    className="text-[#0f766e] shrink-0"
-                  />
-                )}
-                <select
-                  id="eq-modalidade"
-                  value={modalidadeId}
-                  onChange={(e) => { setModalidadeId(e.target.value); if (errors.modalidade_id) setErrors((x) => ({ ...x, modalidade_id: undefined })) }}
-                  className={`flex-1 ${inputClass} ${errors.modalidade_id ? inputErrorClass : ''}`}
-                >
-                  <option value="">Selecione</option>
-                  {modalidades.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nome}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                id="eq-modalidade"
+                value={modalidadeId || undefined}
+                onChange={(v) => { setModalidadeId(v || ''); if (errors.modalidade_id) setErrors((x) => ({ ...x, modalidade_id: undefined })) }}
+                placeholder="Selecione"
+                options={modalidades.map((m) => ({ value: m.id, label: m.nome }))}
+                className="w-full"
+                status={errors.modalidade_id ? 'error' : undefined}
+              />
               {errors.modalidade_id && <p className={errorClass}>{errors.modalidade_id}</p>}
             </div>
             <div>
               <label htmlFor="eq-categoria" className={labelClass}>Categoria *</label>
-              <select
+              <Select
                 id="eq-categoria"
-                value={categoriaId}
-                onChange={(e) => { setCategoriaId(e.target.value); if (errors.categoria_id) setErrors((x) => ({ ...x, categoria_id: undefined })) }}
-                className={`${inputClass} ${errors.categoria_id ? inputErrorClass : ''}`}
-              >
-                <option value="">Selecione</option>
-                {categorias.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
+                value={categoriaId || undefined}
+                onChange={(v) => { setCategoriaId(v || ''); if (errors.categoria_id) setErrors((x) => ({ ...x, categoria_id: undefined })) }}
+                placeholder="Selecione"
+                options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
+                className="w-full"
+                status={errors.categoria_id ? 'error' : undefined}
+              />
               {errors.categoria_id && <p className={errorClass}>{errors.categoria_id}</p>}
             </div>
           </div>
@@ -188,17 +174,15 @@ export default function EquipeModal({
             </div>
             <div>
               <label htmlFor="eq-tecnico" className={labelClass}>Técnico *</label>
-              <select
+              <Select
                 id="eq-tecnico"
-                value={professorTecnicoId}
-                onChange={(e) => { setProfessorTecnicoId(e.target.value); if (errors.professor_tecnico_id) setErrors((x) => ({ ...x, professor_tecnico_id: undefined })) }}
-                className={`${inputClass} ${errors.professor_tecnico_id ? inputErrorClass : ''}`}
-              >
-                <option value="">Selecione o técnico</option>
-                {professoresTecnicos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome} {p.cref ? `(CREF: ${p.cref})` : ''}</option>
-                ))}
-              </select>
+                value={professorTecnicoId || undefined}
+                onChange={(v) => { setProfessorTecnicoId(v || ''); if (errors.professor_tecnico_id) setErrors((x) => ({ ...x, professor_tecnico_id: undefined })) }}
+                placeholder="Selecione o técnico"
+                options={professoresTecnicos.map((p) => ({ value: p.id, label: `${p.nome}${p.cref ? ` (CREF: ${p.cref})` : ''}` }))}
+                className="w-full"
+                status={errors.professor_tecnico_id ? 'error' : undefined}
+              />
               {errors.professor_tecnico_id && <p className={errorClass}>{errors.professor_tecnico_id}</p>}
             </div>
           </div>
@@ -219,14 +203,12 @@ export default function EquipeModal({
                 <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe nesta modalidade.</span>
               )}
             </p>
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b]" />
-              <input
-                type="text"
+            <div className="mb-3">
+              <Input
                 placeholder="Buscar aluno por nome ou CPF..."
                 value={alunoSearch}
                 onChange={(e) => setAlunoSearch(e.target.value)}
-                className={`${inputClass} pl-9`}
+                prefix={<Search className="w-4 h-4 text-[#64748b]" />}
               />
             </div>
             <button type="button" onClick={selectAllAlunos} className="text-sm text-[#0f766e] font-medium mb-2 hover:underline">
@@ -243,12 +225,10 @@ export default function EquipeModal({
                     return (
                     <li key={est.id}>
                       <label className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer hover:bg-[#e2e8f0]/50 ${desabilitado ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={jaSelecionado}
                           onChange={() => toggleEstudante(est.id)}
                           disabled={desabilitado}
-                          className="w-4 h-4 rounded border-[#e2e8f0] text-[#0f766e] focus:ring-[#0f766e]"
                         />
                         <span className="text-sm text-[#334155]">{est.nome}</span>
                         <span className="text-xs text-[#64748b] font-mono">{estudantesService.formatCpf(est.cpf)}</span>

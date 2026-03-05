@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { Input, Select, Checkbox, Button } from 'antd'
 import Modal from '../ui/Modal'
 import useCategorias from '../../hooks/useCategorias'
 import ModalidadeIcon, { MODALIDADE_ICONES } from './ModalidadeIcon'
@@ -113,22 +114,12 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold border-2 border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#cbd5e1] hover:text-[#334155] disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={onClose}
-            disabled={loading}
-          >
+          <Button type="default" onClick={onClose} disabled={loading}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="modalidade-form"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-95 hover:-translate-y-px transition-transform"
-            disabled={loading}
-          >
+          </Button>
+          <Button type="primary" htmlType="submit" form="modalidade-form" loading={loading} disabled={loading}>
             {loading ? 'Salvando...' : modalidade ? 'Atualizar' : 'Criar'}
-          </button>
+          </Button>
         </div>
       }
       >
@@ -156,11 +147,11 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               <button
                 type="button"
                 onClick={() => setIconeDropdownOpen((v) => !v)}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] bg-white hover:border-[#0f766e] transition-colors"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 h-8 border border-[#e2e8f0] rounded-[6px] bg-white hover:border-[#0f766e] transition-colors"
                 title="Selecionar ícone"
               >
-                <ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e]" />
-                <ChevronDown size={16} className={`text-[#64748b] transition-transform ${iconeDropdownOpen ? 'rotate-180' : ''}`} />
+                <ModalidadeIcon icone={formData.icone} size={18} className="text-[#0f766e]" />
+                <ChevronDown size={14} className={`text-[#64748b] transition-transform ${iconeDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {iconeDropdownOpen && (
                 <div className="absolute left-0 top-full mt-1 z-50 p-3 bg-white border-2 border-[#e2e8f0] rounded-[8px] shadow-lg min-w-[320px]">
@@ -189,20 +180,14 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             </div>
             <div className="flex-1 flex flex-col gap-1 min-w-0">
               <span className="text-[0.75rem] text-[#64748b] invisible">Ícone</span>
-              <div className={`flex items-center gap-2 px-3 py-2.5 border-2 rounded-[8px] bg-white ${
-                errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}>
-                <ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e] shrink-0" />
-                <input
-                  id="nome"
-                  name="nome"
-                  type="text"
-                  value={formData.nome}
-                  onChange={handleChange}
-                  placeholder="Ex: Futebol"
-                  className="flex-1 min-w-0 border-0 bg-transparent text-base font-inherit focus:outline-none"
-                />
-              </div>
+              <Input
+                id="nome"
+                value={formData.nome}
+                onChange={(e) => handleChange({ target: { name: 'nome', value: e.target.value, type: 'text' } })}
+                placeholder="Ex: Futebol"
+                prefix={<ModalidadeIcon icone={formData.icone} size={22} className="text-[#0f766e] shrink-0" />}
+                status={errors.nome ? 'error' : undefined}
+              />
             </div>
           </div>
           {errors.nome && (
@@ -214,14 +199,12 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
           <label className="text-sm font-semibold text-[#334155]" htmlFor="descricao">
             Descrição
           </label>
-          <textarea
+          <Input.TextArea
             id="descricao"
-            name="descricao"
             value={formData.descricao}
-            onChange={handleChange}
+            onChange={(e) => handleChange({ target: { name: 'descricao', value: e.target.value, type: 'text' } })}
             placeholder="Descreva a modalidade..."
             rows={4}
-            className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
 
@@ -230,26 +213,16 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             <label className="text-sm font-semibold text-[#334155]" htmlFor="categoria_id">
               Categoria <span className="text-[#dc2626]">*</span>
             </label>
-            <select
+            <Select
               id="categoria_id"
-              name="categoria_id"
-              value={formData.categoria_id || ''}
-              onChange={handleChange}
+              value={formData.categoria_id || undefined}
+              onChange={(v) => handleChange({ target: { name: 'categoria_id', value: v, type: 'text' } })}
+              placeholder="—"
               disabled={categorias.length === 0}
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.categoria_id ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              } ${categorias.length === 0 ? 'bg-[#f8fafc] text-[#94a3b8]' : 'bg-white'}`}
-            >
-              {categorias.length === 0 ? (
-                <option value="">—</option>
-              ) : (
-                categorias.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nome}
-                  </option>
-                ))
-              )}
-            </select>
+              options={categorias.map((cat) => ({ value: cat.id, label: cat.nome }))}
+              className="w-full"
+              status={errors.categoria_id ? 'error' : undefined}
+            />
             {categorias.length === 0 && (
               <span className="text-[0.75rem] text-[#64748b]">
                 Ainda não há categorias disponíveis. Crie uma categoria antes de cadastrar modalidades.
@@ -264,17 +237,14 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
               Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
             </label>
-            <input
+            <Input
               id="limite_atletas"
-              name="limite_atletas"
               type="number"
               min={1}
               value={formData.limite_atletas}
-              onChange={handleChange}
+              onChange={(e) => handleChange({ target: { name: 'limite_atletas', value: e.target.value, type: 'text' } })}
               placeholder="Ex: 3"
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.limite_atletas ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
+              status={errors.limite_atletas ? 'error' : undefined}
             />
             <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe nesta modalidade</span>
             {errors.limite_atletas && (
@@ -286,29 +256,22 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             <label className="text-sm font-semibold text-[#334155]" htmlFor="requisitos">
               Requisitos (opcional)
             </label>
-            <input
+            <Input
               id="requisitos"
-              name="requisitos"
-              type="text"
               value={formData.requisitos}
-              onChange={handleChange}
+              onChange={(e) => handleChange({ target: { name: 'requisitos', value: e.target.value, type: 'text' } })}
               placeholder="Ex: Necessita quadra"
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-[#334155] cursor-pointer">
-            <input
-              type="checkbox"
-              name="ativa"
-              checked={formData.ativa}
-              onChange={handleChange}
-              className="w-[1.125rem] h-[1.125rem]"
-            />
+          <Checkbox
+            checked={formData.ativa}
+            onChange={(e) => handleChange({ target: { name: 'ativa', type: 'checkbox', checked: e.target.checked } })}
+          >
             Modalidade ativa
-          </label>
+          </Checkbox>
         </div>
       </form>
     </Modal>

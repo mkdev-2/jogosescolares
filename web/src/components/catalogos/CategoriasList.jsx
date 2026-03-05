@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LayoutGrid, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Popconfirm } from 'antd'
+import { Popconfirm, Input, Button } from 'antd'
 import useCategorias from '../../hooks/useCategorias'
 
 export default function CategoriasList({
@@ -54,28 +54,18 @@ export default function CategoriasList({
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px] relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none"
-          />
-          <input
-            type="text"
+        <div className="flex-1 min-w-[200px]">
+          <Input
             placeholder="Buscar por nome ou descrição..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+            prefix={<Search size={18} className="text-[#64748b]" />}
           />
         </div>
         {onNewCategoria && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-            onClick={onNewCategoria}
-          >
-            <Plus size={18} className="shrink-0" />
+          <Button type="primary" onClick={onNewCategoria} icon={<Plus size={16} />}>
             Nova Categoria
-          </button>
+          </Button>
         )}
       </div>
 

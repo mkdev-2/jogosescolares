@@ -28,7 +28,7 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
     >
       <div
         className={`bg-white rounded-[16px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] max-h-[90vh] min-h-[280px] flex flex-col ${
-          size === 'lg' ? 'w-full max-w-[640px]' : 'w-full max-w-[500px]'
+          size === 'xl' ? 'w-full max-w-[960px]' : size === 'lg' ? 'w-full max-w-[640px]' : 'w-full max-w-[500px]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >

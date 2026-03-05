@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Building2, Search } from 'lucide-react'
+import { Input } from 'antd'
 import { escolasService } from '../../services/escolasService'
 
 function formatDate(str) {
@@ -50,17 +51,12 @@ export default function EscolasList({ lista = [], loading, error }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px] relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none"
-          />
-          <input
-            type="text"
+        <div className="flex-1 min-w-[200px]">
+          <Input
             placeholder="Buscar por nome, cidade, e-mail, INEP ou CNPJ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+            prefix={<Search size={18} className="text-[#64748b]" />}
           />
         </div>
       </div>

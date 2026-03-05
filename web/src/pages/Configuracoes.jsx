@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Calendar } from 'lucide-react'
+import { DatePicker, Button } from 'antd'
+import dayjs from 'dayjs'
 import { configuracoesService } from '../services/configuracoesService'
 
-const inputClass =
-  'w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0f766e] focus:border-transparent'
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 
 export default function Configuracoes({ embedded }) {
@@ -84,12 +84,12 @@ export default function Configuracoes({ embedded }) {
               <label htmlFor="cadastro_data_limite" className={labelClass}>
                 Data limite para envio do formulário de cadastro
               </label>
-              <input
+              <DatePicker
                 id="cadastro_data_limite"
-                type="date"
-                value={cadastroDataLimite}
-                onChange={(e) => setCadastroDataLimite(e.target.value)}
-                className={inputClass}
+                value={cadastroDataLimite ? dayjs(cadastroDataLimite) : null}
+                onChange={(date) => setCadastroDataLimite(date ? date.format('YYYY-MM-DD') : '')}
+                format="DD/MM/YYYY"
+                className="w-full"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Deixe em branco para não ter limite. Após esta data, o envio do formulário de /cadastro poderá ser bloqueado.
@@ -105,13 +105,14 @@ export default function Configuracoes({ embedded }) {
               </p>
             )}
 
-            <button
-              type="submit"
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={saving}
               disabled={saving}
-              className="px-6 py-2.5 rounded-lg bg-[#0f766e] text-white font-semibold hover:bg-[#0d9488] transition disabled:opacity-50"
             >
               {saving ? 'Salvando...' : 'Salvar'}
-            </button>
+            </Button>
           </form>
         )}
       </div>

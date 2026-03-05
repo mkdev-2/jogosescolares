@@ -97,6 +97,13 @@
   transition: opacity 0.35s ease-out, transform 0.35s ease-out;
 }
 
+/* Ant Design: dropdowns devem aparecer acima do modal (z-index 1100) */
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-picker-dropdown-range {
+  z-index: 1200 !important;
+}
+
 @layer components {
   .container-portal {
     width: 100%;

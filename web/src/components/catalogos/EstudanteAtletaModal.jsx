@@ -1,21 +1,19 @@
-import { useState } from 'react'
-import { Steps } from 'antd'
-import { User, UserCircle, School } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { User, UserCircle, School, Camera, TriangleAlert } from 'lucide-react'
+import { DatePicker, Input, Select, Button } from 'antd'
+import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
 import { estudantesService } from '../../services/estudantesService'
+import { uploadFotoEstudante } from '../../services/storageService'
 
 const SEXO_OPCOES = [
   { value: 'M', label: 'Masculino' },
   { value: 'F', label: 'Feminino' },
 ]
 
-const STEPS = [
-  { title: 'Estudante' },
-  { title: 'Mãe / Responsável' },
-]
-
 const INITIAL_FORM = {
+  fotoUrl: '',
   nome: '',
   cpf: '',
   rg: '',
@@ -39,33 +37,47 @@ function onlyDigits(s) {
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function validateStep(step, form) {
+/** Valida CPF pelo algoritmo oficial (dígitos verificadores). */
+function isValidCpf(cpf) {
+  const d = onlyDigits(cpf)
+  if (d.length !== 11) return false
+  if (/^(\d)\1{10}$/.test(d)) return false // todos iguais
+  let sum = 0
+  for (let i = 0; i < 9; i++) sum += parseInt(d[i], 10) * (10 - i)
+  let check = (sum % 11) < 2 ? 0 : 11 - (sum % 11)
+  if (check !== parseInt(d[9], 10)) return false
+  sum = 0
+  for (let i = 0; i < 10; i++) sum += parseInt(d[i], 10) * (11 - i)
+  check = (sum % 11) < 2 ? 0 : 11 - (sum % 11)
+  return check === parseInt(d[10], 10)
+}
+
+function validateForm(form) {
   const err = {}
-  if (step === 0) {
-    if (!form.nome?.trim() || form.nome.trim().length < 3) err.nome = 'Nome deve ter pelo menos 3 caracteres'
-    if (onlyDigits(form.cpf).length !== 11) err.cpf = 'CPF deve conter 11 dígitos'
-    if (!form.rg?.trim() || form.rg.trim().length < 4) err.rg = 'RG é obrigatório'
-    if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
-    if (!form.sexo) err.sexo = 'Selecione o sexo'
-    if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
-    if (!form.endereco?.trim() || form.endereco.trim().length < 5) err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
-    if (!form.cep?.trim() || onlyDigits(form.cep).length !== 8) err.cep = 'CEP deve conter 8 dígitos'
-    return err
-  }
-  if (step === 1) {
-    if (!form.responsavelNome?.trim() || form.responsavelNome.trim().length < 3) err.responsavelNome = 'Nome do responsável deve ter pelo menos 3 caracteres'
-    if (onlyDigits(form.responsavelCpf).length !== 11) err.responsavelCpf = 'CPF do responsável deve conter 11 dígitos'
-    if (!form.responsavelRg?.trim() || form.responsavelRg.trim().length < 4) err.responsavelRg = 'RG do responsável é obrigatório'
-    if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
-    if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
-    if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
-    return err
-  }
+  // Estudante
+  if (!form.nome?.trim() || form.nome.trim().length < 3) err.nome = 'Nome deve ter pelo menos 3 caracteres'
+  if (onlyDigits(form.cpf).length !== 11) err.cpf = 'CPF deve conter 11 dígitos'
+  else if (!isValidCpf(form.cpf)) err.cpf = 'CPF inválido'
+  if (!form.rg?.trim()) err.rg = 'RG é obrigatório'
+  else if (onlyDigits(form.rg).length > 11) err.rg = 'RG deve ter no máximo 11 caracteres'
+  if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
+  if (!form.sexo) err.sexo = 'Selecione o sexo'
+  if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
+  if (!form.endereco?.trim() || form.endereco.trim().length < 5) err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
+  if (!form.cep?.trim() || onlyDigits(form.cep).length !== 8) err.cep = 'CEP deve conter 8 dígitos'
+  if (form.numeroRegistroConfederacao?.trim() && form.numeroRegistroConfederacao.trim().length > 20) err.numeroRegistroConfederacao = 'Nº Registro deve ter no máximo 20 caracteres'
+  // Responsável
+  if (!form.responsavelNome?.trim() || form.responsavelNome.trim().length < 3) err.responsavelNome = 'Nome do responsável deve ter pelo menos 3 caracteres'
+  if (onlyDigits(form.responsavelCpf).length !== 11) err.responsavelCpf = 'CPF do responsável deve conter 11 dígitos'
+  else if (!isValidCpf(form.responsavelCpf)) err.responsavelCpf = 'CPF do responsável inválido'
+  if (!form.responsavelRg?.trim()) err.responsavelRg = 'RG do responsável é obrigatório'
+  else if (onlyDigits(form.responsavelRg).length > 11) err.responsavelRg = 'RG do responsável deve ter no máximo 11 caracteres'
+  if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
+  if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
+  if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
   return err
 }
 
-const inputClass = 'w-full px-4 py-2.5 rounded-lg border border-[#e2e8f0] bg-white text-[#334155] placeholder-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#0f766e] focus:border-transparent'
-const inputErrorClass = 'border-[#dc2626] focus:ring-[#dc2626]'
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
 const errorClass = 'text-[#dc2626] text-sm mt-1'
 
@@ -90,11 +102,12 @@ function maskCelular(value) {
 
 export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
   const { user } = useAuth()
-  const [currentStep, setCurrentStep] = useState(0)
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
+  const [uploadingFoto, setUploadingFoto] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+  const fileInputRef = useRef(null)
 
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
 
@@ -105,31 +118,36 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
   }
 
   const handleClose = () => {
-    setCurrentStep(0)
     setForm(INITIAL_FORM)
     setErrors({})
     setSubmitError(null)
     onClose?.()
   }
 
-  const goNext = () => {
-    const errs = validateStep(currentStep, form)
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs)
+  const handleFotoChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const MAX_SIZE_MB = 5
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setSubmitError(`O arquivo excede o limite de ${MAX_SIZE_MB}MB. Por favor, escolha uma imagem menor.`)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
-    setErrors({})
-    setCurrentStep(1)
-  }
-
-  const goPrev = () => {
-    setErrors({})
-    setCurrentStep(0)
+    setUploadingFoto(true)
+    try {
+      const url = await uploadFotoEstudante(file)
+      updateField('fotoUrl', url)
+    } catch (err) {
+      setSubmitError(err.message || 'Erro ao enviar foto')
+    } finally {
+      setUploadingFoto(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
-    const errs = validateStep(1, form)
+    const errs = validateForm(form)
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
       return
@@ -141,16 +159,17 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
       const payload = {
         nome: form.nome.trim(),
         cpf: onlyDigits(form.cpf),
-        rg: form.rg.trim(),
+        rg: onlyDigits(form.rg).slice(0, 11),
         data_nascimento: form.dataNascimento,
         sexo: form.sexo,
         email: form.email.trim(),
         endereco: form.endereco.trim(),
         cep: onlyDigits(form.cep),
-        numero_registro_confederacao: form.numeroRegistroConfederacao?.trim() || null,
+        numero_registro_confederacao: form.numeroRegistroConfederacao?.trim().slice(0, 20) || null,
+        foto_url: form.fotoUrl?.trim() || null,
         responsavel_nome: form.responsavelNome.trim(),
         responsavel_cpf: onlyDigits(form.responsavelCpf),
-        responsavel_rg: form.responsavelRg.trim(),
+        responsavel_rg: onlyDigits(form.responsavelRg).slice(0, 11),
         responsavel_celular: onlyDigits(form.responsavelCelular),
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
@@ -166,10 +185,32 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
     }
   }
 
-  const renderStepContent = () => {
-    if (currentStep === 0) {
-      return (
-        <div className="space-y-6">
+  return (
+    <Modal
+      isOpen={open}
+      onClose={handleClose}
+      title="Novo aluno"
+      subtitle="Preencha os dados do estudante e do responsável"
+      size="xl"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button type="default" onClick={handleClose}>
+            Cancelar
+          </Button>
+          <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
+            {loading ? 'Salvando...' : 'Cadastrar'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="p-0">
+        {submitError && (
+          <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
+            {submitError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Instituição */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
@@ -181,14 +222,48 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
             </div>
             <div>
               <label className={labelClass}>INEP da instituição</label>
-              <input
-                type="text"
+              <Input
                 value={inepInstituicao}
                 readOnly
                 placeholder="Preenchido automaticamente com o INEP do coordenador"
-                className={`${inputClass} bg-[#f8fafc] cursor-not-allowed`}
+                className="bg-[#f8fafc]"
               />
               <p className="text-sm text-[#64748b] mt-1 m-0">Preenchido automaticamente com o INEP do coordenador.</p>
+            </div>
+          </div>
+
+          {/* Foto do Aluno */}
+          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+              <h3 className="text-base font-semibold text-[#042f2e] m-0">Foto do Aluno</h3>
+            </div>
+            <div className="flex items-center gap-4">
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFoto}
+                className="flex-shrink-0 w-24 h-24 rounded-full border-2 border-dashed border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-center overflow-hidden hover:border-[#0f766e] hover:bg-[#f0fdfa] transition-colors disabled:opacity-60"
+              >
+                {form.fotoUrl ? (
+                  <img src={form.fotoUrl} alt="Foto" className="w-full h-full object-cover" />
+                ) : uploadingFoto ? (
+                  <span className="text-xs text-[#64748b]">Enviando...</span>
+                ) : (
+                  <Camera className="w-10 h-10 text-[#94a3b8]" />
+                )}
+              </button>
+              <div>
+                <p className="text-sm text-[#64748b] m-0">
+                  {form.fotoUrl ? 'Clique para trocar a foto' : 'Clique para enviar uma foto do aluno'}
+                </p>
+                <p className="text-xs text-[#94a3b8] mt-1 m-0">Formatos: JPG, PNG. Máximo: 5MB.</p>
+                <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                  <TriangleAlert size={14} className="shrink-0 text-amber-600" />
+                  O Upload de foto do aluno é opcional por enquanto, mas será OBRIGATÓRIO para a emissão dos crachás dos atletas no início do evento.
+                </span>
+              </div>
             </div>
           </div>
 
@@ -204,149 +279,110 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
                 <label htmlFor="modal-nome" className={labelClass}>Nome *</label>
-                <input id="modal-nome" type="text" value={form.nome} onChange={(e) => updateField('nome', e.target.value)} placeholder="Nome completo" className={`${inputClass} ${errors.nome ? inputErrorClass : ''}`} />
+                <Input id="modal-nome" value={form.nome} onChange={(e) => updateField('nome', e.target.value)} placeholder="Nome completo" status={errors.nome ? 'error' : undefined} />
                 {errors.nome && <p className={errorClass}>{errors.nome}</p>}
               </div>
               <div>
                 <label htmlFor="modal-cpf" className={labelClass}>CPF *</label>
-                <input id="modal-cpf" type="text" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} className={`${inputClass} ${errors.cpf ? inputErrorClass : ''}`} />
+                <Input id="modal-cpf" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.cpf ? 'error' : undefined} />
                 {errors.cpf && <p className={errorClass}>{errors.cpf}</p>}
               </div>
               <div>
                 <label htmlFor="modal-rg" className={labelClass}>RG *</label>
-                <input id="modal-rg" type="text" value={form.rg} onChange={(e) => updateField('rg', e.target.value)} placeholder="Número do RG" className={`${inputClass} ${errors.rg ? inputErrorClass : ''}`} />
+                <Input id="modal-rg" inputMode="numeric" value={form.rg} onChange={(e) => updateField('rg', onlyDigits(e.target.value).slice(0, 11))} placeholder="Número do RG (apenas dígitos)" maxLength={11} status={errors.rg ? 'error' : undefined} />
                 {errors.rg && <p className={errorClass}>{errors.rg}</p>}
               </div>
               <div>
                 <label htmlFor="modal-dataNascimento" className={labelClass}>Data de Nascimento *</label>
-                <input id="modal-dataNascimento" type="date" value={form.dataNascimento} onChange={(e) => updateField('dataNascimento', e.target.value)} className={`${inputClass} ${errors.dataNascimento ? inputErrorClass : ''}`} />
+                <DatePicker
+                  id="modal-dataNascimento"
+                  value={form.dataNascimento ? dayjs(form.dataNascimento) : null}
+                  onChange={(date) => updateField('dataNascimento', date ? date.format('YYYY-MM-DD') : '')}
+                  format="DD/MM/YYYY"
+                  className="w-full"
+                  status={errors.dataNascimento ? 'error' : undefined}
+                />
                 {errors.dataNascimento && <p className={errorClass}>{errors.dataNascimento}</p>}
               </div>
               <div>
                 <label htmlFor="modal-sexo" className={labelClass}>Sexo *</label>
-                <select id="modal-sexo" value={form.sexo} onChange={(e) => updateField('sexo', e.target.value)} className={`${inputClass} ${errors.sexo ? inputErrorClass : ''}`}>
-                  <option value="">Selecione</option>
-                  {SEXO_OPCOES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <Select
+                  id="modal-sexo"
+                  value={form.sexo || undefined}
+                  onChange={(v) => updateField('sexo', v)}
+                  placeholder="Selecione"
+                  options={SEXO_OPCOES}
+                  className="w-full"
+                  status={errors.sexo ? 'error' : undefined}
+                />
                 {errors.sexo && <p className={errorClass}>{errors.sexo}</p>}
               </div>
               <div>
                 <label htmlFor="modal-email" className={labelClass}>E-mail *</label>
-                <input id="modal-email" type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="email@exemplo.com" className={`${inputClass} ${errors.email ? inputErrorClass : ''}`} />
+                <Input id="modal-email" type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="email@exemplo.com" status={errors.email ? 'error' : undefined} />
                 {errors.email && <p className={errorClass}>{errors.email}</p>}
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="modal-endereco" className={labelClass}>Endereço *</label>
-                <input id="modal-endereco" type="text" value={form.endereco} onChange={(e) => updateField('endereco', e.target.value)} placeholder="Rua, número, complemento" className={`${inputClass} ${errors.endereco ? inputErrorClass : ''}`} />
+                <Input id="modal-endereco" value={form.endereco} onChange={(e) => updateField('endereco', e.target.value)} placeholder="Rua, número, complemento" status={errors.endereco ? 'error' : undefined} />
                 {errors.endereco && <p className={errorClass}>{errors.endereco}</p>}
               </div>
               <div>
                 <label htmlFor="modal-cep" className={labelClass}>CEP *</label>
-                <input id="modal-cep" type="text" inputMode="numeric" value={form.cep} onChange={(e) => updateField('cep', maskCep(e.target.value))} placeholder="00000-000" maxLength={9} className={`${inputClass} ${errors.cep ? inputErrorClass : ''}`} />
+                <Input id="modal-cep" inputMode="numeric" value={form.cep} onChange={(e) => updateField('cep', maskCep(e.target.value))} placeholder="00000-000" maxLength={9} status={errors.cep ? 'error' : undefined} />
                 {errors.cep && <p className={errorClass}>{errors.cep}</p>}
               </div>
               <div>
-                <label htmlFor="modal-numeroRegistroConfederacao" className={labelClass}>Nº Registro Confederação (opcional)</label>
-                <input id="modal-numeroRegistroConfederacao" type="text" value={form.numeroRegistroConfederacao} onChange={(e) => updateField('numeroRegistroConfederacao', e.target.value)} placeholder="Número de registro" className={inputClass} />
+                <label htmlFor="modal-numeroRegistroConfederacao" className={labelClass}>Nº Registro da Conf. (opcional)</label>
+                <Input id="modal-numeroRegistroConfederacao" value={form.numeroRegistroConfederacao} onChange={(e) => updateField('numeroRegistroConfederacao', e.target.value.slice(0, 20))} placeholder="Máx. 20 caracteres" maxLength={20} status={errors.numeroRegistroConfederacao ? 'error' : undefined} />
+                {errors.numeroRegistroConfederacao && <p className={errorClass}>{errors.numeroRegistroConfederacao}</p>}
               </div>
             </div>
           </div>
-        </div>
-      )
-    }
-    if (currentStep === 1) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-            <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
-              <UserCircle className="w-4 h-4 text-[#64748b]" />
-              Mãe / Responsável
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <label htmlFor="modal-responsavelNome" className={labelClass}>Nome *</label>
-              <input id="modal-responsavelNome" type="text" value={form.responsavelNome} onChange={(e) => updateField('responsavelNome', e.target.value)} placeholder="Nome completo" className={`${inputClass} ${errors.responsavelNome ? inputErrorClass : ''}`} />
-              {errors.responsavelNome && <p className={errorClass}>{errors.responsavelNome}</p>}
-            </div>
-            <div>
-              <label htmlFor="modal-responsavelCpf" className={labelClass}>CPF *</label>
-              <input id="modal-responsavelCpf" type="text" inputMode="numeric" value={form.responsavelCpf} onChange={(e) => updateField('responsavelCpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} className={`${inputClass} ${errors.responsavelCpf ? inputErrorClass : ''}`} />
-              {errors.responsavelCpf && <p className={errorClass}>{errors.responsavelCpf}</p>}
-            </div>
-            <div>
-              <label htmlFor="modal-responsavelRg" className={labelClass}>RG *</label>
-              <input id="modal-responsavelRg" type="text" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', e.target.value)} placeholder="Número do RG" className={`${inputClass} ${errors.responsavelRg ? inputErrorClass : ''}`} />
-              {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
-            </div>
-            <div>
-              <label htmlFor="modal-responsavelCelular" className={labelClass}>Celular *</label>
-              <input id="modal-responsavelCelular" type="tel" inputMode="numeric" value={form.responsavelCelular} onChange={(e) => updateField('responsavelCelular', maskCelular(e.target.value))} placeholder="(00) 00000-0000" maxLength={15} className={`${inputClass} ${errors.responsavelCelular ? inputErrorClass : ''}`} />
-              {errors.responsavelCelular && <p className={errorClass}>{errors.responsavelCelular}</p>}
-            </div>
-            <div>
-              <label htmlFor="modal-responsavelEmail" className={labelClass}>E-mail *</label>
-              <input id="modal-responsavelEmail" type="email" value={form.responsavelEmail} onChange={(e) => updateField('responsavelEmail', e.target.value)} placeholder="email@exemplo.com" className={`${inputClass} ${errors.responsavelEmail ? inputErrorClass : ''}`} />
-              {errors.responsavelEmail && <p className={errorClass}>{errors.responsavelEmail}</p>}
-            </div>
-            <div>
-              <label htmlFor="modal-responsavelNis" className={labelClass}>NIS *</label>
-              <input id="modal-responsavelNis" type="text" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Número do NIS" maxLength={11} className={`${inputClass} ${errors.responsavelNis ? inputErrorClass : ''}`} />
-              {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
-            </div>
-          </div>
-        </div>
-      )
-    }
-    return null
-  }
 
-  const footer = (
-    <div className="flex justify-end gap-3">
-      <button type="button" onClick={handleClose} className="px-5 py-2.5 rounded-lg border border-[#e2e8f0] text-[#475569] font-medium hover:bg-[#f1f5f9]">
-        Cancelar
-      </button>
-      {currentStep > 0 && (
-        <button type="button" onClick={goPrev} className="px-5 py-2.5 rounded-lg border border-[#e2e8f0] text-[#475569] font-medium hover:bg-[#f1f5f9]">
-          Anterior
-        </button>
-      )}
-      {currentStep < 1 ? (
-        <button type="button" onClick={goNext} className="px-6 py-2.5 rounded-lg bg-[#0f766e] text-white font-semibold hover:opacity-90">
-          Próximo
-        </button>
-      ) : (
-        <button type="button" onClick={handleSubmit} disabled={loading} className="px-6 py-2.5 rounded-lg bg-[#0f766e] text-white font-semibold hover:opacity-90 disabled:opacity-60">
-          {loading ? 'Salvando...' : 'Cadastrar'}
-        </button>
-      )}
-    </div>
-  )
-
-  return (
-    <Modal
-      isOpen={open}
-      onClose={handleClose}
-      title="Novo aluno"
-      subtitle="Preencha os dados em etapas"
-      size="lg"
-      footer={footer}
-    >
-      <div className="p-0">
-        <div className="mb-6">
-          <Steps current={currentStep} size="small">
-            {STEPS.map((step, i) => (
-              <Steps.Step key={i} title={step.title} />
-            ))}
-          </Steps>
-        </div>
-        {submitError && (
-          <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
-            {submitError}
+          {/* Mãe / Responsável */}
+          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
+                <UserCircle className="w-4 h-4 text-[#64748b]" />
+                Mãe / Responsável
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label htmlFor="modal-responsavelNome" className={labelClass}>Nome *</label>
+                <Input id="modal-responsavelNome" value={form.responsavelNome} onChange={(e) => updateField('responsavelNome', e.target.value)} placeholder="Nome completo" status={errors.responsavelNome ? 'error' : undefined} />
+                {errors.responsavelNome && <p className={errorClass}>{errors.responsavelNome}</p>}
+              </div>
+              <div>
+                <label htmlFor="modal-responsavelCpf" className={labelClass}>CPF *</label>
+                <Input id="modal-responsavelCpf" inputMode="numeric" value={form.responsavelCpf} onChange={(e) => updateField('responsavelCpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.responsavelCpf ? 'error' : undefined} />
+                {errors.responsavelCpf && <p className={errorClass}>{errors.responsavelCpf}</p>}
+              </div>
+              <div>
+                <label htmlFor="modal-responsavelRg" className={labelClass}>RG *</label>
+                <Input id="modal-responsavelRg" inputMode="numeric" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', onlyDigits(e.target.value).slice(0, 11))} placeholder="Número do RG (apenas dígitos)" maxLength={11} status={errors.responsavelRg ? 'error' : undefined} />
+                {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
+              </div>
+              <div>
+                <label htmlFor="modal-responsavelCelular" className={labelClass}>Celular *</label>
+                <Input id="modal-responsavelCelular" inputMode="numeric" value={form.responsavelCelular} onChange={(e) => updateField('responsavelCelular', maskCelular(e.target.value))} placeholder="(00) 00000-0000" maxLength={15} status={errors.responsavelCelular ? 'error' : undefined} />
+                {errors.responsavelCelular && <p className={errorClass}>{errors.responsavelCelular}</p>}
+              </div>
+              <div>
+                <label htmlFor="modal-responsavelEmail" className={labelClass}>E-mail *</label>
+                <Input id="modal-responsavelEmail" type="email" value={form.responsavelEmail} onChange={(e) => updateField('responsavelEmail', e.target.value)} placeholder="email@exemplo.com" status={errors.responsavelEmail ? 'error' : undefined} />
+                {errors.responsavelEmail && <p className={errorClass}>{errors.responsavelEmail}</p>}
+              </div>
+              <div>
+                <label htmlFor="modal-responsavelNis" className={labelClass}>NIS *</label>
+                <Input id="modal-responsavelNis" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Número do NIS" maxLength={11} status={errors.responsavelNis ? 'error' : undefined} />
+                {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
+              </div>
+            </div>
           </div>
-        )}
-        {renderStepContent()}
+        </form>
       </div>
     </Modal>
   )

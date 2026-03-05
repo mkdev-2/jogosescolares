@@ -45,6 +45,10 @@ export async function apiFetch(url, options = {}) {
     'Content-Type': 'application/json',
     ...options.headers,
   }
+  // Para FormData, o browser deve definir Content-Type com boundary automaticamente
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type']
+  }
 
   const token = getAccessToken()
   if (token) {

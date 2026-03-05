@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { User } from 'lucide-react'
+import { Input, Button } from 'antd'
 import Modal from '../ui/Modal'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
 
@@ -31,8 +32,6 @@ function validateForm(form) {
   return err
 }
 
-const inputClass = 'w-full px-4 py-2.5 rounded-lg border border-[#e2e8f0] bg-white text-[#334155] placeholder-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#0f766e] focus:border-transparent'
-const inputErrorClass = 'border-[#dc2626] focus:ring-[#dc2626]'
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
 const errorClass = 'text-[#dc2626] text-sm mt-1'
 
@@ -82,21 +81,12 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
 
   const footer = (
     <div className="flex justify-end gap-3">
-      <button
-        type="button"
-        onClick={handleClose}
-        className="px-5 py-2.5 rounded-lg border border-[#e2e8f0] text-[#475569] font-medium hover:bg-[#f1f5f9]"
-      >
+      <Button type="default" onClick={handleClose}>
         Cancelar
-      </button>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={loading}
-        className="px-6 py-2.5 rounded-lg bg-[#0f766e] text-white font-semibold hover:opacity-90 disabled:opacity-60"
-      >
+      </Button>
+      <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
         {loading ? 'Salvando...' : 'Cadastrar'}
-      </button>
+      </Button>
     </div>
   )
 
@@ -126,39 +116,36 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label htmlFor="pt-nome" className={labelClass}>Nome completo *</label>
-              <input
+              <Input
                 id="pt-nome"
-                type="text"
                 value={form.nome}
                 onChange={(e) => updateField('nome', e.target.value)}
                 placeholder="Nome completo"
-                className={`${inputClass} ${errors.nome ? inputErrorClass : ''}`}
+                status={errors.nome ? 'error' : undefined}
               />
               {errors.nome && <p className={errorClass}>{errors.nome}</p>}
             </div>
             <div>
               <label htmlFor="pt-cpf" className={labelClass}>CPF *</label>
-              <input
+              <Input
                 id="pt-cpf"
-                type="text"
                 inputMode="numeric"
                 value={form.cpf}
                 onChange={(e) => updateField('cpf', maskCpf(e.target.value))}
                 placeholder="000.000.000-00"
                 maxLength={14}
-                className={`${inputClass} ${errors.cpf ? inputErrorClass : ''}`}
+                status={errors.cpf ? 'error' : undefined}
               />
               {errors.cpf && <p className={errorClass}>{errors.cpf}</p>}
             </div>
             <div>
               <label htmlFor="pt-cref" className={labelClass}>Número do CREF *</label>
-              <input
+              <Input
                 id="pt-cref"
-                type="text"
                 value={form.cref}
                 onChange={(e) => updateField('cref', e.target.value)}
                 placeholder="Ex: 123456-G/MA"
-                className={`${inputClass} ${errors.cref ? inputErrorClass : ''}`}
+                status={errors.cref ? 'error' : undefined}
               />
               {errors.cref && <p className={errorClass}>{errors.cref}</p>}
             </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Input, Select, Button } from 'antd'
 import Modal from '../ui/Modal'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
@@ -76,17 +77,13 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     setErrors({})
   }, [user, isOpen, isDiretor, currentUser?.escola_id, currentUser?.allowed_roles_for_create])
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    let finalValue = type === 'checkbox' ? checked : value
-    if (name === 'cpf') {
-      finalValue = formatCpfInput(value)
-    }
-    setFormData((prev) => ({ ...prev, [name]: finalValue }))
+  const updateField = (name, value) => {
+    if (name === 'cpf') value = formatCpfInput(value)
+    setFormData((prev) => ({ ...prev, [name]: value }))
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: undefined }))
     if (!user && (name === 'password' || name === 'password_confirm')) {
-      const nextPwd = name === 'password' ? finalValue : formData.password
-      const nextConf = name === 'password_confirm' ? finalValue : formData.password_confirm
+      const nextPwd = name === 'password' ? value : formData.password
+      const nextConf = name === 'password_confirm' ? value : formData.password_confirm
       const mismatch = String(nextPwd ?? '') !== String(nextConf ?? '') && String(nextConf ?? '').length > 0
       setErrors((prev) => ({ ...prev, password_confirm: mismatch ? 'senhas devem coincidir' : undefined }))
     }
@@ -169,22 +166,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold border-2 border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#cbd5e1] hover:text-[#334155] disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={onClose}
-            disabled={loading}
-          >
+          <Button type="default" onClick={onClose} disabled={loading}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form="user-form"
-            className="px-5 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-95 hover:-translate-y-px transition-transform"
-            disabled={loading}
-          >
+          </Button>
+          <Button type="primary" htmlType="submit" form="user-form" loading={loading} disabled={loading}>
             {loading ? 'Salvando...' : user ? 'Atualizar' : 'Criar'}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -203,17 +190,13 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
             <label className="text-sm font-semibold text-[#334155]" htmlFor="cpf">
               CPF <span className="text-[#dc2626]">*</span>
             </label>
-            <input
+            <Input
               id="cpf"
-              name="cpf"
-              type="text"
               value={formData.cpf}
-              onChange={handleChange}
+              onChange={(e) => updateField('cpf', e.target.value)}
               placeholder="000.000.000-00"
               maxLength={14}
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.cpf ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
+              status={errors.cpf ? 'error' : undefined}
             />
             {errors.cpf && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.cpf}</span>
@@ -234,16 +217,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
           </label>
-          <input
+          <Input
             id="nome"
-            name="nome"
-            type="text"
             value={formData.nome}
-            onChange={handleChange}
+            onChange={(e) => updateField('nome', e.target.value)}
             placeholder="Nome completo"
-            className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-              errors.nome ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-            }`}
+            status={errors.nome ? 'error' : undefined}
           />
           {errors.nome && (
             <span className="text-[0.8rem] text-[#dc2626]">{errors.nome}</span>
@@ -254,14 +233,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
           <label className="text-sm font-semibold text-[#334155]" htmlFor="email">
             E-mail
           </label>
-          <input
+          <Input
             id="email"
-            name="email"
             type="email"
             value={formData.email}
-            onChange={handleChange}
+            onChange={(e) => updateField('email', e.target.value)}
             placeholder="email@exemplo.com"
-            className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
           />
         </div>
 
@@ -271,16 +248,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
               {user ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
               {!user && <span className="text-[#dc2626]"> *</span>}
             </label>
-            <input
+            <Input.Password
               id="password"
-              name="password"
-              type="password"
               value={formData.password}
-              onChange={handleChange}
+              onChange={(e) => updateField('password', e.target.value)}
               placeholder={user ? '••••••••' : 'Mínimo 6 caracteres'}
-              className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                errors.password ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-              }`}
+              status={errors.password ? 'error' : undefined}
             />
             {errors.password && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.password}</span>
@@ -291,16 +264,12 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
               <label className="text-sm font-semibold text-[#334155]" htmlFor="password_confirm">
                 Confirmar Senha <span className="text-[#dc2626]">*</span>
               </label>
-              <input
+              <Input.Password
                 id="password_confirm"
-                name="password_confirm"
-                type="password"
                 value={formData.password_confirm ?? ''}
-                onChange={handleChange}
+                onChange={(e) => updateField('password_confirm', e.target.value)}
                 placeholder="Repita a senha"
-                className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                  errors.password_confirm ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-                }`}
+                status={errors.password_confirm ? 'error' : undefined}
               />
               {errors.password_confirm && (
                 <span className="text-[0.8rem] text-[#dc2626]">{errors.password_confirm}</span>
@@ -314,42 +283,29 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
             <label className="text-sm font-semibold text-[#334155]" htmlFor="role">
               Perfil
             </label>
-            <select
+            <Select
               id="role"
-              name="role"
               value={formData.role}
-              onChange={handleChange}
+              onChange={(v) => updateField('role', v)}
               disabled={user && (isDiretor || currentUser?.role === 'COORDENADOR')}
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              options={ROLES}
+              className="w-full"
+            />
           </div>
           {REQUIRES_ESCOLA.includes(formData.role) && !isDiretor && (
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-sm font-semibold text-[#334155]" htmlFor="escola_id">
                 Escola <span className="text-[#dc2626]">*</span>
               </label>
-              <select
+              <Select
                 id="escola_id"
-                name="escola_id"
-                value={formData.escola_id}
-                onChange={handleChange}
-                className={`px-3 py-2.5 border-2 rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e] ${
-                  errors.escola_id ? 'border-[#dc2626]' : 'border-[#e2e8f0]'
-                }`}
-              >
-                <option value="">Selecione a escola</option>
-                {escolas.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nome_escola}
-                  </option>
-                ))}
-              </select>
+                value={formData.escola_id || undefined}
+                onChange={(v) => updateField('escola_id', v)}
+                placeholder="Selecione a escola"
+                options={escolas.map((e) => ({ value: e.id, label: e.nome_escola }))}
+                className="w-full"
+                status={errors.escola_id ? 'error' : undefined}
+              />
               {errors.escola_id && (
                 <span className="text-[0.8rem] text-[#dc2626]">{errors.escola_id}</span>
               )}
@@ -375,16 +331,16 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
             <label className="text-sm font-semibold text-[#334155]" htmlFor="status">
               Status
             </label>
-            <select
+            <Select
               id="status"
-              name="status"
               value={formData.status}
-              onChange={handleChange}
-              className="px-3 py-2.5 border-2 border-[#e2e8f0] rounded-[8px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
-            >
-              <option value="ATIVO">Ativo</option>
-              <option value="INATIVO">Inativo</option>
-            </select>
+              onChange={(v) => updateField('status', v)}
+              options={[
+                { value: 'ATIVO', label: 'Ativo' },
+                { value: 'INATIVO', label: 'Inativo' },
+              ]}
+              className="w-full"
+            />
           </div>
         </div>
       </form>

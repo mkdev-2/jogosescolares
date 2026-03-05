@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Activity, LayoutGrid, Search, Filter, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Popconfirm } from 'antd'
+import { Popconfirm, Input, Select, Button } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 import useModalidades from '../../hooks/useModalidades'
 
@@ -83,37 +83,26 @@ export default function ModalidadesList({
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px] relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none"
-          />
-          <input
-            type="text"
+        <div className="flex-1 min-w-[200px]">
+          <Input
             placeholder="Buscar por nome ou descrição..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+            prefix={<Search size={18} className="text-[#64748b]" />}
           />
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold border-2 border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#cbd5e1] hover:text-[#334155]"
+          <Button
+            type="default"
+            icon={<Filter size={18} />}
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter size={18} className="shrink-0" />
             {showFilters ? 'Ocultar filtros' : 'Filtros'}
-          </button>
+          </Button>
           {onNewModalidade && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-              onClick={onNewModalidade}
-            >
-              <Plus size={18} className="shrink-0" />
+            <Button type="primary" onClick={onNewModalidade} icon={<Plus size={18} />}>
               Nova Modalidade
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -123,18 +112,13 @@ export default function ModalidadesList({
           <label className="block text-[0.875rem] font-semibold text-[#334155] mb-2">
             Categoria
           </label>
-          <select
-            value={filterCategoria}
-            onChange={(e) => setFilterCategoria(e.target.value)}
-            className="px-3 py-2 border-2 border-[#e2e8f0] rounded-[8px] text-[0.9375rem] font-inherit min-w-[180px]"
-          >
-            <option value="">Todas</option>
-            {categorias.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={filterCategoria || undefined}
+            onChange={(v) => setFilterCategoria(v || '')}
+            placeholder="Todas"
+            options={categorias.map((cat) => ({ value: cat, label: cat }))}
+            className="min-w-[180px]"
+          />
         </div>
       )}
 

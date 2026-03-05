@@ -1,5 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
 import { AuthProvider } from './contexts/AuthContext'
+
+const antdTheme = {
+  token: {
+    colorPrimary: '#0f766e',
+    borderRadius: 8,
+  },
+  components: {
+    Select: { zIndexPopup: 1200 },
+    DatePicker: { zIndexPopup: 1200 },
+  },
+}
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Login from './pages/Login'
@@ -19,8 +31,9 @@ import Equipes from './pages/Equipes'
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ConfigProvider theme={antdTheme}>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/cadastro" element={<CadastroEscola />} />
@@ -42,8 +55,9 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ConfigProvider>
   )
 }
 

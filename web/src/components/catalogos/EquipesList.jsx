@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Users, Search, Plus, Trophy } from 'lucide-react'
+import { Input, Button } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EquipesList({ lista = [], loading, error, onNewEquipe, showInstituicao = false }) {
@@ -43,28 +44,18 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px] relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b] pointer-events-none"
-          />
-          <input
-            type="text"
+        <div className="flex-1 min-w-[200px]">
+          <Input
             placeholder="Buscar por modalidade, categoria ou técnico..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-[#e2e8f0] rounded-[10px] text-base font-inherit transition focus:outline-none focus:border-[#0f766e]"
+            prefix={<Search size={18} className="text-[#64748b]" />}
           />
         </div>
         {onNewEquipe && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-            onClick={onNewEquipe}
-          >
-            <Plus size={18} className="shrink-0" />
+          <Button type="primary" onClick={onNewEquipe} icon={<Plus size={16} />}>
             Nova equipe
-          </button>
+          </Button>
         )}
       </div>
 
@@ -94,13 +85,9 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
                   : 'Monte sua primeira equipe selecionando modalidade, categoria, alunos e técnico'}
               </p>
               {onNewEquipe && (
-                <button
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[8px] text-[0.9375rem] font-semibold bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white hover:opacity-95 hover:-translate-y-px transition-transform"
-                  onClick={onNewEquipe}
-                >
-                  <Plus size={18} className="shrink-0" />
+                <Button type="primary" onClick={onNewEquipe} icon={<Plus size={16} />}>
                   Nova equipe
-                </button>
+                </Button>
               )}
             </div>
           ) : (

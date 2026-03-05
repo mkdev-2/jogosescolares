@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Input, Select, Checkbox, Button } from 'antd'
 import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
@@ -190,11 +191,10 @@ function validateForm(form) {
   return err
 }
 
-const inputClass =
-  'w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50'
-const inputErrorClass = 'border-red-500 focus:ring-red-500'
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 const errorClass = 'text-red-600 text-sm mt-1'
+
+const ufOptions = UFS.map((uf) => ({ value: uf, label: uf }))
 
 function maskCpf(value) {
   const v = value.replace(/\D/g, '').slice(0, 11)
@@ -416,13 +416,12 @@ export default function CadastroEscola() {
                 <label htmlFor="nomeRazaoSocial" className={labelClass}>
                   Nome / Razão Social *
                 </label>
-                <input
+                <Input
                   id="nomeRazaoSocial"
-                  type="text"
                   value={form.nomeRazaoSocial}
                   onChange={(e) => updateField('nomeRazaoSocial', e.target.value)}
                   placeholder="Ex: Escola Municipal João da Silva"
-                  className={`${inputClass} ${errors.nomeRazaoSocial ? inputErrorClass : ''}`}
+                  status={errors.nomeRazaoSocial ? 'error' : undefined}
                 />
                 {errors.nomeRazaoSocial && <p className={errorClass}>{errors.nomeRazaoSocial}</p>}
               </div>
@@ -431,15 +430,14 @@ export default function CadastroEscola() {
                 <label htmlFor="inep" className={labelClass}>
                   INEP *
                 </label>
-                <input
+                <Input
                   id="inep"
-                  type="text"
                   inputMode="numeric"
                   value={form.inep}
                   onChange={(e) => updateField('inep', maskInep(e.target.value))}
                   placeholder="8 dígitos"
                   maxLength={8}
-                  className={`${inputClass} ${errors.inep ? inputErrorClass : ''}`}
+                  status={errors.inep ? 'error' : undefined}
                 />
                 {errors.inep && <p className={errorClass}>{errors.inep}</p>}
               </div>
@@ -448,14 +446,13 @@ export default function CadastroEscola() {
                 <label htmlFor="cnpj" className={labelClass}>
                   CNPJ *
                 </label>
-                <input
+                <Input
                   id="cnpj"
-                  type="text"
                   inputMode="numeric"
                   value={form.cnpj}
                   onChange={(e) => updateField('cnpj', maskCnpj(e.target.value))}
                   placeholder="00.000.000/0001-00"
-                  className={`${inputClass} ${errors.cnpj ? inputErrorClass : ''}`}
+                  status={errors.cnpj ? 'error' : undefined}
                 />
                 {errors.cnpj && <p className={errorClass}>{errors.cnpj}</p>}
               </div>
@@ -464,13 +461,12 @@ export default function CadastroEscola() {
                 <label htmlFor="endereco" className={labelClass}>
                   Endereço *
                 </label>
-                <input
+                <Input
                   id="endereco"
-                  type="text"
                   value={form.endereco}
                   onChange={(e) => updateField('endereco', e.target.value)}
                   placeholder="Rua, número, complemento"
-                  className={`${inputClass} ${errors.endereco ? inputErrorClass : ''}`}
+                  status={errors.endereco ? 'error' : undefined}
                 />
                 {errors.endereco && <p className={errorClass}>{errors.endereco}</p>}
               </div>
@@ -479,13 +475,12 @@ export default function CadastroEscola() {
                 <label htmlFor="cidade" className={labelClass}>
                   Cidade *
                 </label>
-                <input
+                <Input
                   id="cidade"
-                  type="text"
                   value={form.cidade}
                   onChange={(e) => updateField('cidade', e.target.value)}
                   placeholder="Ex: Paço do Lumiar"
-                  className={`${inputClass} ${errors.cidade ? inputErrorClass : ''}`}
+                  status={errors.cidade ? 'error' : undefined}
                 />
                 {errors.cidade && <p className={errorClass}>{errors.cidade}</p>}
               </div>
@@ -494,17 +489,15 @@ export default function CadastroEscola() {
                 <label htmlFor="uf" className={labelClass}>
                   UF *
                 </label>
-                <select
+                <Select
                   id="uf"
-                  value={form.uf}
-                  onChange={(e) => updateField('uf', e.target.value)}
-                  className={`${inputClass} ${errors.uf ? inputErrorClass : ''}`}
-                >
-                  <option value="">Selecione</option>
-                  {UFS.map((uf) => (
-                    <option key={uf} value={uf}>{uf}</option>
-                  ))}
-                </select>
+                  value={form.uf || undefined}
+                  onChange={(v) => updateField('uf', v)}
+                  placeholder="Selecione"
+                  options={ufOptions}
+                  className="w-full"
+                  status={errors.uf ? 'error' : undefined}
+                />
                 {errors.uf && <p className={errorClass}>{errors.uf}</p>}
               </div>
 
@@ -512,13 +505,13 @@ export default function CadastroEscola() {
                 <label htmlFor="email" className={labelClass}>
                   E-mail *
                 </label>
-                <input
+                <Input
                   id="email"
                   type="email"
                   value={form.email}
                   onChange={(e) => updateField('email', e.target.value)}
                   placeholder="escola@email.com"
-                  className={`${inputClass} ${errors.email ? inputErrorClass : ''}`}
+                  status={errors.email ? 'error' : undefined}
                 />
                 {errors.email && <p className={errorClass}>{errors.email}</p>}
               </div>
@@ -527,13 +520,12 @@ export default function CadastroEscola() {
                 <label htmlFor="telefone" className={labelClass}>
                   Telefone *
                 </label>
-                <input
+                <Input
                   id="telefone"
-                  type="tel"
                   value={form.telefone}
                   onChange={(e) => updateField('telefone', maskTelefone(e.target.value))}
                   placeholder="(XX) XXXXX-XXXX"
-                  className={`${inputClass} ${errors.telefone ? inputErrorClass : ''}`}
+                  status={errors.telefone ? 'error' : undefined}
                 />
                 {errors.telefone && <p className={errorClass}>{errors.telefone}</p>}
               </div>
@@ -547,13 +539,12 @@ export default function CadastroEscola() {
                 <label htmlFor="diretorNome" className={labelClass}>
                   Nome Completo *
                 </label>
-                <input
+                <Input
                   id="diretorNome"
-                  type="text"
                   value={form.diretorNome}
                   onChange={(e) => updateField('diretorNome', e.target.value)}
                   placeholder="Nome do diretor escolar"
-                  className={`${inputClass} ${errors.diretorNome ? inputErrorClass : ''}`}
+                  status={errors.diretorNome ? 'error' : undefined}
                 />
                 {errors.diretorNome && <p className={errorClass}>{errors.diretorNome}</p>}
               </div>
@@ -562,14 +553,14 @@ export default function CadastroEscola() {
                 <label htmlFor="diretorCpf" className={labelClass}>
                   CPF *
                 </label>
-                <input
+                <Input
                   id="diretorCpf"
-                  type="text"
                   inputMode="numeric"
                   value={form.diretorCpf}
                   onChange={(e) => updateField('diretorCpf', maskCpf(e.target.value))}
                   placeholder="000.000.000-00"
-                  className={`${inputClass} ${errors.diretorCpf ? inputErrorClass : ''}`}
+                  maxLength={14}
+                  status={errors.diretorCpf ? 'error' : undefined}
                 />
                 {errors.diretorCpf && <p className={errorClass}>{errors.diretorCpf}</p>}
               </div>
@@ -578,15 +569,14 @@ export default function CadastroEscola() {
                 <label htmlFor="diretorRg" className={labelClass}>
                   RG *
                 </label>
-                <input
+                <Input
                   id="diretorRg"
-                  type="text"
                   inputMode="numeric"
                   value={form.diretorRg}
                   onChange={(e) => updateField('diretorRg', maskRg(e.target.value))}
                   placeholder="Apenas números, máx. 11 dígitos"
                   maxLength={11}
-                  className={`${inputClass} ${errors.diretorRg ? inputErrorClass : ''}`}
+                  status={errors.diretorRg ? 'error' : undefined}
                 />
                 {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
               </div>
@@ -603,13 +593,12 @@ export default function CadastroEscola() {
                     <label htmlFor="diretorSenha" className={labelClass}>
                       Senha (acesso do diretor ao sistema) *
                     </label>
-                    <input
+                    <Input.Password
                       id="diretorSenha"
-                      type="password"
                       value={form.diretorSenha}
                       onChange={(e) => updateField('diretorSenha', e.target.value)}
                       placeholder="Mínimo 6 caracteres"
-                      className={`${inputClass} ${errors.diretorSenha ? inputErrorClass : ''}`}
+                      status={errors.diretorSenha ? 'error' : undefined}
                     />
                     {errors.diretorSenha && <p className={errorClass}>{errors.diretorSenha}</p>}
                   </div>
@@ -617,13 +606,12 @@ export default function CadastroEscola() {
                     <label htmlFor="diretorSenhaConfirm" className={labelClass}>
                       Confirmar Senha *
                     </label>
-                    <input
+                    <Input.Password
                       id="diretorSenhaConfirm"
-                      type="password"
                       value={form.diretorSenhaConfirm ?? ''}
                       onChange={(e) => updateField('diretorSenhaConfirm', e.target.value)}
                       placeholder="Repita a senha"
-                      className={`${inputClass} ${errors.diretorSenhaConfirm ? inputErrorClass : ''}`}
+                      status={errors.diretorSenhaConfirm ? 'error' : undefined}
                     />
                     {errors.diretorSenhaConfirm && <p className={errorClass}>{errors.diretorSenhaConfirm}</p>}
                   </div>
@@ -639,13 +627,12 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorNome" className={labelClass}>
                   Nome Completo *
                 </label>
-                <input
+                <Input
                   id="coordenadorNome"
-                  type="text"
                   value={form.coordenadorNome}
                   onChange={(e) => updateField('coordenadorNome', e.target.value)}
                   placeholder="Nome do coordenador de esportes"
-                  className={`${inputClass} ${errors.coordenadorNome ? inputErrorClass : ''}`}
+                  status={errors.coordenadorNome ? 'error' : undefined}
                 />
                 {errors.coordenadorNome && <p className={errorClass}>{errors.coordenadorNome}</p>}
               </div>
@@ -654,14 +641,14 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorCpf" className={labelClass}>
                   CPF *
                 </label>
-                <input
+                <Input
                   id="coordenadorCpf"
-                  type="text"
                   inputMode="numeric"
                   value={form.coordenadorCpf}
                   onChange={(e) => updateField('coordenadorCpf', maskCpf(e.target.value))}
                   placeholder="000.000.000-00"
-                  className={`${inputClass} ${errors.coordenadorCpf ? inputErrorClass : ''}`}
+                  maxLength={14}
+                  status={errors.coordenadorCpf ? 'error' : undefined}
                 />
                 {errors.coordenadorCpf && <p className={errorClass}>{errors.coordenadorCpf}</p>}
               </div>
@@ -670,15 +657,14 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorRg" className={labelClass}>
                   RG *
                 </label>
-                <input
+                <Input
                   id="coordenadorRg"
-                  type="text"
                   inputMode="numeric"
                   value={form.coordenadorRg}
                   onChange={(e) => updateField('coordenadorRg', maskRg(e.target.value))}
                   placeholder="Apenas números, máx. 11 dígitos"
                   maxLength={11}
-                  className={`${inputClass} ${errors.coordenadorRg ? inputErrorClass : ''}`}
+                  status={errors.coordenadorRg ? 'error' : undefined}
                 />
                 {errors.coordenadorRg && <p className={errorClass}>{errors.coordenadorRg}</p>}
               </div>
@@ -687,13 +673,12 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorEndereco" className={labelClass}>
                   Endereço *
                 </label>
-                <input
+                <Input
                   id="coordenadorEndereco"
-                  type="text"
                   value={form.coordenadorEndereco}
                   onChange={(e) => updateField('coordenadorEndereco', e.target.value)}
                   placeholder="Rua, número, complemento"
-                  className={`${inputClass} ${errors.coordenadorEndereco ? inputErrorClass : ''}`}
+                  status={errors.coordenadorEndereco ? 'error' : undefined}
                 />
                 {errors.coordenadorEndereco && <p className={errorClass}>{errors.coordenadorEndereco}</p>}
               </div>
@@ -702,13 +687,13 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorEmail" className={labelClass}>
                   E-mail *
                 </label>
-                <input
+                <Input
                   id="coordenadorEmail"
                   type="email"
                   value={form.coordenadorEmail}
                   onChange={(e) => updateField('coordenadorEmail', e.target.value)}
                   placeholder="coordenador@email.com"
-                  className={`${inputClass} ${errors.coordenadorEmail ? inputErrorClass : ''}`}
+                  status={errors.coordenadorEmail ? 'error' : undefined}
                 />
                 {errors.coordenadorEmail && <p className={errorClass}>{errors.coordenadorEmail}</p>}
               </div>
@@ -717,13 +702,12 @@ export default function CadastroEscola() {
                 <label htmlFor="coordenadorTelefone" className={labelClass}>
                   Telefone *
                 </label>
-                <input
+                <Input
                   id="coordenadorTelefone"
-                  type="tel"
                   value={form.coordenadorTelefone}
                   onChange={(e) => updateField('coordenadorTelefone', maskTelefone(e.target.value))}
                   placeholder="(XX) XXXXX-XXXX"
-                  className={`${inputClass} ${errors.coordenadorTelefone ? inputErrorClass : ''}`}
+                  status={errors.coordenadorTelefone ? 'error' : undefined}
                 />
                 {errors.coordenadorTelefone && <p className={errorClass}>{errors.coordenadorTelefone}</p>}
               </div>
@@ -758,11 +742,9 @@ export default function CadastroEscola() {
                         {TIPOS_MODALIDADE.map((tipo) => (
                           <td key={tipo} className="py-3 px-2">
                             <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={form.modalidades?.[cat]?.[naipeKey]?.[tipo] ?? false}
                                 onChange={(e) => updateModalidade(cat, naipeKey, tipo, e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                               />
                               <span className="text-gray-600 capitalize">{tipo}</span>
                             </label>
@@ -777,20 +759,20 @@ export default function CadastroEscola() {
           </SectionCard>
 
           <div className="flex gap-4 pt-4">
-            <button
-              type="button"
+            <Button
+              type="default"
               onClick={() => navigate('/')}
-              className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
             >
               Voltar
-            </button>
-            <button
-              type="submit"
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={submitting}
               disabled={submitting || formEncerrado}
-              className="px-8 py-2.5 rounded-lg bg-primary text-white font-semibold uppercase tracking-wider hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {submitting ? 'Enviando...' : formEncerrado ? 'Período encerrado' : 'Enviar Cadastro'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
