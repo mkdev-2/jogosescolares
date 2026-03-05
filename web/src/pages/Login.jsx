@@ -144,6 +144,14 @@ export default function Login() {
 
       
       </div>
+
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 px-6 py-4 rounded-2xl bg-white/95 backdrop-blur-sm shadow-lg">
+        <img
+          src="/logo-semcej.png"
+          alt="Prefeitura de Paço do Lumiar - Esporte SEMCEJ"
+          className="h-[80px] w-auto max-w-[200px] object-contain block"
+        />
+      </div>
     </div>
   )
 }

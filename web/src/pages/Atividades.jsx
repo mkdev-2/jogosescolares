@@ -1,54 +1,67 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Trophy, LayoutGrid } from 'lucide-react'
-import ModalidadesList from '../components/catalogos/ModalidadesList'
+import { Trophy, LayoutGrid, Layers } from 'lucide-react'
+import EsportesList from '../components/catalogos/EsportesList'
+import EsporteVariantesList from '../components/catalogos/EsporteVariantesList'
 import CategoriasList from '../components/catalogos/CategoriasList'
-import ModalidadeModal from '../components/catalogos/ModalidadeModal'
+import EsporteModal from '../components/catalogos/EsporteModal'
+import EsporteVarianteModal from '../components/catalogos/EsporteVarianteModal'
 import CategoriaModal from '../components/catalogos/CategoriaModal'
 import useCategorias from '../hooks/useCategorias'
-import useModalidades from '../hooks/useModalidades'
+import useEsportes from '../hooks/useEsportes'
+import useEsporteVariantes from '../hooks/useEsporteVariantes'
 
 const TABS = [
-  { id: 'modalidades', label: 'Modalidades', icon: Trophy },
+  { id: 'esportes', label: 'Esportes', icon: Trophy },
+  { id: 'variantes', label: 'Variantes', icon: Layers },
   { id: 'categorias', label: 'Categorias', icon: LayoutGrid },
 ]
 
-const TAB_IDS = ['modalidades', 'categorias']
+const TAB_IDS = ['esportes', 'variantes', 'categorias']
 
 export default function Atividades() {
   const useCategoriasState = useCategorias()
-  const useModalidadesState = useModalidades()
+  const useEsportesState = useEsportes()
+  const useVariantesState = useEsporteVariantes()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tabFromUrl = searchParams.get('tab') || 'modalidades'
-  const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'modalidades')
-  const [modalModalidadeOpen, setModalModalidadeOpen] = useState(false)
+  const tabFromUrl = searchParams.get('tab') || 'esportes'
+  const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'esportes')
+  const [modalEsporteOpen, setModalEsporteOpen] = useState(false)
+  const [modalVarianteOpen, setModalVarianteOpen] = useState(false)
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false)
-  const [modalidadeSelecionada, setModalidadeSelecionada] = useState(null)
+  const [esporteSelecionado, setEsporteSelecionado] = useState(null)
   const [categoriaSelecionada, setCategoriaSelecionada] = useState(null)
 
   useEffect(() => {
-    const t = searchParams.get('tab') || 'modalidades'
+    const t = searchParams.get('tab') || 'esportes'
     if (TAB_IDS.includes(t)) setActiveTab(t)
   }, [searchParams])
 
-  const handleNewModalidade = () => {
-    setModalidadeSelecionada(null)
-    setModalModalidadeOpen(true)
+  const handleNewEsporte = () => {
+    setEsporteSelecionado(null)
+    setModalEsporteOpen(true)
   }
 
-  const handleEditModalidade = (modalidade) => {
-    setModalidadeSelecionada(modalidade)
-    setModalModalidadeOpen(true)
+  const handleEditEsporte = (esporte) => {
+    setEsporteSelecionado(esporte)
+    setModalEsporteOpen(true)
   }
 
-  const handleModalModalidadeClose = () => {
-    setModalModalidadeOpen(false)
-    setModalidadeSelecionada(null)
+  const handleModalEsporteClose = () => {
+    setModalEsporteOpen(false)
+    setEsporteSelecionado(null)
   }
 
-  const handleModalModalidadeSuccess = () => {
-    setModalModalidadeOpen(false)
-    setModalidadeSelecionada(null)
+  const handleModalEsporteSuccess = () => {
+    setModalEsporteOpen(false)
+    setEsporteSelecionado(null)
+  }
+
+  const handleNewVariante = () => setModalVarianteOpen(true)
+  const handleModalVarianteClose = () => setModalVarianteOpen(false)
+  const handleModalVarianteSuccess = () => {
+    setModalVarianteOpen(false)
+    useVariantesState.fetchVariantes()
   }
 
   const handleNewCategoria = () => {
@@ -78,7 +91,7 @@ export default function Atividades() {
           Atividades
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
-          Centralize o controle de modalidades e categorias em um único painel.
+          Centralize o controle de esportes, variantes e categorias (faixa etária).
         </p>
       </header>
 
@@ -93,7 +106,7 @@ export default function Atividades() {
                 type="button"
                 onClick={() => {
                   setActiveTab(tab.id)
-                  setSearchParams(tab.id === 'modalidades' ? {} : { tab: tab.id })
+                  setSearchParams(tab.id === 'esportes' ? {} : { tab: tab.id })
                 }}
                 className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${
                   isActive
@@ -109,21 +122,36 @@ export default function Atividades() {
         </div>
 
         <div className="p-6">
-          {activeTab === 'modalidades' && (
+          {activeTab === 'esportes' && (
             <>
-              <ModalidadesList
-                {...useModalidadesState}
-                onNewModalidade={handleNewModalidade}
-                onEditModalidade={handleEditModalidade}
+              <EsportesList
+                {...useEsportesState}
+                onNewEsporte={handleNewEsporte}
+                onEditEsporte={handleEditEsporte}
               />
-              <ModalidadeModal
-                isOpen={modalModalidadeOpen}
-                onClose={handleModalModalidadeClose}
-                modalidade={modalidadeSelecionada}
-                onSuccess={handleModalModalidadeSuccess}
-                createModalidade={useModalidadesState.createModalidade}
-                updateModalidade={useModalidadesState.updateModalidade}
-                loading={useModalidadesState.loading}
+              <EsporteModal
+                isOpen={modalEsporteOpen}
+                onClose={handleModalEsporteClose}
+                esporte={esporteSelecionado}
+                onSuccess={handleModalEsporteSuccess}
+                createEsporte={useEsportesState.createEsporte}
+                updateEsporte={useEsportesState.updateEsporte}
+                loading={useEsportesState.loading}
+              />
+            </>
+          )}
+          {activeTab === 'variantes' && (
+            <>
+              <EsporteVariantesList
+                {...useVariantesState}
+                onNewVariante={handleNewVariante}
+              />
+              <EsporteVarianteModal
+                isOpen={modalVarianteOpen}
+                onClose={handleModalVarianteClose}
+                onSuccess={handleModalVarianteSuccess}
+                createVariante={useVariantesState.createVariante}
+                loading={useVariantesState.loading}
               />
             </>
           )}

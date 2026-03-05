@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, LayoutGrid, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck } from 'lucide-react'
+import { LayoutDashboard, Trophy, LayoutGrid, Layers, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -22,7 +22,8 @@ const menuGroups = [
     label: 'Atividades',
     icon: Activity,
     items: [
-      { label: 'Modalidades', path: '/app/atividades', icon: Trophy, tab: 'modalidades' },
+      { label: 'Esportes', path: '/app/atividades', icon: Trophy, tab: 'esportes' },
+      { label: 'Variantes', path: '/app/atividades', icon: Layers, tab: 'variantes' },
       { label: 'Categorias', path: '/app/atividades', icon: LayoutGrid, tab: 'categorias' },
     ],
   },
@@ -51,7 +52,7 @@ export default function AppLayout({ children }) {
     navigate('/login')
   }
 
-  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'modalidades', '/app/administrativo': 'usuarios' }
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios' }
   const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
     if (item?.tab) {

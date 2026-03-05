@@ -5,7 +5,8 @@ import Modal from '../ui/Modal'
 export default function CategoriaModal({ isOpen, onClose, categoria = null, onSuccess, createCategoria, updateCategoria, loading }) {
   const [formData, setFormData] = useState({
     nome: '',
-    descricao: '',
+    idade_min: 12,
+    idade_max: 14,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
@@ -14,13 +15,15 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
     if (categoria) {
       setFormData({
         nome: categoria.nome || '',
-        descricao: categoria.descricao || '',
+        idade_min: categoria.idade_min ?? 12,
+        idade_max: categoria.idade_max ?? 14,
         ativa: categoria.ativa !== undefined ? categoria.ativa : true,
       })
     } else {
       setFormData({
         nome: '',
-        descricao: '',
+        idade_min: 12,
+        idade_max: 14,
         ativa: true,
       })
     }
@@ -39,6 +42,11 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
   const validateForm = () => {
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
+    const min = Number(formData.idade_min)
+    const max = Number(formData.idade_max)
+    if (Number.isNaN(min) || min < 0) newErrors.idade_min = 'Idade mínima inválida'
+    if (Number.isNaN(max) || max < 0) newErrors.idade_max = 'Idade máxima inválida'
+    if (min > max) newErrors.idade_max = 'Idade máxima deve ser maior ou igual à mínima'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -50,7 +58,8 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
     try {
       const dataToSubmit = {
         ...formData,
-        descricao: formData.descricao?.trim() || '',
+        idade_min: Number(formData.idade_min),
+        idade_max: Number(formData.idade_max),
       }
       if (categoria) {
         await updateCategoria(categoria.id, dataToSubmit)
@@ -73,8 +82,8 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
       title={categoria ? 'Editar Categoria' : 'Nova Categoria'}
       subtitle={
         categoria
-          ? 'Atualize as informações da categoria'
-          : 'Preencha os dados para criar uma nova categoria (conjunto de modalidades)'
+          ? 'Atualize as informações da categoria (faixa etária)'
+          : 'Preencha os dados para criar uma nova categoria (faixa etária: ex. 12 a 14 anos)'
       }
       size="lg"
       footer={
@@ -110,7 +119,7 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
             id="nome"
             value={formData.nome}
             onChange={(e) => handleChange({ target: { name: 'nome', value: e.target.value, type: 'text' } })}
-            placeholder="Ex: Coletiva"
+            placeholder="Ex: 12 a 14 anos"
             status={errors.nome ? 'error' : undefined}
           />
           {errors.nome && (
@@ -118,17 +127,43 @@ export default function CategoriaModal({ isOpen, onClose, categoria = null, onSu
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-[#334155]" htmlFor="descricao">
-            Descrição
-          </label>
-          <Input.TextArea
-            id="descricao"
-            value={formData.descricao}
-            onChange={(e) => handleChange({ target: { name: 'descricao', value: e.target.value } })}
-            placeholder="Descreva a categoria..."
-            rows={3}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="idade_min">
+              Idade mínima (anos) <span className="text-[#dc2626]">*</span>
+            </label>
+            <Input
+              id="idade_min"
+              type="number"
+              min={0}
+              max={30}
+              value={formData.idade_min}
+              onChange={(e) => handleChange({ target: { name: 'idade_min', value: e.target.value, type: 'text' } })}
+              placeholder="12"
+              status={errors.idade_min ? 'error' : undefined}
+            />
+            {errors.idade_min && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.idade_min}</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="idade_max">
+              Idade máxima (anos) <span className="text-[#dc2626]">*</span>
+            </label>
+            <Input
+              id="idade_max"
+              type="number"
+              min={0}
+              max={30}
+              value={formData.idade_max}
+              onChange={(e) => handleChange({ target: { name: 'idade_max', value: e.target.value, type: 'text' } })}
+              placeholder="14"
+              status={errors.idade_max ? 'error' : undefined}
+            />
+            {errors.idade_max && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.idade_max}</span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">

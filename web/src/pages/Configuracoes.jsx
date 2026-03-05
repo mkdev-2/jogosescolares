@@ -88,7 +88,8 @@ export default function Configuracoes({ embedded }) {
                 id="cadastro_data_limite"
                 value={cadastroDataLimite ? dayjs(cadastroDataLimite) : null}
                 onChange={(date) => setCadastroDataLimite(date ? date.format('YYYY-MM-DD') : '')}
-                format="DD/MM/YYYY"
+                format={['DD/MM/YYYY', 'DDMMYYYY']}
+                placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"
               />
               <p className="text-xs text-gray-500 mt-1">

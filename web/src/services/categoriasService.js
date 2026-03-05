@@ -31,7 +31,8 @@ export const categoriasService = {
   async create(data) {
     const payload = {
       nome: data.nome?.trim() || '',
-      descricao: data.descricao?.trim() || '',
+      idade_min: Number(data.idade_min) ?? 0,
+      idade_max: Number(data.idade_max) ?? 0,
       ativa: data.ativa !== undefined ? data.ativa : true,
     }
     const res = await apiFetch(BASE, {
@@ -44,7 +45,8 @@ export const categoriasService = {
   async update(id, data) {
     const payload = {}
     if (data.nome !== undefined) payload.nome = data.nome?.trim() ?? ''
-    if (data.descricao !== undefined) payload.descricao = data.descricao?.trim() ?? ''
+    if (data.idade_min !== undefined) payload.idade_min = Number(data.idade_min)
+    if (data.idade_max !== undefined) payload.idade_max = Number(data.idade_max)
     if (data.ativa !== undefined) payload.ativa = data.ativa
 
     const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}`, {

@@ -35,7 +35,7 @@ export default function Categorias() {
           Categorias
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
-          Gerencie as categorias (conjuntos de modalidades) dos Jogos Escolares
+          Gerencie as categorias (faixas etárias: 12-14, 15-17 anos) dos Jogos Escolares
         </p>
       </header>
 

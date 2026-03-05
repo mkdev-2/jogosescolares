@@ -11,8 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import db
 from app.auth import router as auth_router
-from app.modalidades import router as modalidades_router
+from app.esportes import router as esportes_router
 from app.categorias import router as categorias_router
+from app.naipes import router as naipes_router
+from app.tipos_modalidade import router as tipos_modalidade_router
+from app.esporte_variantes import router as esporte_variantes_router
 from app.users import router as users_router
 from app.escolas import router as escolas_router
 from app.configuracoes import router as configuracoes_router
@@ -83,8 +86,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(auth_router)
-app.include_router(modalidades_router)
+app.include_router(esportes_router)
 app.include_router(categorias_router)
+app.include_router(naipes_router)
+app.include_router(tipos_modalidade_router)
+app.include_router(esporte_variantes_router)
 app.include_router(users_router)
 app.include_router(escolas_router)
 app.include_router(configuracoes_router)
@@ -104,8 +110,11 @@ async def root():
         "status": "running",
         "endpoints": {
             "auth": "/auth",
-            "modalidades": "/api/modalidades",
+            "esportes": "/api/esportes",
             "categorias": "/api/categorias",
+            "naipes": "/api/naipes",
+            "tipos-modalidade": "/api/tipos-modalidade",
+            "esporte-variantes": "/api/esporte-variantes",
             "users": "/api/users",
             "escolas": "/api/escolas",
             "estudantes-atletas": "/estudantes-atletas",

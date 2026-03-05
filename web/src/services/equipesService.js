@@ -2,7 +2,7 @@ import { apiFetch } from '../config/api'
 
 /**
  * Serviço de equipes.
- * Equipe = modalidade + categoria + alunos (estudantes) + professor-técnico.
+ * Equipe = esporte_variante (esporte + categoria + naipe + tipo) + alunos + professor-técnico.
  */
 export const equipesService = {
   /**
@@ -20,8 +20,7 @@ export const equipesService = {
   /**
    * Cria uma nova equipe.
    * @param {Object} payload
-   * @param {string} payload.modalidade_id - ID da modalidade
-   * @param {string} payload.categoria_id - ID da categoria
+   * @param {string} payload.esporte_variante_id - ID da variante (esporte+categoria+naipe+tipo)
    * @param {number[]} payload.estudante_ids - IDs dos estudantes
    * @param {number} payload.professor_tecnico_id - ID do professor-técnico
    */

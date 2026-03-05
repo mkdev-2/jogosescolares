@@ -159,7 +159,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
       const payload = {
         nome: form.nome.trim(),
         cpf: onlyDigits(form.cpf),
-        rg: onlyDigits(form.rg).slice(0, 11),
+        rg: onlyDigits(form.rg).slice(0, 15),
         data_nascimento: form.dataNascimento,
         sexo: form.sexo,
         email: form.email.trim(),
@@ -169,7 +169,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
         foto_url: form.fotoUrl?.trim() || null,
         responsavel_nome: form.responsavelNome.trim(),
         responsavel_cpf: onlyDigits(form.responsavelCpf),
-        responsavel_rg: onlyDigits(form.responsavelRg).slice(0, 11),
+        responsavel_rg: onlyDigits(form.responsavelRg).slice(0, 15),
         responsavel_celular: onlyDigits(form.responsavelCelular),
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
@@ -289,7 +289,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
               </div>
               <div>
                 <label htmlFor="modal-rg" className={labelClass}>RG *</label>
-                <Input id="modal-rg" inputMode="numeric" value={form.rg} onChange={(e) => updateField('rg', onlyDigits(e.target.value).slice(0, 11))} placeholder="Número do RG (apenas dígitos)" maxLength={11} status={errors.rg ? 'error' : undefined} />
+                <Input id="modal-rg" inputMode="numeric" value={form.rg} onChange={(e) => updateField('rg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Número do RG (apenas dígitos)" maxLength={15} status={errors.rg ? 'error' : undefined} />
                 {errors.rg && <p className={errorClass}>{errors.rg}</p>}
               </div>
               <div>
@@ -298,7 +298,8 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
                   id="modal-dataNascimento"
                   value={form.dataNascimento ? dayjs(form.dataNascimento) : null}
                   onChange={(date) => updateField('dataNascimento', date ? date.format('YYYY-MM-DD') : '')}
-                  format="DD/MM/YYYY"
+                  format={['DD/MM/YYYY', 'DDMMYYYY']}
+                  placeholder="dd/mm/aaaa"
                   className="w-full"
                   status={errors.dataNascimento ? 'error' : undefined}
                 />
@@ -362,7 +363,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
               </div>
               <div>
                 <label htmlFor="modal-responsavelRg" className={labelClass}>RG *</label>
-                <Input id="modal-responsavelRg" inputMode="numeric" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', onlyDigits(e.target.value).slice(0, 11))} placeholder="Número do RG (apenas dígitos)" maxLength={11} status={errors.responsavelRg ? 'error' : undefined} />
+                <Input id="modal-responsavelRg" inputMode="numeric" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Número do RG (apenas dígitos)" maxLength={15} status={errors.responsavelRg ? 'error' : undefined} />
                 {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
               </div>
               <div>

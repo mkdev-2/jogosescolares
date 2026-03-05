@@ -25,7 +25,8 @@ export default function CategoriasList({
     const matchSearch =
       !searchTerm ||
       c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
+      `${c.idade_min}`.includes(searchTerm) ||
+      `${c.idade_max}`.includes(searchTerm)
     return matchSearch
   })
 
@@ -56,7 +57,7 @@ export default function CategoriasList({
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Buscar por nome ou descrição..."
+            placeholder="Buscar por nome ou idade..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
@@ -110,13 +111,10 @@ export default function CategoriasList({
                 <thead>
                   <tr>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      ID
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Nome
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Descrição
+                      Faixa etária
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Status
@@ -129,18 +127,11 @@ export default function CategoriasList({
                 <tbody>
                   {filteredCategorias.map((c) => (
                     <tr key={c.id} className="hover:bg-[#f8fafc]">
-                      <td className="px-5 py-4 text-[0.9375rem] font-mono text-[#475569] border-b border-[#f1f5f9]">
-                        <span className="block max-w-[120px] overflow-hidden text-ellipsis" title={c.id}>
-                          {c.id?.slice(0, 8)}…
-                        </span>
-                      </td>
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {c.nome}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        <span className="block max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap">
-                          {c.descricao || '-'}
-                        </span>
+                        {c.idade_min} a {c.idade_max} anos
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
 import { Input, Select, Checkbox, Button } from 'antd'
-import ModalidadeIcon from './ModalidadeIcon'
 import Modal from '../ui/Modal'
 import { equipesService } from '../../services/equipesService'
 import { estudantesService } from '../../services/estudantesService'
@@ -9,17 +8,19 @@ import { estudantesService } from '../../services/estudantesService'
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
 const errorClass = 'text-[#dc2626] text-sm mt-1'
 
+function formatVarianteLabel(v) {
+  return `${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome} • ${v.tipo_modalidade_nome}`
+}
+
 export default function EquipeModal({
   open,
   onClose,
   onSuccess,
-  modalidades = [],
-  categorias = [],
+  variantes = [],
   estudantes = [],
   professoresTecnicos = [],
 }) {
-  const [modalidadeId, setModalidadeId] = useState('')
-  const [categoriaId, setCategoriaId] = useState('')
+  const [varianteId, setVarianteId] = useState('')
   const [estudanteIds, setEstudanteIds] = useState([])
   const [professorTecnicoId, setProfessorTecnicoId] = useState('')
   const [errors, setErrors] = useState({})
@@ -27,8 +28,8 @@ export default function EquipeModal({
   const [submitError, setSubmitError] = useState(null)
   const [alunoSearch, setAlunoSearch] = useState('')
 
-  const selectedModalidade = modalidades.find((m) => m.id === modalidadeId)
-  const limiteAtletas = selectedModalidade?.limite_atletas != null ? Number(selectedModalidade.limite_atletas) : null
+  const selectedVariante = variantes.find((v) => v.id === varianteId)
+  const limiteAtletas = selectedVariante?.esporte_limite_atletas != null ? Number(selectedVariante.esporte_limite_atletas) : null
 
   const filteredEstudantes = estudantes.filter((e) => {
     if (!alunoSearch.trim()) return true
@@ -61,8 +62,7 @@ export default function EquipeModal({
   }
 
   const handleClose = () => {
-    setModalidadeId('')
-    setCategoriaId('')
+    setVarianteId('')
     setEstudanteIds([])
     setProfessorTecnicoId('')
     setErrors({})
@@ -73,12 +73,11 @@ export default function EquipeModal({
 
   const validate = () => {
     const err = {}
-    if (!modalidadeId?.trim()) err.modalidade_id = 'Selecione a modalidade'
-    if (!categoriaId?.trim()) err.categoria_id = 'Selecione a categoria'
+    if (!varianteId?.trim()) err.esporte_variante_id = 'Selecione a variante (esporte + categoria + naipe + tipo)'
     if (!professorTecnicoId) err.professor_tecnico_id = 'Selecione o professor-técnico'
     if (estudanteIds.length === 0) err.estudante_ids = 'Selecione pelo menos um aluno'
     if (limiteAtletas != null && estudanteIds.length > limiteAtletas) {
-      err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta modalidade.`
+      err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta variante.`
     }
     setErrors(err)
     return Object.keys(err).length === 0
@@ -91,8 +90,7 @@ export default function EquipeModal({
     setLoading(true)
     try {
       await equipesService.criar({
-        modalidade_id: modalidadeId.trim(),
-        categoria_id: categoriaId.trim(),
+        esporte_variante_id: varianteId.trim(),
         estudante_ids: estudanteIds,
         professor_tecnico_id: Number(professorTecnicoId),
       })
@@ -117,7 +115,7 @@ export default function EquipeModal({
   )
 
   return (
-    <Modal isOpen={open} onClose={handleClose} title="Nova equipe" subtitle="Selecione modalidade, categoria, alunos e técnico" size="lg" footer={footer}>
+    <Modal isOpen={open} onClose={handleClose} title="Nova equipe" subtitle="Selecione a variante (esporte + categoria + naipe + tipo), alunos e técnico" size="lg" footer={footer}>
       <div className="p-0">
         {submitError && (
           <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
@@ -126,41 +124,38 @@ export default function EquipeModal({
         )}
 
         <div className="space-y-6">
-          {/* Modalidade e Categoria */}
+          {/* Variante */}
           <div className="flex items-center gap-2 mb-4">
             <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
             <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
               <Trophy className="w-4 h-4 text-[#64748b]" />
-              Modalidade e Categoria
+              Variante (Esporte + Categoria + Naipe + Tipo)
             </h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="eq-modalidade" className={labelClass}>Modalidade *</label>
-              <Select
-                id="eq-modalidade"
-                value={modalidadeId || undefined}
-                onChange={(v) => { setModalidadeId(v || ''); if (errors.modalidade_id) setErrors((x) => ({ ...x, modalidade_id: undefined })) }}
-                placeholder="Selecione"
-                options={modalidades.map((m) => ({ value: m.id, label: m.nome }))}
-                className="w-full"
-                status={errors.modalidade_id ? 'error' : undefined}
-              />
-              {errors.modalidade_id && <p className={errorClass}>{errors.modalidade_id}</p>}
-            </div>
-            <div>
-              <label htmlFor="eq-categoria" className={labelClass}>Categoria *</label>
-              <Select
-                id="eq-categoria"
-                value={categoriaId || undefined}
-                onChange={(v) => { setCategoriaId(v || ''); if (errors.categoria_id) setErrors((x) => ({ ...x, categoria_id: undefined })) }}
-                placeholder="Selecione"
-                options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
-                className="w-full"
-                status={errors.categoria_id ? 'error' : undefined}
-              />
-              {errors.categoria_id && <p className={errorClass}>{errors.categoria_id}</p>}
-            </div>
+          <div>
+            <label htmlFor="eq-variante" className={labelClass}>Variante *</label>
+            <Select
+              id="eq-variante"
+              value={varianteId || undefined}
+              onChange={(v) => { setVarianteId(v || ''); if (errors.esporte_variante_id) setErrors((x) => ({ ...x, esporte_variante_id: undefined })) }}
+              placeholder="Selecione esporte, categoria, naipe e tipo"
+              options={variantes.map((v) => ({
+                value: v.id,
+                label: formatVarianteLabel(v),
+              }))}
+              className="w-full"
+              status={errors.esporte_variante_id ? 'error' : undefined}
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+            {errors.esporte_variante_id && <p className={errorClass}>{errors.esporte_variante_id}</p>}
+            {variantes.length === 0 && (
+              <p className="text-[0.75rem] text-[#64748b] mt-1">
+                Crie variantes em Atividades antes de montar equipes.
+              </p>
+            )}
           </div>
 
           {/* Professor-Técnico */}
@@ -198,9 +193,9 @@ export default function EquipeModal({
             </div>
             {errors.estudante_ids && <p className={errorClass}>{errors.estudante_ids}</p>}
             <p className="text-sm text-[#64748b] mb-3">
-              Selecione os alunos já cadastrados em Alunos.
+              Selecione os alunos já cadastrados em Alunos. O sistema valida idade e naipe automaticamente.
               {limiteAtletas != null && (
-                <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe nesta modalidade.</span>
+                <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe.</span>
               )}
             </p>
             <div className="mb-3">

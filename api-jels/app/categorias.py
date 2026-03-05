@@ -1,5 +1,5 @@
 """
-Roteador de categorias: CRUD de categorias (conjuntos de modalidades).
+Roteador de categorias: CRUD de categorias (faixa etária: 12-14, 15-17 anos).
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,7 +18,8 @@ def _row_to_response(row: dict) -> CategoriaResponse:
     return CategoriaResponse(
         id=str(row["id"]),
         nome=row["nome"],
-        descricao=row.get("descricao") or "",
+        idade_min=row["idade_min"],
+        idade_max=row["idade_max"],
         ativa=row.get("ativa", True),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
@@ -29,10 +30,10 @@ def _row_to_response(row: dict) -> CategoriaResponse:
 async def list_categorias(
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
-    """Lista todas as categorias."""
+    """Lista todas as categorias (faixas etárias)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ativa, created_at, updated_at FROM categorias ORDER BY nome"
+            "SELECT id, nome, idade_min, idade_max, ativa, created_at, updated_at FROM categorias ORDER BY idade_min"
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
@@ -46,7 +47,7 @@ async def get_categoria(
     """Obtém categoria por ID."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ativa, created_at, updated_at FROM categorias WHERE id = %s",
+            "SELECT id, nome, idade_min, idade_max, ativa, created_at, updated_at FROM categorias WHERE id = %s",
             (categoria_id,),
         )
         row = await cur.fetchone()
@@ -61,17 +62,24 @@ async def create_categoria(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Cria nova categoria (requer autenticação). ID gerado pelo banco como UUID."""
+    """Cria nova categoria (requer autenticação)."""
+    if data.idade_min > data.idade_max:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="idade_min deve ser menor ou igual a idade_max",
+        )
+
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO categorias (nome, descricao, ativa)
-            VALUES (%s, %s, %s)
-            RETURNING id, nome, descricao, ativa, created_at, updated_at
+            INSERT INTO categorias (nome, idade_min, idade_max, ativa)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, nome, idade_min, idade_max, ativa, created_at, updated_at
             """,
             (
                 data.nome.strip(),
-                (data.descricao or "").strip(),
+                data.idade_min,
+                data.idade_max,
                 data.ativa if data.ativa is not None else True,
             ),
         )
@@ -91,7 +99,7 @@ async def update_categoria(
     """Atualiza categoria (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, ativa FROM categorias WHERE id = %s",
+            "SELECT id, nome, idade_min, idade_max, ativa FROM categorias WHERE id = %s",
             (categoria_id,),
         )
         existing = await cur.fetchone()
@@ -103,12 +111,24 @@ async def update_categoria(
     if data.nome is not None:
         updates.append("nome = %s")
         values.append(data.nome.strip())
-    if data.descricao is not None:
-        updates.append("descricao = %s")
-        values.append(data.descricao.strip())
+    if data.idade_min is not None:
+        updates.append("idade_min = %s")
+        values.append(data.idade_min)
+    if data.idade_max is not None:
+        updates.append("idade_max = %s")
+        values.append(data.idade_max)
     if data.ativa is not None:
         updates.append("ativa = %s")
         values.append(data.ativa)
+
+    if updates:
+        idade_min = data.idade_min if data.idade_min is not None else existing["idade_min"]
+        idade_max = data.idade_max if data.idade_max is not None else existing["idade_max"]
+        if idade_min > idade_max:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="idade_min deve ser menor ou igual a idade_max",
+            )
 
     if not updates:
         return _row_to_response(existing)
@@ -122,13 +142,17 @@ async def update_categoria(
             UPDATE categorias
             SET {", ".join(updates)}
             WHERE id = %s
-            RETURNING id, nome, descricao, ativa, created_at, updated_at
             """,
             values,
         )
-        row = await cur.fetchone()
         await conn.commit()
 
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, nome, idade_min, idade_max, ativa, created_at, updated_at FROM categorias WHERE id = %s",
+            (categoria_id,),
+        )
+        row = await cur.fetchone()
     return _row_to_response(row)
 
 
@@ -141,7 +165,7 @@ async def delete_categoria(
     """Remove categoria (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT COUNT(*) AS cnt FROM modalidades WHERE categoria_id = %s",
+            "SELECT COUNT(*) AS cnt FROM esporte_variantes WHERE categoria_id = %s",
             (categoria_id,),
         )
         row = await cur.fetchone()
@@ -149,7 +173,7 @@ async def delete_categoria(
     if count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Não é possível excluir: existem {count} modalidade(s) vinculada(s) a esta categoria",
+            detail=f"Não é possível excluir: existem {count} variante(s) vinculada(s) a esta categoria",
         )
 
     async with conn.cursor() as cur:

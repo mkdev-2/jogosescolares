@@ -136,9 +136,9 @@ function validateForm(form) {
   }
   const diretorRgDigits = onlyDigits(form.diretorRg)
   if (!diretorRgDigits || diretorRgDigits.length < 4) {
-    err.diretorRg = 'RG é obrigatório (apenas números, máx. 11 dígitos)'
-  } else if (diretorRgDigits.length > 11) {
-    err.diretorRg = 'RG deve ter no máximo 11 dígitos'
+    err.diretorRg = 'RG é obrigatório (apenas números, máx. 15 dígitos)'
+  } else if (diretorRgDigits.length > 15) {
+    err.diretorRg = 'RG deve ter no máximo 15 dígitos'
   }
   if (!form.diretorSenha || form.diretorSenha.length < 6) {
     err.diretorSenha = 'A senha deve ter pelo menos 6 caracteres'
@@ -158,9 +158,9 @@ function validateForm(form) {
   }
   const coordRgDigits = onlyDigits(form.coordenadorRg)
   if (!coordRgDigits || coordRgDigits.length < 4) {
-    err.coordenadorRg = 'RG é obrigatório (apenas números, máx. 11 dígitos)'
-  } else if (coordRgDigits.length > 11) {
-    err.coordenadorRg = 'RG deve ter no máximo 11 dígitos'
+    err.coordenadorRg = 'RG é obrigatório (apenas números, máx. 15 dígitos)'
+  } else if (coordRgDigits.length > 15) {
+    err.coordenadorRg = 'RG deve ter no máximo 15 dígitos'
   }
   if (!form.coordenadorEndereco?.trim() || form.coordenadorEndereco.trim().length < 5) {
     err.coordenadorEndereco = 'Endereço deve ter pelo menos 5 caracteres'
@@ -227,7 +227,7 @@ function maskTelefone(value) {
 }
 
 function maskRg(value) {
-  return value.replace(/\D/g, '').slice(0, 11)
+  return value.replace(/\D/g, '').slice(0, 15)
 }
 
 function SectionCard({ icon: Icon, title, children }) {
@@ -574,8 +574,8 @@ export default function CadastroEscola() {
                   inputMode="numeric"
                   value={form.diretorRg}
                   onChange={(e) => updateField('diretorRg', maskRg(e.target.value))}
-                  placeholder="Apenas números, máx. 11 dígitos"
-                  maxLength={11}
+                  placeholder="Apenas números, máx. 15 dígitos"
+                  maxLength={15}
                   status={errors.diretorRg ? 'error' : undefined}
                 />
                 {errors.diretorRg && <p className={errorClass}>{errors.diretorRg}</p>}
@@ -662,8 +662,8 @@ export default function CadastroEscola() {
                   inputMode="numeric"
                   value={form.coordenadorRg}
                   onChange={(e) => updateField('coordenadorRg', maskRg(e.target.value))}
-                  placeholder="Apenas números, máx. 11 dígitos"
-                  maxLength={11}
+                  placeholder="Apenas números, máx. 15 dígitos"
+                  maxLength={15}
                   status={errors.coordenadorRg ? 'error' : undefined}
                 />
                 {errors.coordenadorRg && <p className={errorClass}>{errors.coordenadorRg}</p>}

@@ -9,21 +9,24 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
   const filteredLista = lista.filter((item) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
-    const modalidade = (item.modalidade_nome || item.modalidade?.nome || '').toLowerCase()
-    const categoria = (item.categoria_nome || item.categoria?.nome || '').toLowerCase()
+    const esporte = (item.esporte_nome || '').toLowerCase()
+    const categoria = (item.categoria_nome || '').toLowerCase()
+    const naipe = (item.naipe_nome || '').toLowerCase()
     const tecnico = (item.professor_tecnico_nome || item.professor_tecnico?.nome || '').toLowerCase()
     const instituicao = (item.escola_nome || '').toLowerCase()
     return (
-      modalidade.includes(term) ||
+      esporte.includes(term) ||
       categoria.includes(term) ||
+      naipe.includes(term) ||
       tecnico.includes(term) ||
       (showInstituicao && instituicao.includes(term))
     )
   })
 
-  const getModalidadeNome = (item) => item.modalidade_nome || item.modalidade?.nome || '-'
-  const getModalidadeIcone = (item) => item.modalidade_icone || item.modalidade?.icone || 'Zap'
-  const getCategoriaNome = (item) => item.categoria_nome || item.categoria?.nome || '-'
+  const getEsporteNome = (item) => item.esporte_nome || '-'
+  const getEsporteIcone = (item) => item.esporte_icone || 'Zap'
+  const getCategoriaNome = (item) => item.categoria_nome || '-'
+  const getNaipeNome = (item) => item.naipe_nome || '-'
   const getTecnicoNome = (item) => item.professor_tecnico_nome || item.professor_tecnico?.nome || '-'
   const getQtdAlunos = (item) => (item.estudantes && item.estudantes.length) || item.estudante_ids?.length || 0
 
@@ -46,7 +49,7 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Buscar por modalidade, categoria ou técnico..."
+            placeholder="Buscar por esporte, categoria, naipe ou técnico..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
@@ -82,7 +85,7 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
                 {searchTerm
                   ? 'Tente ajustar o termo de busca'
-                  : 'Monte sua primeira equipe selecionando modalidade, categoria, alunos e técnico'}
+                  : 'Monte sua primeira equipe selecionando variante, alunos e técnico'}
               </p>
               {onNewEquipe && (
                 <Button type="primary" onClick={onNewEquipe} icon={<Plus size={16} />}>
@@ -101,10 +104,10 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
                       </th>
                     )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Modalidade
+                      Esporte
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Categoria
+                      Categoria / Naipe / Tipo
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Técnico
@@ -124,12 +127,12 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
                       )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         <span className="inline-flex items-center gap-2">
-                          <ModalidadeIcon icone={getModalidadeIcone(item)} size={18} className="text-[#0f766e] shrink-0" />
-                          {getModalidadeNome(item)}
+                          <ModalidadeIcon icone={getEsporteIcone(item)} size={18} className="text-[#0f766e] shrink-0" />
+                          {getEsporteNome(item)}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getCategoriaNome(item)}
+                        {getCategoriaNome(item)} • {getNaipeNome(item)} • {item.tipo_modalidade_nome || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getTecnicoNome(item)}

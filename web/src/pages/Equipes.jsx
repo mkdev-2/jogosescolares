@@ -2,8 +2,7 @@ import { useState } from 'react'
 import useEquipes from '../hooks/useEquipes'
 import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
-import useModalidades from '../hooks/useModalidades'
-import useCategorias from '../hooks/useCategorias'
+import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import EquipesList from '../components/catalogos/EquipesList'
 import EquipeModal from '../components/catalogos/EquipeModal'
 
@@ -11,8 +10,7 @@ export default function Equipes() {
   const { lista, loading, error, fetchLista } = useEquipes()
   const { lista: estudantes } = useEstudantes()
   const { lista: professoresTecnicos } = useProfessoresTecnicos()
-  const { modalidades } = useModalidades()
-  const { categorias } = useCategorias()
+  const { variantes } = useEsporteVariantes()
   const [modalOpen, setModalOpen] = useState(false)
 
   const handleNewEquipe = () => {
@@ -35,7 +33,7 @@ export default function Equipes() {
           Equipes
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
-          Monte equipes por modalidade e categoria, vinculando alunos e professor-técnico.
+          Monte equipes por variante (esporte + categoria + naipe + tipo), vinculando alunos e professor-técnico.
         </p>
       </header>
 
@@ -52,8 +50,7 @@ export default function Equipes() {
         open={modalOpen}
         onClose={handleModalClose}
         onSuccess={handleModalSuccess}
-        modalidades={modalidades}
-        categorias={categorias}
+        variantes={variantes}
         estudantes={estudantes}
         professoresTecnicos={professoresTecnicos}
       />

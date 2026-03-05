@@ -1,5 +1,6 @@
 """
 Roteador de equipes: listagem e criação por escola do usuário.
+Validações de idade e naipe são feitas pelo trigger no banco ao inserir em equipe_estudantes.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -19,17 +20,38 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
         id=row["id"],
         escola_id=row["escola_id"],
         escola_nome=row.get("escola_nome"),
-        modalidade_id=str(row["modalidade_id"]),
-        categoria_id=str(row["categoria_id"]),
-        modalidade_nome=row.get("modalidade_nome"),
-        modalidade_icone=row.get("modalidade_icone"),
+        esporte_variante_id=str(row["esporte_variante_id"]),
+        esporte_nome=row.get("esporte_nome"),
+        esporte_icone=row.get("esporte_icone"),
         categoria_nome=row.get("categoria_nome"),
+        naipe_nome=row.get("naipe_nome"),
+        tipo_modalidade_nome=row.get("tipo_modalidade_nome"),
         professor_tecnico_id=row["professor_tecnico_id"],
         professor_tecnico_nome=row.get("professor_tecnico_nome"),
         estudantes=estudantes or [],
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
     )
+
+
+def _get_equipes_sql(where_clause: str = "") -> str:
+    return f"""
+        SELECT e.id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id,
+               e.created_at, e.updated_at,
+               esp.nome AS esporte_nome, esp.icone AS esporte_icone,
+               c.nome AS categoria_nome, n.nome AS naipe_nome, tm.nome AS tipo_modalidade_nome,
+               p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
+        FROM equipes e
+        JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
+        JOIN esportes esp ON esp.id = ev.esporte_id
+        JOIN categorias c ON c.id = ev.categoria_id
+        JOIN naipes n ON n.id = ev.naipe_id
+        JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+        LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+        LEFT JOIN escolas s ON s.id = e.escola_id
+        {where_clause}
+        ORDER BY s.nome_escola NULLS LAST, e.id
+    """
 
 
 @router.get("", response_model=list[EquipeResponse])
@@ -39,22 +61,8 @@ async def list_equipes(
 ):
     """Lista equipes: admin vê todas; diretor/coordenador vê apenas da sua escola."""
     if is_admin(current_user):
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
-                       e.created_at, e.updated_at,
-                       m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
-                       p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
-                FROM equipes e
-                LEFT JOIN modalidades m ON m.id = e.modalidade_id
-                LEFT JOIN categorias c ON c.id = e.categoria_id
-                LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
-                LEFT JOIN escolas s ON s.id = e.escola_id
-                ORDER BY s.nome_escola NULLS LAST, e.id
-                """,
-            )
-            rows = await cur.fetchall()
+        sql = _get_equipes_sql("")
+        params = ()
     else:
         escola_id = current_user.get("escola_id")
         if escola_id is None:
@@ -62,24 +70,12 @@ async def list_equipes(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
             )
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
-                       e.created_at, e.updated_at,
-                       m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
-                       p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
-                FROM equipes e
-                LEFT JOIN modalidades m ON m.id = e.modalidade_id
-                LEFT JOIN categorias c ON c.id = e.categoria_id
-                LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
-                LEFT JOIN escolas s ON s.id = e.escola_id
-                WHERE e.escola_id = %s
-                ORDER BY e.id
-                """,
-                (escola_id,),
-            )
-            rows = await cur.fetchall()
+        sql = _get_equipes_sql("WHERE e.escola_id = %s")
+        params = (escola_id,)
+
+    async with conn.cursor() as cur:
+        await cur.execute(sql, params)
+        rows = await cur.fetchall()
 
     result = []
     async with conn.cursor() as cur:
@@ -110,7 +106,7 @@ async def create_equipe(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user_with_escola),
 ):
-    """Cria equipe na escola do usuário. Valida que professor e estudantes pertencem à mesma escola."""
+    """Cria equipe na escola do usuário. Valida professor e estudantes. Idade/naipe validados pelo banco."""
     escola_id = current_user["escola_id"]
 
     async with conn.cursor() as cur:
@@ -128,13 +124,13 @@ async def create_equipe(
                 detail="Professor-técnico deve pertencer à sua escola",
             )
 
-        # Validar modalidade e categoria existem
-        await cur.execute("SELECT id FROM modalidades WHERE id = %s", (data.modalidade_id,))
+        # Validar variante existe
+        await cur.execute(
+            "SELECT id FROM esporte_variantes WHERE id = %s",
+            (data.esporte_variante_id,),
+        )
         if not await cur.fetchone():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modalidade não encontrada")
-        await cur.execute("SELECT id FROM categorias WHERE id = %s", (data.categoria_id,))
-        if not await cur.fetchone():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada")
 
         # Validar todos os estudantes existem e pertencem à escola
         for sid in data.estudante_ids:
@@ -157,11 +153,11 @@ async def create_equipe(
         # Inserir equipe
         await cur.execute(
             """
-            INSERT INTO equipes (escola_id, modalidade_id, categoria_id, professor_tecnico_id)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, escola_id, modalidade_id, categoria_id, professor_tecnico_id, created_at, updated_at
+            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id)
+            VALUES (%s, %s, %s)
+            RETURNING id, escola_id, esporte_variante_id, professor_tecnico_id, created_at, updated_at
             """,
-            (escola_id, data.modalidade_id, data.categoria_id, data.professor_tecnico_id),
+            (escola_id, data.esporte_variante_id, data.professor_tecnico_id),
         )
         equipe_row = await cur.fetchone()
         if not equipe_row:
@@ -169,27 +165,25 @@ async def create_equipe(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao criar equipe")
 
         equipe_id = equipe_row["id"]
-        for sid in data.estudante_ids:
-            await cur.execute(
-                "INSERT INTO equipe_estudantes (equipe_id, estudante_id) VALUES (%s, %s)",
-                (equipe_id, sid),
+        try:
+            for sid in data.estudante_ids:
+                await cur.execute(
+                    "INSERT INTO equipe_estudantes (equipe_id, estudante_id) VALUES (%s, %s)",
+                    (equipe_id, sid),
+                )
+        except Exception as exc:
+            await conn.rollback()
+            # Trigger pode ter rejeitado por idade ou naipe
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc) if "não pode ser cadastrado" in str(exc) else "Erro ao vincular estudantes. Verifique idade e naipe.",
             )
         await conn.commit()
 
     # Montar resposta com JOINs
     async with conn.cursor() as cur:
         await cur.execute(
-            """
-            SELECT e.id, e.escola_id, e.modalidade_id, e.categoria_id, e.professor_tecnico_id,
-                   e.created_at, e.updated_at,
-                   m.nome AS modalidade_nome, m.icone AS modalidade_icone, c.nome AS categoria_nome,
-                   p.nome AS professor_tecnico_nome
-            FROM equipes e
-            LEFT JOIN modalidades m ON m.id = e.modalidade_id
-            LEFT JOIN categorias c ON c.id = e.categoria_id
-            LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
-            WHERE e.id = %s
-            """,
+            _get_equipes_sql("WHERE e.id = %s"),
             (equipe_id,),
         )
         row = await cur.fetchone()

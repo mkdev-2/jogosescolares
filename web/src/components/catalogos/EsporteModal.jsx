@@ -1,42 +1,37 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Input, Select, Checkbox, Button } from 'antd'
+import { Input, Checkbox, Button } from 'antd'
 import Modal from '../ui/Modal'
-import useCategorias from '../../hooks/useCategorias'
 import ModalidadeIcon, { MODALIDADE_ICONES } from './ModalidadeIcon'
 
-export default function ModalidadeModal({ isOpen, onClose, modalidade = null, onSuccess, createModalidade, updateModalidade, loading }) {
-  const { categorias } = useCategorias()
+export default function EsporteModal({ isOpen, onClose, esporte = null, onSuccess, createEsporte, updateEsporte, loading }) {
   const [iconeDropdownOpen, setIconeDropdownOpen] = useState(false)
   const iconeDropdownRef = useRef(null)
 
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
-    categoria_id: modalidade?.categoria_id,
-    icone: modalidade?.icone ?? 'Zap',
+    icone: 'Zap',
     requisitos: '',
-    limite_atletas: modalidade?.limite_atletas ?? 3,
+    limite_atletas: 3,
     ativa: true,
   })
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    if (modalidade) {
+    if (esporte) {
       setFormData({
-        nome: modalidade.nome || '',
-        descricao: modalidade.descricao || '',
-        categoria_id: modalidade.categoria_id,
-        icone: modalidade.icone ?? 'Zap',
-        requisitos: modalidade.requisitos || '',
-        limite_atletas: modalidade.limite_atletas ?? 3,
-        ativa: modalidade.ativa !== undefined ? modalidade.ativa : true,
+        nome: esporte.nome || '',
+        descricao: esporte.descricao || '',
+        icone: esporte.icone ?? 'Zap',
+        requisitos: esporte.requisitos || '',
+        limite_atletas: esporte.limite_atletas ?? 3,
+        ativa: esporte.ativa !== undefined ? esporte.ativa : true,
       })
     } else {
       setFormData({
         nome: '',
         descricao: '',
-        categoria_id: categorias[0]?.id,
         icone: 'Zap',
         requisitos: '',
         limite_atletas: 3,
@@ -44,7 +39,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
       })
     }
     setErrors({})
-  }, [modalidade, isOpen, categorias])
+  }, [esporte, isOpen])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -68,7 +63,6 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
   const validateForm = () => {
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
-    if (!formData.categoria_id) newErrors.categoria_id = 'Categoria é obrigatória'
     const limite = Number(formData.limite_atletas)
     if (Number.isNaN(limite) || limite < 1) newErrors.limite_atletas = 'Informe o máximo de atletas (mín. 1)'
     setErrors(newErrors)
@@ -82,22 +76,21 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     try {
       const dataToSubmit = {
         ...formData,
-        categoria_id: formData.categoria_id,
         icone: formData.icone || 'Zap',
-        requisitos: formData.requisitos?.trim() || null,
+        requisitos: formData.requisitos?.trim() || '',
         limite_atletas: Number(formData.limite_atletas) || 3,
       }
-      if (modalidade) {
-        await updateModalidade(modalidade.id, dataToSubmit)
+      if (esporte) {
+        await updateEsporte(esporte.id, dataToSubmit)
         onSuccess?.()
         onClose()
       } else {
-        await createModalidade(dataToSubmit)
+        await createEsporte(dataToSubmit)
         onSuccess?.()
         onClose()
       }
     } catch (err) {
-      setErrors({ submit: err.message || 'Erro ao salvar modalidade' })
+      setErrors({ submit: err.message || 'Erro ao salvar esporte' })
     }
   }
 
@@ -105,11 +98,11 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={modalidade ? 'Editar Modalidade' : 'Nova Modalidade'}
+      title={esporte ? 'Editar Esporte' : 'Novo Esporte'}
       subtitle={
-        modalidade
-          ? 'Atualize as informações da modalidade'
-          : 'Preencha os dados para criar uma nova modalidade'
+        esporte
+          ? 'Atualize as informações do esporte'
+          : 'Preencha os dados para criar um novo esporte'
       }
       size="lg"
       footer={
@@ -117,14 +110,14 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
           <Button type="default" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button type="primary" htmlType="submit" form="modalidade-form" loading={loading} disabled={loading}>
-            {loading ? 'Salvando...' : modalidade ? 'Atualizar' : 'Criar'}
+          <Button type="primary" htmlType="submit" form="esporte-form" loading={loading} disabled={loading}>
+            {loading ? 'Salvando...' : esporte ? 'Atualizar' : 'Criar'}
           </Button>
         </div>
       }
-      >
+    >
       <form
-        id="modalidade-form"
+        id="esporte-form"
         onSubmit={handleSubmit}
         className="flex flex-col gap-5"
       >
@@ -203,36 +196,12 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             id="descricao"
             value={formData.descricao}
             onChange={(e) => handleChange({ target: { name: 'descricao', value: e.target.value, type: 'text' } })}
-            placeholder="Descreva a modalidade..."
+            placeholder="Descreva o esporte..."
             rows={4}
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 max-[480px]:grid-cols-1 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="categoria_id">
-              Categoria <span className="text-[#dc2626]">*</span>
-            </label>
-            <Select
-              id="categoria_id"
-              value={formData.categoria_id || undefined}
-              onChange={(v) => handleChange({ target: { name: 'categoria_id', value: v, type: 'text' } })}
-              placeholder="—"
-              disabled={categorias.length === 0}
-              options={categorias.map((cat) => ({ value: cat.id, label: cat.nome }))}
-              className="w-full"
-              status={errors.categoria_id ? 'error' : undefined}
-            />
-            {categorias.length === 0 && (
-              <span className="text-[0.75rem] text-[#64748b]">
-                Ainda não há categorias disponíveis. Crie uma categoria antes de cadastrar modalidades.
-              </span>
-            )}
-            {errors.categoria_id && (
-              <span className="text-[0.8rem] text-[#dc2626]">{errors.categoria_id}</span>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
               Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
@@ -246,7 +215,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
               placeholder="Ex: 3"
               status={errors.limite_atletas ? 'error' : undefined}
             />
-            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe nesta modalidade</span>
+            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe neste esporte</span>
             {errors.limite_atletas && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
             )}
@@ -270,7 +239,7 @@ export default function ModalidadeModal({ isOpen, onClose, modalidade = null, on
             checked={formData.ativa}
             onChange={(e) => handleChange({ target: { name: 'ativa', type: 'checkbox', checked: e.target.checked } })}
           >
-            Modalidade ativa
+            Esporte ativo
           </Checkbox>
         </div>
       </form>

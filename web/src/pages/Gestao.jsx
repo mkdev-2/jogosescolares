@@ -6,8 +6,7 @@ import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEquipes from '../hooks/useEquipes'
 import useEscolas from '../hooks/useEscolas'
-import useModalidades from '../hooks/useModalidades'
-import useCategorias from '../hooks/useCategorias'
+import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import ProfessoresTecnicosList from '../components/catalogos/ProfessoresTecnicosList'
 import EquipesList from '../components/catalogos/EquipesList'
@@ -47,8 +46,7 @@ export default function Gestao() {
   const { lista: listaProfessores, loading: loadingProfessores, error: errorProfessores, fetchLista: fetchProfessores } = useProfessoresTecnicos()
   const { lista: listaEquipes, loading: loadingEquipes, error: errorEquipes, fetchLista: fetchEquipes } = useEquipes()
   const { lista: listaEscolas, loading: loadingEscolas, error: errorEscolas, fetchEscolas } = useEscolas()
-  const { modalidades } = useModalidades()
-  const { categorias } = useCategorias()
+  const { variantes } = useEsporteVariantes()
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,8 +140,7 @@ export default function Gestao() {
                   setModalEquipeOpen(false)
                   fetchEquipes()
                 }}
-                modalidades={modalidades}
-                categorias={categorias}
+                variantes={variantes}
                 estudantes={listaEstudantes}
                 professoresTecnicos={listaProfessores}
               />

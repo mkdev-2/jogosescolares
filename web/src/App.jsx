@@ -18,7 +18,6 @@ import Login from './pages/Login'
 import LandingPage from './pages/LandingPage'
 import CadastroEscola from './pages/CadastroEscola'
 import Dashboard from './pages/Dashboard'
-import Modalidades from './pages/Modalidades'
 import Categorias from './pages/Categorias'
 import Usuarios from './pages/Usuarios'
 import Configuracoes from './pages/Configuracoes'
@@ -45,7 +44,7 @@ function App() {
             <Route path="/app/estudantes-atletas" element={<CadastroEstudanteAtleta />} />
             <Route path="/app/professores-tecnicos" element={<ProfessoresTecnicos />} />
             <Route path="/app/equipes" element={<Equipes />} />
-            <Route path="/app/modalidades" element={<Modalidades />} />
+            <Route path="/app/modalidades" element={<Navigate to="/app/atividades" replace />} />
             <Route path="/app/categorias" element={<Categorias />} />
           </Route>
           <Route element={<AdminRoute />}>

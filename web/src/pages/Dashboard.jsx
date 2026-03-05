@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Activity, Users, Calendar, BarChart3, LayoutGrid } from 'lucide-react'
+import { Activity, Users, Calendar, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
@@ -22,27 +22,15 @@ export default function Dashboard() {
 
         <section className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
           <Link
-            to="/app/categorias"
-            className="block no-underline cursor-pointer bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]"
-          >
-            <LayoutGrid size={28} className="mb-4 text-[#0f766e]" />
-            <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-              Categorias
-            </h3>
-            <p className="text-[0.875rem] text-[#64748b] m-0">
-              Conjuntos de modalidades
-            </p>
-          </Link>
-          <Link
-            to="/app/modalidades"
+            to="/app/atividades"
             className="block no-underline cursor-pointer bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]"
           >
             <Activity size={28} className="mb-4 text-[#0f766e]" />
             <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-              Modalidades
+              Atividades
             </h3>
             <p className="text-[0.875rem] text-[#64748b] m-0">
-              Gerencie as modalidades esportivas
+              Esportes, variantes e categorias
             </p>
           </Link>
           {isAdmin ? (

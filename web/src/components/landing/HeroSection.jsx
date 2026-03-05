@@ -6,7 +6,7 @@ export default function HeroSection() {
   return (
     <section className="relative flex-1 flex items-center overflow-hidden min-h-[550px] md:min-h-[85vh]">
       <img
-        src="/hero-bg.jpg"
+        src="/BANNER.jpeg"
         alt="Jogos Escolares Municipais - Jovens atletas em ação"
         className="absolute inset-0 h-full w-full object-cover"
       />

@@ -11,19 +11,21 @@ VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO
 # Status do usuário
 VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 
-# ========== CATEGORIAS ==========
+# ========== CATEGORIAS (faixa etária) ==========
 
 class CategoriaCreate(BaseModel):
-    """Schema para criação de categoria (id é gerado pelo banco como UUID)."""
+    """Schema para criação de categoria (faixa etária: 12-14, 15-17 anos)."""
     nome: str = Field(..., min_length=1, description="Nome da categoria")
-    descricao: Optional[str] = Field("", description="Descrição da categoria")
+    idade_min: int = Field(..., ge=0, le=30, description="Idade mínima (anos)")
+    idade_max: int = Field(..., ge=0, le=30, description="Idade máxima (anos)")
     ativa: bool = Field(default=True, description="Se a categoria está ativa")
 
 
 class CategoriaUpdate(BaseModel):
     """Schema para atualização de categoria."""
     nome: Optional[str] = Field(None, min_length=1)
-    descricao: Optional[str] = None
+    idade_min: Optional[int] = Field(None, ge=0, le=30)
+    idade_max: Optional[int] = Field(None, ge=0, le=30)
     ativa: Optional[bool] = None
 
 
@@ -31,13 +33,100 @@ class CategoriaResponse(BaseModel):
     """Schema para resposta de categoria."""
     id: str
     nome: str
-    descricao: str
+    idade_min: int
+    idade_max: int
     ativa: bool
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+# ========== NAIPES ==========
+
+class NaipeResponse(BaseModel):
+    """Schema para resposta de naipe (MASCULINO, FEMININO)."""
+    id: str
+    codigo: str
+    nome: str
+
+
+# ========== TIPOS DE MODALIDADE ==========
+
+class TipoModalidadeResponse(BaseModel):
+    """Schema para resposta de tipo de modalidade (INDIVIDUAIS, COLETIVAS, NOVAS)."""
+    id: str
+    codigo: str
+    nome: str
+
+
+# ========== ESPORTES ==========
+
+class EsporteCreate(BaseModel):
+    """Schema para criação de esporte."""
+    nome: str = Field(..., min_length=1, description="Nome do esporte")
+    descricao: Optional[str] = Field("", description="Descrição")
+    icone: Optional[str] = Field("Zap", description="Nome do ícone (lucide-react)")
+    requisitos: Optional[str] = Field("", description="Requisitos para participação")
+    limite_atletas: Optional[int] = Field(3, description="Limite de atletas por equipe")
+    ativa: bool = Field(default=True, description="Se o esporte está ativo")
+
+
+class EsporteUpdate(BaseModel):
+    """Schema para atualização de esporte."""
+    nome: Optional[str] = Field(None, min_length=1)
+    descricao: Optional[str] = None
+    icone: Optional[str] = None
+    requisitos: Optional[str] = None
+    limite_atletas: Optional[int] = None
+    ativa: Optional[bool] = None
+
+
+class EsporteResponse(BaseModel):
+    """Schema para resposta de esporte."""
+    id: str
+    nome: str
+    descricao: str
+    icone: str = "Zap"
+    requisitos: str
+    limite_atletas: int = 3
+    ativa: bool
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ========== ESPORTE VARIANTES ==========
+
+class EsporteVarianteCreate(BaseModel):
+    """Schema para criação de variante (esporte + categoria + naipe + tipo)."""
+    esporte_id: str = Field(..., min_length=1)
+    categoria_id: str = Field(..., min_length=1)
+    naipe_id: str = Field(..., min_length=1)
+    tipo_modalidade_id: str = Field(..., min_length=1)
+
+
+class EsporteVarianteResponse(BaseModel):
+    """Schema para resposta de variante."""
+    id: str
+    esporte_id: str
+    esporte_nome: Optional[str] = None
+    esporte_icone: Optional[str] = None
+    esporte_limite_atletas: int = 3
+    categoria_id: str
+    categoria_nome: Optional[str] = None
+    categoria_idade_min: Optional[int] = None
+    categoria_idade_max: Optional[int] = None
+    naipe_id: str
+    naipe_codigo: Optional[str] = None
+    naipe_nome: Optional[str] = None
+    tipo_modalidade_id: str
+    tipo_modalidade_codigo: Optional[str] = None
+    tipo_modalidade_nome: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 # ========== AUTH / USERS ==========
@@ -237,48 +326,6 @@ class ConfiguracoesUpdate(BaseModel):
     cadastro_data_limite: Optional[str] = Field(None, description="Data limite para envio do formulário de cadastro (YYYY-MM-DD) ou null para sem limite")
 
 
-# ========== MODALIDADES ==========
-
-class ModalidadeCreate(BaseModel):
-    """Schema para criação de modalidade (id é gerado pelo banco como UUID)."""
-    nome: str = Field(..., min_length=1, description="Nome da modalidade")
-    descricao: Optional[str] = Field("", description="Descrição da modalidade")
-    categoria_id: str = Field(..., description="UUID da categoria (conjunto de modalidades)")
-    icone: Optional[str] = Field("Zap", description="Nome do ícone (lucide-react ou react-icons)")
-    requisitos: Optional[str] = Field("", description="Requisitos para participação")
-    limite_atletas: Optional[int] = Field(3, description="Limite de atletas por equipe")
-    ativa: bool = Field(default=True, description="Se a modalidade está ativa")
-
-
-class ModalidadeUpdate(BaseModel):
-    """Schema para atualização de modalidade."""
-    nome: Optional[str] = Field(None, min_length=1)
-    descricao: Optional[str] = None
-    categoria_id: Optional[str] = None
-    icone: Optional[str] = None
-    requisitos: Optional[str] = None
-    limite_atletas: Optional[int] = None
-    ativa: Optional[bool] = None
-
-
-class ModalidadeResponse(BaseModel):
-    """Schema para resposta de modalidade."""
-    id: str
-    nome: str
-    descricao: str
-    categoria_id: str
-    categoria: str  # nome da categoria (para exibição)
-    icone: str = "Zap"
-    requisitos: str
-    limite_atletas: int = 3
-    ativa: bool
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
 # ========== ESTUDANTES ATLETAS ==========
 
 class EstudanteAtletaCreate(BaseModel):
@@ -358,8 +405,7 @@ class ProfessorTecnicoResponse(BaseModel):
 
 class EquipeCreate(BaseModel):
     """Schema para criação de equipe (escola_id vem do usuário logado)."""
-    modalidade_id: str = Field(..., min_length=1)
-    categoria_id: str = Field(..., min_length=1)
+    esporte_variante_id: str = Field(..., min_length=1, description="ID da variante (esporte+categoria+naipe+tipo)")
     estudante_ids: list[int] = Field(..., min_length=1, description="IDs dos estudantes da equipe")
     professor_tecnico_id: int = Field(..., description="ID do professor-técnico")
 
@@ -372,15 +418,16 @@ class EquipeEstudanteItem(BaseModel):
 
 
 class EquipeResponse(BaseModel):
-    """Schema para resposta de equipe (com modalidade, categoria, técnico e estudantes)."""
+    """Schema para resposta de equipe (com variante, técnico e estudantes)."""
     id: int
     escola_id: int
     escola_nome: Optional[str] = None
-    modalidade_id: str
-    categoria_id: str
-    modalidade_nome: Optional[str] = None
-    modalidade_icone: Optional[str] = None
+    esporte_variante_id: str
+    esporte_nome: Optional[str] = None
+    esporte_icone: Optional[str] = None
     categoria_nome: Optional[str] = None
+    naipe_nome: Optional[str] = None
+    tipo_modalidade_nome: Optional[str] = None
     professor_tecnico_id: int
     professor_tecnico_nome: Optional[str] = None
     estudantes: list[EquipeEstudanteItem] = Field(default_factory=list)
