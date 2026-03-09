@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 
-export default function useEsporteVariantes(esporteId = null) {
+export default function useEsporteVariantes(esporteId = null, options = {}) {
+  const { minhaEscola = false } = options
   const [variantes, setVariantes] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -10,7 +11,9 @@ export default function useEsporteVariantes(esporteId = null) {
     setLoading(true)
     setError(null)
     try {
-      const data = await esporteVariantesService.list(esporteId)
+      const data = minhaEscola
+        ? await esporteVariantesService.listMinhaEscola()
+        : await esporteVariantesService.list(esporteId)
       setVariantes(data)
       return data
     } catch (err) {
@@ -19,7 +22,7 @@ export default function useEsporteVariantes(esporteId = null) {
     } finally {
       setLoading(false)
     }
-  }, [esporteId])
+  }, [esporteId, minhaEscola])
 
   const createVariante = useCallback(async (data) => {
     setLoading(true)

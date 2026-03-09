@@ -198,6 +198,7 @@ class UserMeResponse(BaseModel):
     role: str
     escola_id: Union[int, None] = None
     escola_inep: Union[str, None] = None
+    escola_nome: Union[str, None] = None
     status: VALID_STATUS
     created_at: Union[str, None] = None
     foto_url: Union[str, None] = None
@@ -255,7 +256,7 @@ class AdesaoDiretor(BaseModel):
     """Dados do diretor no termo de adesão (senha enviada em texto; backend grava apenas hash)."""
     nome: str = Field(..., min_length=1)
     cpf: str = Field(..., min_length=11, max_length=14)
-    rg: str = Field(..., min_length=1)
+    rg: str = Field(..., min_length=1, max_length=15)
     senha: str = Field(..., min_length=6, description="Senha definida no formulário (será hasheada no backend)")
 
 
@@ -263,7 +264,7 @@ class AdesaoCoordenador(BaseModel):
     """Dados do coordenador de esportes no termo de adesão."""
     nome: str = Field(..., min_length=1)
     cpf: str = Field(..., min_length=11, max_length=14)
-    rg: str = Field(..., min_length=1)
+    rg: str = Field(..., min_length=1, max_length=15)
     endereco: str = Field(..., min_length=1)
     email: str = Field(..., description="E-mail do coordenador")
     telefone: str = Field(..., min_length=8)
@@ -363,7 +364,7 @@ class EstudanteAtletaCreate(BaseModel):
     """Schema para criação de estudante-atleta (escola_id vem do usuário logado)."""
     nome: str = Field(..., min_length=1)
     cpf: str = Field(..., min_length=11, max_length=14)
-    rg: str = Field(..., min_length=1, max_length=11)
+    rg: str = Field(..., min_length=1, max_length=15)
     data_nascimento: str = Field(..., description="YYYY-MM-DD")
     sexo: str = Field(..., pattern="^[MF]$")
     email: str = Field(..., min_length=1)
@@ -373,7 +374,7 @@ class EstudanteAtletaCreate(BaseModel):
     foto_url: Optional[str] = None
     responsavel_nome: str = Field(..., min_length=1)
     responsavel_cpf: str = Field(..., min_length=11, max_length=14)
-    responsavel_rg: str = Field(..., min_length=1, max_length=11)
+    responsavel_rg: str = Field(..., min_length=1, max_length=15)
     responsavel_celular: str = Field(..., min_length=1)
     responsavel_email: str = Field(..., min_length=1)
     responsavel_nis: str = Field(..., min_length=1)

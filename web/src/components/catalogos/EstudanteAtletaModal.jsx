@@ -59,7 +59,7 @@ function validateForm(form) {
   if (onlyDigits(form.cpf).length !== 11) err.cpf = 'CPF deve conter 11 dígitos'
   else if (!isValidCpf(form.cpf)) err.cpf = 'CPF inválido'
   if (!form.rg?.trim()) err.rg = 'RG é obrigatório'
-  else if (onlyDigits(form.rg).length > 11) err.rg = 'RG deve ter no máximo 11 caracteres'
+  else if (onlyDigits(form.rg).length > 15) err.rg = 'RG deve ter no máximo 15 caracteres'
   if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
   if (!form.sexo) err.sexo = 'Selecione o sexo'
   if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
@@ -71,7 +71,7 @@ function validateForm(form) {
   if (onlyDigits(form.responsavelCpf).length !== 11) err.responsavelCpf = 'CPF do responsável deve conter 11 dígitos'
   else if (!isValidCpf(form.responsavelCpf)) err.responsavelCpf = 'CPF do responsável inválido'
   if (!form.responsavelRg?.trim()) err.responsavelRg = 'RG do responsável é obrigatório'
-  else if (onlyDigits(form.responsavelRg).length > 11) err.responsavelRg = 'RG do responsável deve ter no máximo 11 caracteres'
+  else if (onlyDigits(form.responsavelRg).length > 15) err.responsavelRg = 'RG do responsável deve ter no máximo 15 caracteres'
   if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
   if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
   if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
@@ -109,6 +109,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
   const [submitError, setSubmitError] = useState(null)
   const fileInputRef = useRef(null)
 
+  const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
 
   const updateField = (field, value) => {
@@ -219,6 +220,15 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
                 <School className="w-4 h-4 text-[#64748b]" />
                 Instituição
               </h3>
+            </div>
+            <div>
+              <label className={labelClass}>Nome da instituição</label>
+              <Input
+                value={nomeInstituicao}
+                readOnly
+                placeholder="Preenchido automaticamente com a escola do coordenador"
+                className="bg-[#f8fafc]"
+              />
             </div>
             <div>
               <label className={labelClass}>INEP da instituição</label>

@@ -9,7 +9,7 @@ from app.schemas import (
     EsporteVarianteCreate,
     EsporteVarianteResponse,
 )
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_user_with_escola
 from app.database import get_db
 
 router = APIRouter(prefix="/api/esporte-variantes", tags=["esporte-variantes"])
@@ -81,6 +81,54 @@ async def list_esporte_variantes(
 
     async with conn.cursor() as cur:
         await cur.execute(sql, params)
+        rows = await cur.fetchall()
+    return [_row_to_response(r) for r in rows]
+
+
+@router.get("/minha-escola", response_model=list[EsporteVarianteResponse])
+async def list_variantes_minha_escola(
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user_with_escola),
+):
+    """Lista variantes em que a escola do usuário está vinculada. Apenas para Diretor/Coordenador."""
+    if current_user.get("role") != "DIRETOR":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Este endpoint é exclusivo para Diretores.",
+        )
+    escola_id = current_user.get("escola_id")
+    if not escola_id:
+        return []
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        row = await cur.fetchone()
+    if not row or not isinstance(row.get("modalidades_adesao"), dict):
+        return []
+    variante_ids = row["modalidades_adesao"].get("variante_ids") or []
+    if not variante_ids:
+        return []
+
+    sql = """
+        SELECT ev.id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
+               e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+               e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
+               c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
+               n.codigo AS naipe_codigo, n.nome AS naipe_nome,
+               tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+        FROM esporte_variantes ev
+        JOIN esportes e ON e.id = ev.esporte_id
+        JOIN categorias c ON c.id = ev.categoria_id
+        JOIN naipes n ON n.id = ev.naipe_id
+        JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+        WHERE ev.id = ANY(%s)
+        ORDER BY e.nome, c.idade_min, n.codigo, tm.codigo
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(sql, (variante_ids,))
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
 

@@ -3,12 +3,15 @@ import EsportesList from '../components/catalogos/EsportesList'
 import EsporteModal from '../components/catalogos/EsporteModal'
 import useEsportes from '../hooks/useEsportes'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
+import { useAuth } from '../contexts/AuthContext'
 import { esportesService } from '../services/esportesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 
 export default function Atividades() {
+  const { user } = useAuth()
+  const isDiretor = user?.role === 'DIRETOR'
   const useEsportesState = useEsportes()
-  const useVariantesState = useEsporteVariantes()
+  const useVariantesState = useEsporteVariantes(null, { minhaEscola: isDiretor })
   const [modalEsporteOpen, setModalEsporteOpen] = useState(false)
   const [esporteSelecionado, setEsporteSelecionado] = useState(null)
   const [variantesDoEsporte, setVariantesDoEsporte] = useState([])
@@ -52,10 +55,12 @@ export default function Atividades() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-          Atividades
+          {isDiretor ? 'Esportes' : 'Atividades'}
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
-          Gerencie esportes e suas variantes (categoria, naipe e tipo).
+          {isDiretor
+            ? 'Modalidades em que sua escola está vinculada.'
+            : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
         </p>
       </header>
 
@@ -66,11 +71,13 @@ export default function Atividades() {
             loading={useVariantesState.loading}
             error={useVariantesState.error}
             fetchVariantes={useVariantesState.fetchVariantes}
-            deleteVariante={useVariantesState.deleteVariante}
-            deleteEsporte={useEsportesState.deleteEsporte}
-            onNewEsporte={handleNewEsporte}
-            onEditVariante={handleEditVariante}
+            deleteVariante={isDiretor ? undefined : useVariantesState.deleteVariante}
+            deleteEsporte={isDiretor ? undefined : useEsportesState.deleteEsporte}
+            onNewEsporte={isDiretor ? undefined : handleNewEsporte}
+            onEditVariante={isDiretor ? undefined : handleEditVariante}
+            emptyMessageDiretor={isDiretor}
           />
+          {!isDiretor && (
           <EsporteModal
             isOpen={modalEsporteOpen}
             onClose={handleModalEsporteClose}
@@ -81,6 +88,7 @@ export default function Atividades() {
             updateEsporte={useEsportesState.updateEsporte}
             loading={useEsportesState.loading}
           />
+          )}
         </div>
       </div>
     </div>

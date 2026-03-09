@@ -197,7 +197,7 @@ async def get_current_user(
         await cur.execute(
             """
             SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id, u.status, u.created_at, u.foto_url,
-                   e.inep AS escola_inep
+                   e.inep AS escola_inep, e.nome_escola AS escola_nome
             FROM users u
             LEFT JOIN escolas e ON u.escola_id = e.id
             WHERE u.id = %s
@@ -310,6 +310,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         role=current_user["role"],
         escola_id=current_user.get("escola_id"),
         escola_inep=current_user.get("escola_inep"),
+        escola_nome=current_user.get("escola_nome"),
         status=current_user["status"],
         created_at=created_at,
         foto_url=current_user.get("foto_url"),

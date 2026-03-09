@@ -12,6 +12,7 @@ export default function EsportesList({
   deleteEsporte,
   onNewEsporte,
   onEditVariante,
+  emptyMessageDiretor,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState(null)
@@ -200,9 +201,11 @@ export default function EsportesList({
                 {exibirUnicos ? 'Nenhum esporte encontrado' : 'Nenhuma variante encontrada'}
               </p>
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
-                {(searchTerm || filtroCategoria || filtroNaipe || filtroTipo)
-                  ? 'Tente ajustar os filtros de busca'
-                  : 'Crie um novo esporte para gerar variantes automaticamente'}
+                {emptyMessageDiretor
+                  ? 'Sua escola ainda não possui modalidades vinculadas.'
+                  : (searchTerm || filtroCategoria || filtroNaipe || filtroTipo)
+                    ? 'Tente ajustar os filtros de busca'
+                    : 'Crie um novo esporte para gerar variantes automaticamente'}
               </p>
               {onNewEsporte && (
                 <button
