@@ -10,7 +10,7 @@ export default function CTASection() {
         </h2>
         <p className="text-white/80 text-lg max-w-2xl mx-auto mb-10">
           Cadastre sua escola agora e garanta a participação nos Jogos Escolares Municipais 2026.
-          O prazo de inscrição é limitado!
+          O prazo de adesão é limitado!
         </p>
         <Link
           to="/cadastro"

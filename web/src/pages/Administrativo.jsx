@@ -8,7 +8,7 @@ import UsuariosPendentes from './UsuariosPendentes'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
-  { id: 'usuarios-pendentes', label: 'Solicitações de Inscrição', icon: ClipboardList, adminOnly: true },
+  { id: 'usuarios-pendentes', label: 'Solicitações de Adesão', icon: ClipboardList, adminOnly: true },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
 ]
 
