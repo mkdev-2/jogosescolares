@@ -22,6 +22,7 @@ from app.configuracoes import router as configuracoes_router
 from app.estudantes_atletas import router as estudantes_atletas_router
 from app.professores_tecnicos import router as professores_tecnicos_router
 from app.equipes import router as equipes_router
+from app.dashboard import router as dashboard_router
 
 try:
     from app.storage import router as storage_router
@@ -97,6 +98,7 @@ app.include_router(configuracoes_router)
 app.include_router(estudantes_atletas_router)
 app.include_router(professores_tecnicos_router)
 app.include_router(equipes_router)
+app.include_router(dashboard_router)
 if STORAGE_AVAILABLE and storage_router:
     app.include_router(storage_router)
 

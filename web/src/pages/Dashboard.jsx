@@ -1,82 +1,270 @@
 import { Link } from 'react-router-dom'
-import { Activity, Users, Calendar, BarChart3 } from 'lucide-react'
+import {
+  Building2,
+  Users,
+  Trophy,
+  UsersRound,
+  GraduationCap,
+  ClipboardList,
+  Activity,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useDashboard } from '../hooks/useDashboard'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
+function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to }) {
+  const variants = {
+    primary: 'from-[#0f766e]/10 to-[#0d9488]/10 border-[#0f766e]/20',
+    secondary: 'from-blue-500/10 to-indigo-600/10 border-blue-500/20',
+    success: 'from-emerald-500/10 to-emerald-600/10 border-emerald-500/20',
+    warning: 'from-amber-500/10 to-amber-600/10 border-amber-500/20',
+    info: 'from-indigo-500/10 to-indigo-600/10 border-indigo-500/20',
+  }
+  const iconBg = {
+    primary: 'bg-[#0f766e] text-white',
+    secondary: 'bg-blue-500 text-white',
+    success: 'bg-emerald-500 text-white',
+    warning: 'bg-amber-500 text-white',
+    info: 'bg-indigo-500 text-white',
+  }
+  const formatValue = (val) =>
+    typeof val === 'number' ? new Intl.NumberFormat('pt-BR').format(val) : val
+
+  const content = (
+    <div
+      className={`relative overflow-hidden rounded-2xl border bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${to ? 'cursor-pointer' : ''}`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br opacity-40" />
+      <div className="relative flex justify-between items-start mb-3">
+        <p className="text-[10px] sm:text-xs font-bold text-[#64748b] uppercase tracking-widest">
+          {title}
+        </p>
+        <div
+          className={`p-2 rounded-xl shadow-md ${iconBg[variant]}`}
+        >
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
+        </div>
+      </div>
+      <p className="text-2xl sm:text-3xl font-extrabold text-[#042f2e]">
+        {formatValue(value)}
+      </p>
+      {subtitle && (
+        <p className="text-xs text-[#64748b] mt-1 font-medium">{subtitle}</p>
+      )}
+      <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
+        <Icon size={100} className="text-[#0f766e]" />
+      </div>
+    </div>
+  )
+
+  if (to) {
+    return <Link to={to} className="block no-underline">{content}</Link>
+  }
+  return content
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
+  const { data, loading, error } = useDashboard()
   const isAdmin = ADMIN_ROLES.includes(user?.role)
 
-  return (
-    <div className="flex flex-col gap-6">
+  if (error) {
+    return (
       <div className="flex flex-col gap-6">
-        <section className="mb-10">
+        <section>
           <h2 className="font-['Plus_Jakarta_Sans',system-ui,sans-serif] text-[1.75rem] font-bold text-[#042f2e] m-0 mb-2">
-            Bem-vindo, {user?.nome}!
+            Quadro de Resumo
           </h2>
-          <p className="text-base text-[#64748b] m-0">
-            Painel de administração do sistema de Jogos Escolares.
-          </p>
-        </section>
-
-        <section className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
-          <Link
-            to="/app/atividades"
-            className="block no-underline cursor-pointer bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]"
-          >
-            <Activity size={28} className="mb-4 text-[#0f766e]" />
-            <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-              Atividades
-            </h3>
-            <p className="text-[0.875rem] text-[#64748b] m-0">
-              Esportes e variantes
-            </p>
-          </Link>
-          {isAdmin ? (
-            <Link
-              to="/app/usuarios"
-              className="block no-underline cursor-pointer bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]"
-            >
-              <Users size={28} className="mb-4 text-[#0f766e]" />
-              <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-                Usuários
-              </h3>
-              <p className="text-[0.875rem] text-[#64748b] m-0">
-                Gerencie os usuários do sistema
-              </p>
-            </Link>
-          ) : (
-            <div className="bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all cursor-default hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]">
-              <Users size={28} className="mb-4 text-[#0f766e]" />
-              <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-                Equipes
-              </h3>
-              <p className="text-[0.875rem] text-[#64748b] m-0">
-                Cadastre escolas e atletas
-              </p>
-            </div>
-          )}
-          <div className="bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all cursor-default hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]">
-            <Calendar size={28} className="mb-4 text-[#0f766e]" />
-            <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-              Calendário
-            </h3>
-            <p className="text-[0.875rem] text-[#64748b] m-0">
-              Organize jogos e eventos
-            </p>
-          </div>
-          <div className="bg-white rounded-[16px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#f1f5f9] transition-all cursor-default hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:border-[#e2e8f0]">
-            <BarChart3 size={28} className="mb-4 text-[#0f766e]" />
-            <h3 className="text-[1.125rem] font-semibold text-[#334155] m-0 mb-1">
-              Resultados
-            </h3>
-            <p className="text-[0.875rem] text-[#64748b] m-0">
-              Acompanhe classificações e placares
-            </p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-rose-700">
+            <p className="font-semibold">Erro ao carregar dados</p>
+            <p className="text-sm mt-1">{error}</p>
           </div>
         </section>
       </div>
+    )
+  }
+
+  const stats = data || {}
+  const maxEquipesModalidade = Math.max(
+    ...(stats.equipes_por_modalidade || []).map((e) => e.total),
+    1
+  )
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-['Plus_Jakarta_Sans',system-ui,sans-serif] text-[1.75rem] sm:text-[2rem] font-bold text-[#042f2e] m-0 mb-1">
+            Quadro de Resumo
+          </h2>
+          <p className="text-base text-[#64748b] m-0">
+            Visão geral das métricas do sistema de Jogos Escolares
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-[#64748b] bg-white/80 px-4 py-2 rounded-full border border-[#e2e8f0] shadow-sm">
+          <Activity size={16} className="text-[#0f766e]" />
+          Atualizado em {new Date().toLocaleDateString('pt-BR')}
+        </div>
+      </div>
+
+      {/* Cards de métricas */}
+      <section className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <StatCard
+          title="Escolas Cadastradas"
+          value={loading ? '...' : stats.total_escolas ?? 0}
+          icon={Building2}
+          variant="primary"
+          to={isAdmin ? '/app/gestao?tab=escolas' : undefined}
+        />
+        <StatCard
+          title="Alunos Cadastrados"
+          value={loading ? '...' : stats.total_estudantes ?? 0}
+          subtitle="Estudantes atletas no sistema"
+          icon={Users}
+          variant="secondary"
+          to="/app/gestao?tab=alunos"
+        />
+        <StatCard
+          title="Modalidades"
+          value={loading ? '...' : stats.total_modalidades ?? 0}
+          subtitle="Esportes × categoria × naipe"
+          icon={Trophy}
+          variant="success"
+          to="/app/atividades"
+        />
+        <StatCard
+          title="Equipes"
+          value={loading ? '...' : stats.total_equipes ?? 0}
+          subtitle={`${stats.total_atletas_vinculados ?? 0} atletas vinculados`}
+          icon={UsersRound}
+          variant="info"
+          to="/app/gestao?tab=equipes"
+        />
+        <StatCard
+          title="Professores Técnicos"
+          value={loading ? '...' : stats.total_professores ?? 0}
+          icon={GraduationCap}
+          variant="primary"
+          to="/app/gestao?tab=professores"
+        />
+        {isAdmin && (
+          <StatCard
+            title="Solicitações Pendentes"
+            value={loading ? '...' : stats.solicitacoes_pendentes ?? 0}
+            subtitle="Aguardando aprovação"
+            icon={ClipboardList}
+            variant="warning"
+            to="/app/administrativo?tab=usuarios-pendentes"
+          />
+        )}
+      </section>
+
+      {/* Equipes por modalidade */}
+      <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
+          <h3 className="text-lg font-semibold text-[#042f2e] m-0">
+            Equipes por Modalidade
+          </h3>
+          <p className="text-sm text-[#64748b] mt-1 m-0">
+            Distribuição de equipes inscritas por esporte, categoria e naipe
+          </p>
+        </div>
+        <div className="p-6">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : !stats.equipes_por_modalidade?.length ? (
+            <p className="text-[#64748b] text-center py-8">
+              Nenhuma equipe cadastrada ainda.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {stats.equipes_por_modalidade.map((item, idx) => (
+                <div key={idx} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-[#334155] truncate pr-2">
+                      {item.modalidade}
+                    </span>
+                    <span className="font-bold text-[#0f766e] shrink-0">
+                      {new Intl.NumberFormat('pt-BR').format(item.total)} equipes
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,#0f766e,#0d9488)] transition-all duration-500"
+                      style={{
+                        width: `${Math.min((item.total / maxEquipesModalidade) * 100, 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Equipes por escola (apenas admin) */}
+      {isAdmin && stats.equipes_por_escola?.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
+            <h3 className="text-lg font-semibold text-[#042f2e] m-0">
+              Top 10 Escolas com Mais Equipes
+            </h3>
+            <p className="text-sm text-[#64748b] mt-1 m-0">
+              Escolas com maior número de equipes inscritas
+            </p>
+          </div>
+          <div className="p-6">
+            <div className="space-y-3">
+              {stats.equipes_por_escola.map((item, idx) => (
+                <Link
+                  key={item.escola_id}
+                  to={`/app/gestao?tab=escolas`}
+                  className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-[#f1f5f9] transition-colors no-underline"
+                >
+                  <span className="text-[#334155] font-medium truncate pr-2">
+                    {idx + 1}. {item.escola_nome}
+                  </span>
+                  <span className="text-[#0f766e] font-bold shrink-0">
+                    {new Intl.NumberFormat('pt-BR').format(item.total)} equipes
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Escolas por status (apenas admin) */}
+      {isAdmin && stats.escolas_por_status?.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
+            <h3 className="text-lg font-semibold text-[#042f2e] m-0">
+              Escolas por Status de Adesão
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="flex flex-wrap gap-4">
+              {stats.escolas_por_status.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <span className="text-sm font-medium text-[#64748b]">
+                    {item.status}
+                  </span>
+                  <span className="text-lg font-bold text-[#0f766e]">
+                    {new Intl.NumberFormat('pt-BR').format(item.total)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   )
 }
