@@ -25,10 +25,16 @@ export default function useProfessoresTecnicos() {
     fetchLista()
   }, [fetchLista])
 
+  const deleteProfessor = useCallback(async (id) => {
+    await professoresTecnicosService.excluir(id)
+    await fetchLista()
+  }, [fetchLista])
+
   return {
     lista,
     loading,
     error,
     fetchLista,
+    deleteProfessor,
   }
 }

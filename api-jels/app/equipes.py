@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 
-from app.schemas import EquipeCreate, EquipeResponse, EquipeEstudanteItem
+from app.schemas import EquipeCreate, EquipeUpdate, EquipeResponse, EquipeEstudanteItem
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
@@ -100,6 +100,54 @@ async def list_equipes(
     return result
 
 
+def _check_equipe_visible(current_user: dict, escola_id: int | None) -> None:
+    """Verifica se o usuário pode acessar a equipe (mesma escola ou admin)."""
+    if is_admin(current_user):
+        return
+    user_escola = current_user.get("escola_id")
+    if user_escola is None or escola_id != user_escola:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado a este registro.",
+        )
+
+
+@router.get("/{equipe_id}", response_model=EquipeResponse)
+async def get_equipe(
+    equipe_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Obtém equipe por ID."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            _get_equipes_sql("WHERE e.id = %s"),
+            (equipe_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
+    _check_equipe_visible(current_user, row["escola_id"])
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT est.id, est.nome, est.cpf
+            FROM equipe_estudantes ee
+            JOIN estudantes_atletas est ON est.id = ee.estudante_id
+            WHERE ee.equipe_id = %s
+            ORDER BY est.nome
+            """,
+            (equipe_id,),
+        )
+        est_rows = await cur.fetchall()
+    estudantes = [
+        EquipeEstudanteItem(id=er["id"], nome=er["nome"], cpf=er.get("cpf"))
+        for er in est_rows
+    ]
+    return _row_to_response(dict(row), estudantes)
+
+
 @router.post("", response_model=EquipeResponse, status_code=status.HTTP_201_CREATED)
 async def create_equipe(
     data: EquipeCreate,
@@ -188,10 +236,16 @@ async def create_equipe(
                 )
         except Exception as exc:
             await conn.rollback()
-            # Trigger pode ter rejeitado por idade ou naipe
+            raw_msg = str(exc)
+            logger.warning("Erro ao vincular estudante em equipe (trigger): %s", raw_msg)
+            if "não pode ser cadastrado" in raw_msg:
+                msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
+                detail = msg_limpa if msg_limpa else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
+            else:
+                detail = "Erro ao vincular estudantes. Verifique idade e naipe."
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc) if "não pode ser cadastrado" in str(exc) else "Erro ao vincular estudantes. Verifique idade e naipe.",
+                detail=detail,
             )
         await conn.commit()
 
@@ -218,3 +272,131 @@ async def create_equipe(
         for er in est_rows
     ]
     return _row_to_response(dict(row), estudantes)
+
+
+@router.put("/{equipe_id}", response_model=EquipeResponse)
+async def update_equipe(
+    equipe_id: int,
+    data: EquipeUpdate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user_with_escola),
+):
+    """Atualiza equipe. Apenas da mesma escola."""
+    escola_id = current_user["escola_id"]
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, escola_id FROM equipes WHERE id = %s",
+            (equipe_id,),
+        )
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
+    _check_equipe_visible(current_user, existing["escola_id"])
+
+    updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        async with conn.cursor() as cur:
+            await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+            row = await cur.fetchone()
+            await cur.execute(
+                """
+                SELECT est.id, est.nome, est.cpf
+                FROM equipe_estudantes ee
+                JOIN estudantes_atletas est ON est.id = ee.estudante_id
+                WHERE ee.equipe_id = %s
+                ORDER BY est.nome
+                """,
+                (equipe_id,),
+            )
+            est_rows = await cur.fetchall()
+        estudantes = [EquipeEstudanteItem(id=er["id"], nome=er["nome"], cpf=er.get("cpf")) for er in est_rows]
+        return _row_to_response(dict(row), estudantes)
+
+    async with conn.cursor() as cur:
+        if "professor_tecnico_id" in updates:
+            await cur.execute(
+                "SELECT id, escola_id FROM professores_tecnicos WHERE id = %s",
+                (updates["professor_tecnico_id"],),
+            )
+            pt = await cur.fetchone()
+            if not pt or pt["escola_id"] != escola_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor-técnico deve pertencer à sua escola")
+
+        if "esporte_variante_id" in updates:
+            await cur.execute(
+                "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+                (escola_id,),
+            )
+            escola_row = await cur.fetchone()
+            variante_ids = escola_row["modalidades_adesao"].get("variante_ids", []) if escola_row and escola_row.get("modalidades_adesao") else []
+            if variante_ids and updates["esporte_variante_id"] not in variante_ids:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Modalidade não vinculada à escola")
+
+        if "estudante_ids" in updates:
+            for sid in updates["estudante_ids"]:
+                await cur.execute("SELECT id, escola_id FROM estudantes_atletas WHERE id = %s", (sid,))
+                est = await cur.fetchone()
+                if not est or est["escola_id"] != escola_id:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Todos os estudantes devem pertencer à sua escola")
+
+        if "professor_tecnico_id" in updates:
+            await cur.execute(
+                "UPDATE equipes SET professor_tecnico_id = %s, updated_at = NOW() WHERE id = %s",
+                (updates["professor_tecnico_id"], equipe_id),
+            )
+        if "esporte_variante_id" in updates:
+            await cur.execute(
+                "UPDATE equipes SET esporte_variante_id = %s, updated_at = NOW() WHERE id = %s",
+                (updates["esporte_variante_id"], equipe_id),
+            )
+        if "estudante_ids" in updates:
+            await cur.execute("DELETE FROM equipe_estudantes WHERE equipe_id = %s", (equipe_id,))
+            for sid in updates["estudante_ids"]:
+                await cur.execute(
+                    "INSERT INTO equipe_estudantes (equipe_id, estudante_id) VALUES (%s, %s)",
+                    (equipe_id, sid),
+                )
+        await conn.commit()
+
+    async with conn.cursor() as cur:
+        await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+        row = await cur.fetchone()
+        await cur.execute(
+            """
+            SELECT est.id, est.nome, est.cpf
+            FROM equipe_estudantes ee
+            JOIN estudantes_atletas est ON est.id = ee.estudante_id
+            WHERE ee.equipe_id = %s
+            ORDER BY est.nome
+            """,
+            (equipe_id,),
+        )
+        est_rows = await cur.fetchall()
+    estudantes = [EquipeEstudanteItem(id=er["id"], nome=er["nome"], cpf=er.get("cpf")) for er in est_rows]
+    return _row_to_response(dict(row), estudantes)
+
+
+@router.delete("/{equipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_equipe(
+    equipe_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Remove equipe. Apenas da mesma escola."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, escola_id FROM equipes WHERE id = %s",
+            (equipe_id,),
+        )
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
+    _check_equipe_visible(current_user, existing["escola_id"])
+
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM equipe_estudantes WHERE equipe_id = %s", (equipe_id,))
+        await cur.execute("DELETE FROM equipes WHERE id = %s RETURNING id", (equipe_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
+        await conn.commit()

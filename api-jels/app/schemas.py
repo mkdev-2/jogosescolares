@@ -381,6 +381,26 @@ class EstudanteAtletaCreate(BaseModel):
     inep_instituicao: Optional[str] = None  # ignorado; escola vem do token
 
 
+class EstudanteAtletaUpdate(BaseModel):
+    """Schema para atualização parcial de estudante-atleta."""
+    nome: Optional[str] = Field(None, min_length=1)
+    cpf: Optional[str] = Field(None, min_length=11, max_length=14)
+    rg: Optional[str] = Field(None, min_length=1, max_length=15)
+    data_nascimento: Optional[str] = None
+    sexo: Optional[str] = Field(None, pattern="^[MF]$")
+    email: Optional[str] = Field(None, min_length=1)
+    endereco: Optional[str] = Field(None, min_length=1)
+    cep: Optional[str] = Field(None, min_length=8, max_length=9)
+    numero_registro_confederacao: Optional[str] = Field(None, max_length=20)
+    foto_url: Optional[str] = None
+    responsavel_nome: Optional[str] = Field(None, min_length=1)
+    responsavel_cpf: Optional[str] = Field(None, min_length=11, max_length=14)
+    responsavel_rg: Optional[str] = Field(None, min_length=1, max_length=15)
+    responsavel_celular: Optional[str] = None
+    responsavel_email: Optional[str] = Field(None, min_length=1)
+    responsavel_nis: Optional[str] = Field(None, min_length=1)
+
+
 class EstudanteAtletaResponse(BaseModel):
     """Schema para resposta de estudante-atleta."""
     id: int
@@ -418,6 +438,13 @@ class ProfessorTecnicoCreate(BaseModel):
     cref: str = Field(..., min_length=1)
 
 
+class ProfessorTecnicoUpdate(BaseModel):
+    """Schema para atualização parcial de professor-técnico."""
+    nome: Optional[str] = Field(None, min_length=1)
+    cpf: Optional[str] = Field(None, min_length=11, max_length=14)
+    cref: Optional[str] = Field(None, min_length=1)
+
+
 class ProfessorTecnicoResponse(BaseModel):
     """Schema para resposta de professor-técnico."""
     id: int
@@ -440,6 +467,13 @@ class EquipeCreate(BaseModel):
     esporte_variante_id: str = Field(..., min_length=1, description="ID da variante (esporte+categoria+naipe+tipo)")
     estudante_ids: list[int] = Field(..., min_length=1, description="IDs dos estudantes da equipe")
     professor_tecnico_id: int = Field(..., description="ID do professor-técnico")
+
+
+class EquipeUpdate(BaseModel):
+    """Schema para atualização parcial de equipe."""
+    esporte_variante_id: Optional[str] = Field(None, min_length=1)
+    estudante_ids: Optional[list[int]] = Field(None, min_length=1)
+    professor_tecnico_id: Optional[int] = None
 
 
 class EquipeEstudanteItem(BaseModel):

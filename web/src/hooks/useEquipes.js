@@ -25,10 +25,16 @@ export default function useEquipes() {
     fetchLista()
   }, [fetchLista])
 
+  const deleteEquipe = useCallback(async (id) => {
+    await equipesService.excluir(id)
+    await fetchLista()
+  }, [fetchLista])
+
   return {
     lista,
     loading,
     error,
     fetchLista,
+    deleteEquipe,
   }
 }

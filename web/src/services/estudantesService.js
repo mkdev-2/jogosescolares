@@ -46,6 +46,15 @@ export const estudantesService = {
    * @param {string} payload.responsavel_nis
    * @param {string} [payload.inep_instituicao] - Opcional; backend pode usar o INEP do coordenador logado
    */
+  async getById(id) {
+    const res = await apiFetch(`/estudantes-atletas/${id}`)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
   async criar(payload) {
     const res = await apiFetch('/estudantes-atletas', {
       method: 'POST',
@@ -56,5 +65,25 @@ export const estudantesService = {
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
     }
     return res.json().catch(() => ({}))
+  },
+
+  async atualizar(id, payload) {
+    const res = await apiFetch(`/estudantes-atletas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
+  async excluir(id) {
+    const res = await apiFetch(`/estudantes-atletas/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
   },
 }

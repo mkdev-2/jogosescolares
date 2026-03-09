@@ -25,10 +25,16 @@ export default function useEstudantes() {
     fetchEstudantes()
   }, [fetchEstudantes])
 
+  const deleteEstudante = useCallback(async (id) => {
+    await estudantesService.excluir(id)
+    await fetchEstudantes()
+  }, [fetchEstudantes])
+
   return {
     lista,
     loading,
     error,
     fetchEstudantes,
+    deleteEstudante,
   }
 }

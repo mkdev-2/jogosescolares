@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { User, UserCircle, School, Camera, TriangleAlert } from 'lucide-react'
 import { DatePicker, Input, Select, Button } from 'antd'
 import dayjs from 'dayjs'
@@ -100,7 +100,7 @@ function maskCelular(value) {
   return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
 }
 
-export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
+export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudante = null }) {
   const { user } = useAuth()
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
@@ -111,6 +111,31 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
 
   const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
+
+  useEffect(() => {
+    if (open && estudante) {
+      setForm({
+        fotoUrl: estudante.foto_url || '',
+        nome: estudante.nome || '',
+        cpf: estudantesService.formatCpf(estudante.cpf) || '',
+        rg: estudante.rg || '',
+        dataNascimento: estudante.data_nascimento || '',
+        sexo: estudante.sexo || '',
+        email: estudante.email || '',
+        endereco: estudante.endereco || '',
+        cep: estudante.cep ? maskCep(String(estudante.cep).replace(/\D/g, '')) : '',
+        numeroRegistroConfederacao: estudante.numero_registro_confederacao || '',
+        responsavelNome: estudante.responsavel_nome || '',
+        responsavelCpf: estudantesService.formatCpf(estudante.responsavel_cpf) || '',
+        responsavelRg: estudante.responsavel_rg || '',
+        responsavelCelular: estudante.responsavel_celular ? maskCelular(String(estudante.responsavel_celular).replace(/\D/g, '')) : '',
+        responsavelEmail: estudante.responsavel_email || '',
+        responsavelNis: estudante.responsavel_nis || '',
+      })
+    } else if (open && !estudante) {
+      setForm(INITIAL_FORM)
+    }
+  }, [open, estudante])
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -176,7 +201,12 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
         responsavel_nis: form.responsavelNis.trim(),
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
       }
-      await estudantesService.criar(payload)
+      if (estudante?.id) {
+        const { inep_instituicao, ...updatePayload } = payload
+        await estudantesService.atualizar(estudante.id, updatePayload)
+      } else {
+        await estudantesService.criar(payload)
+      }
       handleClose()
       onSuccess?.()
     } catch (err) {
@@ -190,8 +220,8 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
     <Modal
       isOpen={open}
       onClose={handleClose}
-      title="Novo aluno"
-      subtitle="Preencha os dados do estudante e do responsável"
+      title={estudante ? 'Editar aluno' : 'Novo aluno'}
+      subtitle={estudante ? 'Altere os dados do estudante e do responsável' : 'Preencha os dados do estudante e do responsável'}
       size="xl"
       footer={
         <div className="flex justify-end gap-3">
@@ -199,7 +229,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess }) {
             Cancelar
           </Button>
           <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
-            {loading ? 'Salvando...' : 'Cadastrar'}
+            {loading ? 'Salvando...' : estudante ? 'Salvar alterações' : 'Cadastrar'}
           </Button>
         </div>
       }

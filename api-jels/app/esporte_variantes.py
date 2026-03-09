@@ -91,10 +91,10 @@ async def list_variantes_minha_escola(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Lista variantes em que a escola do usuário está vinculada. Apenas para Diretor/Coordenador."""
-    if current_user.get("role") != "DIRETOR":
+    if current_user.get("role") not in ("DIRETOR", "COORDENADOR"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Este endpoint é exclusivo para Diretores.",
+            detail="Este endpoint é exclusivo para Diretores e Coordenadores.",
         )
     escola_id = current_user.get("escola_id")
     if not escola_id:

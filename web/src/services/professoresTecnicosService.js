@@ -26,6 +26,15 @@ export const professoresTecnicosService = {
    * Cria um novo professor-técnico.
    * @param {Object} payload - nome, cpf, cref
    */
+  async getById(id) {
+    const res = await apiFetch(`/professores-tecnicos/${id}`)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
   async criar(payload) {
     const res = await apiFetch('/professores-tecnicos', {
       method: 'POST',
@@ -36,5 +45,25 @@ export const professoresTecnicosService = {
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
     }
     return res.json().catch(() => ({}))
+  },
+
+  async atualizar(id, payload) {
+    const res = await apiFetch(`/professores-tecnicos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
+  async excluir(id) {
+    const res = await apiFetch(`/professores-tecnicos/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
   },
 }

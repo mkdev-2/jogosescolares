@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Users, Search, Plus } from 'lucide-react'
-import { Input, Button } from 'antd'
+import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Input, Button, Popconfirm } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
@@ -15,7 +15,16 @@ function formatDate(str) {
   }
 }
 
-export default function EstudantesList({ lista = [], loading, error, onNewAluno, showInstituicao = false }) {
+export default function EstudantesList({
+  lista = [],
+  loading,
+  error,
+  onNewAluno,
+  onEditAluno,
+  onDeleteAluno,
+  onViewAluno,
+  showInstituicao = false,
+}) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -129,16 +138,22 @@ export default function EstudantesList({ lista = [], loading, error, onNewAluno,
                       Sexo
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      E-mail
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Responsável
                     </th>
+                    {(onEditAluno || onDeleteAluno) && (
+                      <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Ações
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLista.map((item) => (
-                    <tr key={item.id ?? item.cpf ?? item.nome} className="hover:bg-[#f8fafc]">
+                    <tr
+                      key={item.id ?? item.cpf ?? item.nome}
+                      className={`hover:bg-[#f8fafc] ${onViewAluno ? 'cursor-pointer' : ''}`}
+                      onClick={() => onViewAluno?.(item)}
+                    >
                       {showInstituicao && (
                         <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                           {item.escola_nome || '-'}
@@ -160,11 +175,45 @@ export default function EstudantesList({ lista = [], loading, error, onNewAluno,
                         {SEXO_LABEL[item.sexo] || item.sexo || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {item.email || '-'}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {item.responsavel_nome || '-'}
                       </td>
+                      {(onEditAluno || onDeleteAluno) && (
+                        <td
+                          className="px-5 py-4 text-right border-b border-[#f1f5f9]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex justify-end gap-2">
+                            {onEditAluno && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                                onClick={() => onEditAluno(item)}
+                                title="Editar aluno"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                            )}
+                            {onDeleteAluno && (
+                              <Popconfirm
+                                title="Excluir aluno"
+                                description={`Excluir "${item.nome}"? O aluno não poderá ser excluído se estiver vinculado a equipes.`}
+                                onConfirm={() => onDeleteAluno(item)}
+                                okText="Sim, excluir"
+                                cancelText="Cancelar"
+                                okButtonProps={{ danger: true }}
+                              >
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                                  title="Excluir aluno"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </Popconfirm>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

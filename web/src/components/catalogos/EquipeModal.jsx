@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
 import { Input, Select, Checkbox, Button } from 'antd'
 import Modal from '../ui/Modal'
+import ModalidadeIcon from './ModalidadeIcon'
 import { equipesService } from '../../services/equipesService'
 import { estudantesService } from '../../services/estudantesService'
 
@@ -12,6 +13,15 @@ function formatVarianteLabel(v) {
   return `${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome} • ${v.tipo_modalidade_nome}`
 }
 
+function VarianteOptionLabel({ variante }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <ModalidadeIcon icone={variante.esporte_icone || 'Zap'} size={16} className="text-[#0f766e] shrink-0" />
+      {formatVarianteLabel(variante)}
+    </span>
+  )
+}
+
 export default function EquipeModal({
   open,
   onClose,
@@ -19,10 +29,23 @@ export default function EquipeModal({
   variantes = [],
   estudantes = [],
   professoresTecnicos = [],
+  equipe = null,
 }) {
   const [varianteId, setVarianteId] = useState('')
   const [estudanteIds, setEstudanteIds] = useState([])
   const [professorTecnicoId, setProfessorTecnicoId] = useState('')
+
+  useEffect(() => {
+    if (open && equipe) {
+      setVarianteId(equipe.esporte_variante_id || '')
+      setEstudanteIds(equipe.estudantes?.map((e) => e.id) || [])
+      setProfessorTecnicoId(equipe.professor_tecnico_id ? String(equipe.professor_tecnico_id) : '')
+    } else if (open && !equipe) {
+      setVarianteId('')
+      setEstudanteIds([])
+      setProfessorTecnicoId('')
+    }
+  }, [open, equipe])
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState(null)
@@ -89,11 +112,16 @@ export default function EquipeModal({
     setSubmitError(null)
     setLoading(true)
     try {
-      await equipesService.criar({
+      const payload = {
         esporte_variante_id: varianteId.trim(),
         estudante_ids: estudanteIds,
         professor_tecnico_id: Number(professorTecnicoId),
-      })
+      }
+      if (equipe?.id) {
+        await equipesService.atualizar(equipe.id, payload)
+      } else {
+        await equipesService.criar(payload)
+      }
       handleClose()
       onSuccess?.()
     } catch (err) {
@@ -109,13 +137,20 @@ export default function EquipeModal({
         Cancelar
       </Button>
       <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
-        {loading ? 'Salvando...' : 'Cadastrar equipe'}
+        {loading ? 'Salvando...' : equipe ? 'Salvar alterações' : 'Cadastrar equipe'}
       </Button>
     </div>
   )
 
   return (
-    <Modal isOpen={open} onClose={handleClose} title="Nova equipe" subtitle="Selecione a variante (esporte + categoria + naipe + tipo), alunos e técnico" size="lg" footer={footer}>
+    <Modal
+      isOpen={open}
+      onClose={handleClose}
+      title={equipe ? 'Editar equipe' : 'Nova equipe'}
+      subtitle="Selecione a variante (esporte + categoria + naipe + tipo), alunos e técnico"
+      size="lg"
+      footer={footer}
+    >
       <div className="p-0">
         {submitError && (
           <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
@@ -141,13 +176,14 @@ export default function EquipeModal({
               placeholder="Selecione esporte, categoria, naipe e tipo"
               options={variantes.map((v) => ({
                 value: v.id,
-                label: formatVarianteLabel(v),
+                label: <VarianteOptionLabel variante={v} />,
+                searchText: formatVarianteLabel(v).toLowerCase(),
               }))}
               className="w-full"
               status={errors.esporte_variante_id ? 'error' : undefined}
               showSearch
               filterOption={(input, opt) =>
-                (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                (opt?.searchText ?? '').includes(input.toLowerCase())
               }
             />
             {errors.esporte_variante_id && <p className={errorClass}>{errors.esporte_variante_id}</p>}
@@ -174,7 +210,7 @@ export default function EquipeModal({
                 value={professorTecnicoId || undefined}
                 onChange={(v) => { setProfessorTecnicoId(v || ''); if (errors.professor_tecnico_id) setErrors((x) => ({ ...x, professor_tecnico_id: undefined })) }}
                 placeholder="Selecione o técnico"
-                options={professoresTecnicos.map((p) => ({ value: p.id, label: `${p.nome}${p.cref ? ` (CREF: ${p.cref})` : ''}` }))}
+                options={professoresTecnicos.map((p) => ({ value: String(p.id), label: `${p.nome}${p.cref ? ` (CREF: ${p.cref})` : ''}` }))}
                 className="w-full"
                 status={errors.professor_tecnico_id ? 'error' : undefined}
               />

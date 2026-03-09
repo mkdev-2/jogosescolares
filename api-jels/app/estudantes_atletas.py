@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 from psycopg import errors as pg_errors
 
-from app.schemas import EstudanteAtletaCreate, EstudanteAtletaResponse
+from app.schemas import EstudanteAtletaCreate, EstudanteAtletaUpdate, EstudanteAtletaResponse
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
@@ -103,6 +103,45 @@ async def list_estudantes_atletas(
     return [_row_to_response(dict(r)) for r in rows]
 
 
+def _check_estudante_visible(current_user: dict, escola_id: int | None) -> None:
+    """Verifica se o usuário pode acessar o estudante (mesma escola ou admin)."""
+    if is_admin(current_user):
+        return
+    user_escola = current_user.get("escola_id")
+    if user_escola is None or escola_id != user_escola:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado a este registro.",
+        )
+
+
+@router.get("/{estudante_id}", response_model=EstudanteAtletaResponse)
+async def get_estudante_atleta(
+    estudante_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Obtém estudante-atleta por ID."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                   e.responsavel_nis, e.created_at, e.updated_at, s.nome_escola AS escola_nome
+            FROM estudantes_atletas e
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            WHERE e.id = %s
+            """,
+            (estudante_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+    _check_estudante_visible(current_user, row["escola_id"])
+    return _row_to_response(dict(row))
+
+
 @router.post("", response_model=EstudanteAtletaResponse, status_code=status.HTTP_201_CREATED)
 async def create_estudante_atleta(
     data: EstudanteAtletaCreate,
@@ -158,7 +197,7 @@ async def create_estudante_atleta(
                 data.responsavel_nis.strip(),
             ),
         )
-            row = await cur.fetchone()
+        row = await cur.fetchone()
         await conn.commit()
     except pg_errors.UniqueViolation as e:
         raise HTTPException(
@@ -169,3 +208,125 @@ async def create_estudante_atleta(
     if not row:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao criar estudante")
     return _row_to_response(dict(row))
+
+
+@router.put("/{estudante_id}", response_model=EstudanteAtletaResponse)
+async def update_estudante_atleta(
+    estudante_id: int,
+    data: EstudanteAtletaUpdate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user_with_escola),
+):
+    """Atualiza estudante-atleta. Apenas da mesma escola."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, escola_id FROM estudantes_atletas WHERE id = %s",
+            (estudante_id,),
+        )
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+    _check_estudante_visible(current_user, existing["escola_id"])
+
+    updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                       e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                       e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                       e.responsavel_nis, e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                FROM estudantes_atletas e
+                LEFT JOIN escolas s ON s.id = e.escola_id
+                WHERE e.id = %s
+                """,
+                (estudante_id,),
+            )
+            row = await cur.fetchone()
+        return _row_to_response(dict(row))
+
+    if "cpf" in updates:
+        cpf_clean = "".join(filter(str.isdigit, str(updates["cpf"])))
+        if len(cpf_clean) != 11 or not _validar_cpf(cpf_clean):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CPF inválido")
+        updates["cpf"] = cpf_clean
+    if "responsavel_cpf" in updates:
+        resp_cpf = "".join(filter(str.isdigit, str(updates["responsavel_cpf"])))
+        if len(resp_cpf) != 11 or not _validar_cpf(resp_cpf):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CPF do responsável inválido")
+        updates["responsavel_cpf"] = resp_cpf
+
+    col_map = {
+        "nome": "nome", "cpf": "cpf", "rg": "rg", "data_nascimento": "data_nascimento",
+        "sexo": "sexo", "email": "email", "endereco": "endereco", "cep": "cep",
+        "numero_registro_confederacao": "numero_registro_confederacao", "foto_url": "foto_url",
+        "responsavel_nome": "responsavel_nome", "responsavel_cpf": "responsavel_cpf",
+        "responsavel_rg": "responsavel_rg", "responsavel_celular": "responsavel_celular",
+        "responsavel_email": "responsavel_email", "responsavel_nis": "responsavel_nis",
+    }
+    set_parts = []
+    vals = []
+    for k, v in updates.items():
+        if k in col_map:
+            set_parts.append(f"{col_map[k]} = %s")
+            vals.append(v.strip() if isinstance(v, str) else v)
+    if set_parts:
+        set_parts.append("updated_at = NOW()")
+        vals.append(estudante_id)
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"UPDATE estudantes_atletas SET {', '.join(set_parts)} WHERE id = %s",
+                vals,
+            )
+            await conn.commit()
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                   e.responsavel_nis, e.created_at, e.updated_at, s.nome_escola AS escola_nome
+            FROM estudantes_atletas e
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            WHERE e.id = %s
+            """,
+            (estudante_id,),
+        )
+        row = await cur.fetchone()
+    return _row_to_response(dict(row))
+
+
+@router.delete("/{estudante_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_estudante_atleta(
+    estudante_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Remove estudante-atleta. Apenas da mesma escola."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, escola_id FROM estudantes_atletas WHERE id = %s",
+            (estudante_id,),
+        )
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+    _check_estudante_visible(current_user, existing["escola_id"])
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) AS cnt FROM equipe_estudantes WHERE estudante_id = %s",
+            (estudante_id,),
+        )
+        r = await cur.fetchone()
+        if r and r["cnt"] > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não é possível excluir: o aluno está vinculado a uma ou mais equipes.",
+            )
+        await cur.execute("DELETE FROM estudantes_atletas WHERE id = %s RETURNING id", (estudante_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+        await conn.commit()

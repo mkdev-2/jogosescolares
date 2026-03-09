@@ -1,9 +1,18 @@
 import { useState } from 'react'
-import { Users, Search, Plus, Trophy } from 'lucide-react'
-import { Input, Button } from 'antd'
+import { Users, Search, Plus, Trophy, Pencil, Trash2 } from 'lucide-react'
+import { Input, Button, Popconfirm } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
-export default function EquipesList({ lista = [], loading, error, onNewEquipe, showInstituicao = false }) {
+export default function EquipesList({
+  lista = [],
+  loading,
+  error,
+  onNewEquipe,
+  onEditEquipe,
+  onDeleteEquipe,
+  onViewEquipe,
+  showInstituicao = false,
+}) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -115,11 +124,20 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
+                    {(onEditEquipe || onDeleteEquipe) && (
+                      <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Ações
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLista.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#f8fafc]">
+                    <tr
+                      key={item.id}
+                      className={`hover:bg-[#f8fafc] ${onViewEquipe ? 'cursor-pointer' : ''}`}
+                      onClick={() => onViewEquipe?.(item)}
+                    >
                       {showInstituicao && (
                         <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                           {item.escola_nome || '-'}
@@ -140,6 +158,43 @@ export default function EquipesList({ lista = [], loading, error, onNewEquipe, s
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getQtdAlunos(item)} aluno(s)
                       </td>
+                      {(onEditEquipe || onDeleteEquipe) && (
+                        <td
+                          className="px-5 py-4 text-right border-b border-[#f1f5f9]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex justify-end gap-2">
+                            {onEditEquipe && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                                onClick={() => onEditEquipe(item)}
+                                title="Editar equipe"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                            )}
+                            {onDeleteEquipe && (
+                              <Popconfirm
+                                title="Excluir equipe"
+                                description={`Excluir a equipe "${getEsporteNome(item)} • ${getCategoriaNome(item)} • ${getNaipeNome(item)}"?`}
+                                onConfirm={() => onDeleteEquipe(item)}
+                                okText="Sim, excluir"
+                                cancelText="Cancelar"
+                                okButtonProps={{ danger: true }}
+                              >
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                                  title="Excluir equipe"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </Popconfirm>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User } from 'lucide-react'
 import { Input, Button } from 'antd'
 import Modal from '../ui/Modal'
@@ -35,8 +35,20 @@ function validateForm(form) {
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
 const errorClass = 'text-[#dc2626] text-sm mt-1'
 
-export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
+export default function ProfessorTecnicoModal({ open, onClose, onSuccess, professor = null }) {
   const [form, setForm] = useState(INITIAL_FORM)
+
+  useEffect(() => {
+    if (open && professor) {
+      setForm({
+        nome: professor.nome || '',
+        cpf: professoresTecnicosService.formatCpf(professor.cpf) || '',
+        cref: professor.cref || '',
+      })
+    } else if (open && !professor) {
+      setForm(INITIAL_FORM)
+    }
+  }, [open, professor])
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState(null)
@@ -65,11 +77,16 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
     setSubmitError(null)
     setLoading(true)
     try {
-      await professoresTecnicosService.criar({
+      const payload = {
         nome: form.nome.trim(),
         cpf: onlyDigits(form.cpf),
         cref: form.cref.trim(),
-      })
+      }
+      if (professor?.id) {
+        await professoresTecnicosService.atualizar(professor.id, payload)
+      } else {
+        await professoresTecnicosService.criar(payload)
+      }
       handleClose()
       onSuccess?.()
     } catch (err) {
@@ -85,7 +102,7 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
         Cancelar
       </Button>
       <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
-        {loading ? 'Salvando...' : 'Cadastrar'}
+        {loading ? 'Salvando...' : professor ? 'Salvar alterações' : 'Cadastrar'}
       </Button>
     </div>
   )
@@ -94,8 +111,8 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess }) {
     <Modal
       isOpen={open}
       onClose={handleClose}
-      title="Novo professor-técnico"
-      subtitle="Preencha os dados para vincular às equipes"
+      title={professor ? 'Editar professor-técnico' : 'Novo professor-técnico'}
+      subtitle={professor ? 'Altere os dados do professor-técnico' : 'Preencha os dados para vincular às equipes'}
       size="lg"
       footer={footer}
     >

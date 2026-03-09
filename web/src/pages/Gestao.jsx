@@ -14,6 +14,9 @@ import EscolasList from '../components/catalogos/EscolasList'
 import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
 import ProfessorTecnicoModal from '../components/catalogos/ProfessorTecnicoModal'
 import EquipeModal from '../components/catalogos/EquipeModal'
+import EstudanteViewModal from '../components/catalogos/EstudanteViewModal'
+import ProfessorViewModal from '../components/catalogos/ProfessorViewModal'
+import EquipeViewModal from '../components/catalogos/EquipeViewModal'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
@@ -33,20 +36,27 @@ export default function Gestao() {
   const tabFromUrl = searchParams.get('tab') || 'alunos'
   const [activeTab, setActiveTab] = useState(TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'alunos')
   const [modalEstudanteOpen, setModalEstudanteOpen] = useState(false)
+  const [modalProfessorOpen, setModalProfessorOpen] = useState(false)
+  const [modalEquipeOpen, setModalEquipeOpen] = useState(false)
+  const [estudanteParaVer, setEstudanteParaVer] = useState(null)
+  const [professorParaVer, setProfessorParaVer] = useState(null)
+  const [equipeParaVer, setEquipeParaVer] = useState(null)
+  const [estudanteParaEditar, setEstudanteParaEditar] = useState(null)
+  const [professorParaEditar, setProfessorParaEditar] = useState(null)
+  const [equipeParaEditar, setEquipeParaEditar] = useState(null)
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
     const validIds = isAdmin ? ['alunos', 'professores', 'equipes', 'escolas'] : ['alunos', 'professores', 'equipes']
     if (validIds.includes(t)) setActiveTab(t)
   }, [searchParams, isAdmin])
-  const [modalProfessorOpen, setModalProfessorOpen] = useState(false)
-  const [modalEquipeOpen, setModalEquipeOpen] = useState(false)
 
-  const { lista: listaEstudantes, loading: loadingEstudantes, error: errorEstudantes, fetchEstudantes } = useEstudantes()
-  const { lista: listaProfessores, loading: loadingProfessores, error: errorProfessores, fetchLista: fetchProfessores } = useProfessoresTecnicos()
-  const { lista: listaEquipes, loading: loadingEquipes, error: errorEquipes, fetchLista: fetchEquipes } = useEquipes()
+  const { lista: listaEstudantes, loading: loadingEstudantes, error: errorEstudantes, fetchEstudantes, deleteEstudante } = useEstudantes()
+  const { lista: listaProfessores, loading: loadingProfessores, error: errorProfessores, fetchLista: fetchProfessores, deleteProfessor } = useProfessoresTecnicos()
+  const { lista: listaEquipes, loading: loadingEquipes, error: errorEquipes, fetchLista: fetchEquipes, deleteEquipe } = useEquipes()
   const { lista: listaEscolas, loading: loadingEscolas, error: errorEscolas, fetchEscolas } = useEscolas()
-  const { variantes } = useEsporteVariantes()
+  const temEscola = !!user?.escola_id
+  const { variantes } = useEsporteVariantes(null, { minhaEscola: temEscola })
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,16 +102,26 @@ export default function Gestao() {
                 lista={listaEstudantes}
                 loading={loadingEstudantes}
                 error={errorEstudantes}
-                onNewAluno={isAdmin ? undefined : () => setModalEstudanteOpen(true)}
+                onNewAluno={() => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) }}
+                onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
+                onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
+                onViewAluno={(item) => setEstudanteParaVer(item)}
                 showInstituicao={isAdmin}
+              />
+              <EstudanteViewModal
+                open={!!estudanteParaVer}
+                onClose={() => setEstudanteParaVer(null)}
+                estudante={estudanteParaVer}
               />
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
-                onClose={() => setModalEstudanteOpen(false)}
+                onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null) }}
                 onSuccess={() => {
                   setModalEstudanteOpen(false)
+                  setEstudanteParaEditar(null)
                   fetchEstudantes()
                 }}
+                estudante={estudanteParaEditar}
               />
             </>
           )}
@@ -111,16 +131,26 @@ export default function Gestao() {
                 lista={listaProfessores}
                 loading={loadingProfessores}
                 error={errorProfessores}
-                onNewProfessor={isAdmin ? undefined : () => setModalProfessorOpen(true)}
+                onNewProfessor={() => { setProfessorParaEditar(null); setModalProfessorOpen(true) }}
+                onEditProfessor={(item) => { setProfessorParaEditar(item); setModalProfessorOpen(true) }}
+                onDeleteProfessor={async (item) => { try { await deleteProfessor(item.id) } catch (e) { alert(e.message) } }}
+                onViewProfessor={(item) => setProfessorParaVer(item)}
                 showInstituicao={isAdmin}
+              />
+              <ProfessorViewModal
+                open={!!professorParaVer}
+                onClose={() => setProfessorParaVer(null)}
+                professor={professorParaVer}
               />
               <ProfessorTecnicoModal
                 open={modalProfessorOpen}
-                onClose={() => setModalProfessorOpen(false)}
+                onClose={() => { setModalProfessorOpen(false); setProfessorParaEditar(null) }}
                 onSuccess={() => {
                   setModalProfessorOpen(false)
+                  setProfessorParaEditar(null)
                   fetchProfessores()
                 }}
+                professor={professorParaEditar}
               />
             </>
           )}
@@ -130,19 +160,29 @@ export default function Gestao() {
                 lista={listaEquipes}
                 loading={loadingEquipes}
                 error={errorEquipes}
-                onNewEquipe={isAdmin ? undefined : () => setModalEquipeOpen(true)}
+                onNewEquipe={() => { setEquipeParaEditar(null); setModalEquipeOpen(true) }}
+                onEditEquipe={(item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) }}
+                onDeleteEquipe={async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } }}
+                onViewEquipe={(item) => setEquipeParaVer(item)}
                 showInstituicao={isAdmin}
+              />
+              <EquipeViewModal
+                open={!!equipeParaVer}
+                onClose={() => setEquipeParaVer(null)}
+                equipe={equipeParaVer}
               />
               <EquipeModal
                 open={modalEquipeOpen}
-                onClose={() => setModalEquipeOpen(false)}
+                onClose={() => { setModalEquipeOpen(false); setEquipeParaEditar(null) }}
                 onSuccess={() => {
                   setModalEquipeOpen(false)
+                  setEquipeParaEditar(null)
                   fetchEquipes()
                 }}
                 variantes={variantes}
                 estudantes={listaEstudantes}
                 professoresTecnicos={listaProfessores}
+                equipe={equipeParaEditar}
               />
             </>
           )}

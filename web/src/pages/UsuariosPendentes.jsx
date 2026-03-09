@@ -4,6 +4,7 @@ import { Popconfirm, Input } from 'antd'
 import { escolasService } from '../services/escolasService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import Modal from '../components/ui/Modal'
+import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 
 function formatCpf(v) {
   if (!v) return '-'
@@ -435,11 +436,15 @@ export default function UsuariosPendentes({ embedded }) {
                 if (ids.length === 0) return <p className="m-0 text-[#64748b]">Nenhuma modalidade selecionada</p>
                 return (
                   <ul className="list-none m-0 p-0 space-y-1">
-                    {ids.map((id) => (
-                      <li key={id} className="text-[#1e293b]">
-                        • {variantesMap[id] || id}
-                      </li>
-                    ))}
+                    {ids.map((id) => {
+                      const v = variantes.find((x) => x.id === id)
+                      return (
+                        <li key={id} className="text-[#1e293b] flex items-center gap-2">
+                          <ModalidadeIcon icone={v?.esporte_icone || 'Zap'} size={16} className="text-[#0f766e] shrink-0" />
+                          {variantesMap[id] || id}
+                        </li>
+                      )
+                    })}
                   </ul>
                 )
               })()}
