@@ -90,42 +90,72 @@ async def list_escolas(
     return [_row_to_response(r) for r in rows]
 
 
+def _row_solicitacao_to_adesao_response(row: dict) -> dict:
+    """Converte row de solicitacoes para formato EscolaAdesaoResponse (compatível com frontend)."""
+    dados_diretor = row.get("dados_diretor")
+    if isinstance(dados_diretor, dict):
+        dados_diretor = {k: v for k, v in dados_diretor.items() if k != "password_hash"}
+    status_adesao = row.get("status")
+    if status_adesao == "ACEITO":
+        status_adesao = "APROVADA"
+    elif status_adesao == "NEGADO":
+        status_adesao = "REJEITADA"
+    return {
+        "id": row["id"],
+        "nome_escola": row["nome_escola"],
+        "inep": row["inep"],
+        "cnpj": row["cnpj"],
+        "endereco": row["endereco"],
+        "cidade": row["cidade"],
+        "uf": row["uf"],
+        "email": row["email"],
+        "telefone": row["telefone"],
+        "status_adesao": status_adesao,
+        "dados_diretor": dados_diretor,
+        "dados_coordenador": row.get("dados_coordenador"),
+        "modalidades_adesao": row.get("modalidades_adesao"),
+        "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+        "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+    }
+
+
 @router.get("/adesoes", response_model=list[EscolaAdesaoResponse])
 async def list_adesoes(
     status: str | None = None,
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Lista escolas com dados de adesão (para painel do admin). Filtro opcional: status=PENDENTE|APROVADA|REJEITADA."""
+    """Lista solicitações de adesão (tabela solicitacoes). Filtro: status=PENDENTE|ACEITO|NEGADO (ou APROVADA/REJEITADA para compat)."""
     _require_admin(current_user)
-    if status and status not in ("PENDENTE", "APROVADA", "REJEITADA"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status deve ser PENDENTE, APROVADA ou REJEITADA")
+    status_map = {"PENDENTE": "PENDENTE", "APROVADA": "ACEITO", "REJEITADA": "NEGADO", "ACEITO": "ACEITO", "NEGADO": "NEGADO"}
+    db_status = status_map.get(status, status) if status else None
+    if status and db_status not in ("PENDENTE", "ACEITO", "NEGADO"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="status deve ser PENDENTE, ACEITO ou NEGADO")
     async with conn.cursor() as cur:
-        if status:
+        if db_status:
             await cur.execute(
                 """
                 SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                       status_adesao, dados_diretor, dados_coordenador, modalidades_adesao,
-                       created_at, updated_at
-                FROM escolas
-                WHERE status_adesao = %s
+                       status, dados_diretor, dados_coordenador, modalidades_adesao,
+                       escola_id, created_at, updated_at
+                FROM solicitacoes
+                WHERE status = %s
                 ORDER BY created_at DESC
                 """,
-                (status,),
+                (db_status,),
             )
         else:
             await cur.execute(
                 """
                 SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                       status_adesao, dados_diretor, dados_coordenador, modalidades_adesao,
-                       created_at, updated_at
-                FROM escolas
-                WHERE status_adesao IS NOT NULL
+                       status, dados_diretor, dados_coordenador, modalidades_adesao,
+                       escola_id, created_at, updated_at
+                FROM solicitacoes
                 ORDER BY created_at DESC
                 """
             )
         rows = await cur.fetchall()
-    return [_row_to_adesao_response(r) for r in rows]
+    return [_row_solicitacao_to_adesao_response(r) for r in rows]
 
 
 @router.get("/{escola_id}", response_model=EscolaResponse)
@@ -147,35 +177,36 @@ async def get_escola(
     return _row_to_response(row)
 
 
-@router.post("/{escola_id}/aprovar", status_code=status.HTTP_200_OK)
+@router.post("/{solicitacao_id}/aprovar", status_code=status.HTTP_200_OK)
 async def aprovar_adesao(
-    escola_id: int,
+    solicitacao_id: int,
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Aprova adesão da escola: cria usuário DIRETOR com dados e senha do termo e marca escola como APROVADA. Apenas admin."""
+    """Aprova solicitação: cria escola, usuário DIRETOR e marca solicitação como ACEITO. Apenas admin."""
     _require_admin(current_user)
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT id, status_adesao, dados_diretor
-            FROM escolas WHERE id = %s
+            SELECT id, status, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
+                   dados_diretor, dados_coordenador, modalidades_adesao
+            FROM solicitacoes WHERE id = %s
             """,
-            (escola_id,),
+            (solicitacao_id,),
         )
         row = await cur.fetchone()
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
-    if row["status_adesao"] != "PENDENTE":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitação não encontrada")
+    if row["status"] != "PENDENTE":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Escola já foi aprovada ou rejeitada.",
+            detail="Solicitação já foi aprovada ou negada.",
         )
     dados_diretor = row.get("dados_diretor")
     if not isinstance(dados_diretor, dict):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dados do diretor não encontrados para esta adesão.",
+            detail="Dados do diretor não encontrados para esta solicitação.",
         )
     cpf = dados_diretor.get("cpf")
     nome = dados_diretor.get("nome")
@@ -194,6 +225,43 @@ async def aprovar_adesao(
                 detail="Já existe um usuário cadastrado com o CPF do diretor.",
             )
         await cur.execute(
+            "SELECT id FROM escolas WHERE inep = %s OR cnpj = %s",
+            (row["inep"], row["cnpj"]),
+        )
+        if await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Escola já cadastrada com este INEP ou CNPJ.",
+            )
+        # 1. Criar escola
+        modalidades = row.get("modalidades_adesao")
+        modalidades_json = json.dumps(modalidades) if modalidades else None
+        dados_coord = row.get("dados_coordenador")
+        dados_coord_json = json.dumps(dados_coord) if dados_coord else None
+        await cur.execute(
+            """
+            INSERT INTO escolas (nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
+                                dados_coordenador, status_adesao, modalidades_adesao)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'APROVADA', %s::jsonb)
+            RETURNING id
+            """,
+            (
+                row["nome_escola"],
+                row["inep"],
+                row["cnpj"],
+                row["endereco"],
+                row["cidade"],
+                row["uf"],
+                row["email"],
+                row["telefone"],
+                dados_coord_json,
+                modalidades_json,
+            ),
+        )
+        escola_row = await cur.fetchone()
+        escola_id = escola_row["id"]
+        # 2. Criar usuário diretor
+        await cur.execute(
             """
             INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, status)
             VALUES (%s, NULL, %s, %s, 'DIRETOR', %s, 'ATIVO')
@@ -202,13 +270,14 @@ async def aprovar_adesao(
             (cpf_clean, password_hash, nome.strip(), escola_id),
         )
         new_user = await cur.fetchone()
+        # 3. Atualizar solicitação
         await cur.execute(
-            "UPDATE escolas SET status_adesao = %s WHERE id = %s",
-            ("APROVADA", escola_id),
+            "UPDATE solicitacoes SET status = 'ACEITO', escola_id = %s WHERE id = %s",
+            (escola_id, solicitacao_id),
         )
         await conn.commit()
     return {
-        "message": "Adesão aprovada. Usuário diretor criado.",
+        "message": "Solicitação aprovada. Escola e usuário diretor criados.",
         "user": {
             "id": new_user["id"],
             "cpf": new_user["cpf"],
@@ -217,6 +286,36 @@ async def aprovar_adesao(
             "escola_id": new_user["escola_id"],
         },
     }
+
+
+@router.post("/{solicitacao_id}/negar", status_code=status.HTTP_200_OK)
+async def negar_solicitacao(
+    solicitacao_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Nega solicitação de adesão. Apenas admin."""
+    _require_admin(current_user)
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, status FROM solicitacoes WHERE id = %s",
+            (solicitacao_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitação não encontrada")
+    if row["status"] != "PENDENTE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solicitação já foi aprovada ou negada.",
+        )
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE solicitacoes SET status = 'NEGADO' WHERE id = %s",
+            (solicitacao_id,),
+        )
+        await conn.commit()
+    return {"message": "Solicitação negada."}
 
 
 @router.post("", response_model=EscolaResponse, status_code=status.HTTP_201_CREATED)
@@ -256,12 +355,12 @@ async def create_escola(
     return _row_to_response(row)
 
 
-@router.post("/publico", response_model=EscolaResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/publico", status_code=status.HTTP_201_CREATED)
 async def create_escola_publico(
     data: AdesaoCreate,
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
-    """Cadastro público de escola (formulário de adesão). Sem autenticação. Persiste instituição, diretor, coordenador e modalidades. Bloqueia após data limite."""
+    """Cadastro público: cria solicitação de adesão (PENDENTE). Escola e diretor só são criados quando admin aprovar."""
     inep_clean = "".join(filter(str.isdigit, data.inep))
     cnpj_clean = "".join(filter(str.isdigit, data.cnpj))
     if len(inep_clean) != 8:
@@ -314,20 +413,31 @@ async def create_escola_publico(
     dados_coordenador_json = json.dumps(dados_coordenador)
 
     async with conn.cursor() as cur:
+        # Verificar se já existe escola com mesmo INEP/CNPJ
         await cur.execute("SELECT id FROM escolas WHERE inep = %s OR cnpj = %s", (inep_clean, cnpj_clean))
         if await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Escola já cadastrada com este INEP ou CNPJ",
             )
+        # Verificar solicitação pendente duplicada (mesmo INEP/CNPJ)
+        await cur.execute(
+            "SELECT id FROM solicitacoes WHERE (inep = %s OR cnpj = %s) AND status = 'PENDENTE'",
+            (inep_clean, cnpj_clean),
+        )
+        if await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Já existe uma solicitação pendente para este INEP ou CNPJ",
+            )
 
         await cur.execute(
             """
-            INSERT INTO escolas (
+            INSERT INTO solicitacoes (
                 nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                dados_diretor, dados_coordenador, status_adesao, modalidades_adesao
+                dados_diretor, dados_coordenador, modalidades_adesao
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s::jsonb)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb)
             RETURNING id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at
             """,
             (
@@ -341,10 +451,21 @@ async def create_escola_publico(
                 data.telefone.strip(),
                 dados_diretor_json,
                 dados_coordenador_json,
-                "PENDENTE",
                 modalidades_json,
             ),
         )
         row = await cur.fetchone()
         await conn.commit()
-    return _row_to_response(row)
+    return {
+        "id": row["id"],
+        "nome_escola": row["nome_escola"],
+        "inep": row["inep"],
+        "cnpj": row["cnpj"],
+        "endereco": row["endereco"],
+        "cidade": row["cidade"],
+        "uf": row["uf"],
+        "email": row["email"],
+        "telefone": row["telefone"],
+        "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+        "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+    }

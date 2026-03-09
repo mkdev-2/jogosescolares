@@ -14,11 +14,22 @@ export default function FooterInstitucional() {
       <div className="container-portal px-4 sm:px-6 py-6 sm:py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-center md:text-left">
           <AnimateOnScroll animation="left" className="flex flex-col items-center md:items-start space-y-4 sm:space-y-6">
-            <img
-              src="/Jels-2026-vertical.png"
-              alt="JELS - Jogos Escolares Luminenses"
-              className="h-24 sm:h-28 w-auto max-w-[100px] sm:max-w-[120px] object-contain"
-            />
+            <div className="flex items-center justify-center gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl px-4 py-3 sm:px-5 sm:py-4 shadow-sm flex items-center justify-center">
+                <img
+                  src="/Jels-2026-vertical.png"
+                  alt="JELS - Jogos Escolares Luminenses"
+                  className="h-24 sm:h-28 w-auto max-w-[100px] sm:max-w-[120px] object-contain"
+                />
+              </div>
+              <div className="bg-white rounded-xl px-4 py-3 sm:px-5 sm:py-4 shadow-sm flex items-center justify-center">
+                <img
+                  src="/logo-semcej.png"
+                  alt="Esporte | SEMCEJ - Prefeitura Paço Lumiar"
+                  className="h-24 sm:h-28 w-auto max-w-[120px] sm:max-w-[140px] object-contain"
+                />
+              </div>
+            </div>
             <p className="font-sans text-xs sm:text-sm leading-relaxed text-white/80 max-w-md md:max-w-none mx-auto md:mx-0">
               Uma iniciativa da Prefeitura Municipal para promover o esporte, a saúde e a integração
               entre as escolas da nossa cidade.

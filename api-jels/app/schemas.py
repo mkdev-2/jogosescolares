@@ -307,7 +307,7 @@ class EscolaResponse(BaseModel):
 
 
 class EscolaAdesaoResponse(BaseModel):
-    """Resposta de escola com dados de adesão (para listagem de pendentes pelo admin)."""
+    """Resposta de escola/solicitação com dados de adesão (para listagem de pendentes pelo admin)."""
     id: int
     nome_escola: str
     inep: str
@@ -317,10 +317,33 @@ class EscolaAdesaoResponse(BaseModel):
     uf: str
     email: str
     telefone: str
-    status_adesao: Optional[str] = None
+    status_adesao: Optional[str] = None  # PENDENTE|APROVADA|REJEITADA (compat) ou status da solicitação
     dados_diretor: Optional[dict] = None
     dados_coordenador: Optional[dict] = None
     modalidades_adesao: Optional[dict] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SolicitacaoResponse(BaseModel):
+    """Resposta de solicitação de adesão (tabela solicitacoes)."""
+    id: int
+    status: str  # ACEITO, NEGADO, PENDENTE
+    nome_escola: str
+    inep: str
+    cnpj: str
+    endereco: str
+    cidade: str
+    uf: str
+    email: str
+    telefone: str
+    dados_diretor: Optional[dict] = None
+    dados_coordenador: Optional[dict] = None
+    modalidades_adesao: Optional[dict] = None
+    escola_id: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

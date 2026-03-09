@@ -83,8 +83,13 @@ export const escolasService = {
     return Array.isArray(data) ? data : []
   },
 
-  async aprovarAdesao(escolaId) {
-    const res = await apiFetch(`${BASE}/${escolaId}/aprovar`, { method: 'POST' })
-    return handleResponse(res, 'Erro ao aprovar adesão')
+  async aprovarAdesao(solicitacaoId) {
+    const res = await apiFetch(`${BASE}/${solicitacaoId}/aprovar`, { method: 'POST' })
+    return handleResponse(res, 'Erro ao aprovar solicitação')
+  },
+
+  async negarSolicitacao(solicitacaoId) {
+    const res = await apiFetch(`${BASE}/${solicitacaoId}/negar`, { method: 'POST' })
+    return handleResponse(res, 'Erro ao negar solicitação')
   },
 }

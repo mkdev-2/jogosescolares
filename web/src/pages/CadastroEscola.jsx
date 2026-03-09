@@ -377,10 +377,10 @@ export default function CadastroEscola() {
               <School className="w-8 h-8 text-primary" />
             </div>
             <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">
-              Cadastro enviado com sucesso!
+              Solicitação enviada com sucesso!
             </h2>
             <p className="text-gray-600 mb-6">
-              Sua escola foi cadastrada. Entraremos em contato em breve.
+              Sua solicitação de cadastro foi recebida. Um administrador analisará os dados e, em caso de aprovação, sua escola e o acesso do diretor serão liberados no sistema.
             </p>
             <Link
               to="/"
