@@ -31,7 +31,7 @@ const menuGroups = [
     requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
     items: [
       { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
-      { label: 'Usuários pendentes', path: '/app/administrativo', icon: UserCheck, tab: 'usuarios-pendentes', adminOnly: true },
+      { label: 'Solicitações de Inscrição', path: '/app/administrativo', icon: ClipboardList, tab: 'usuarios-pendentes', adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
     ],
   },
@@ -115,11 +115,6 @@ export default function AppLayout({ children }) {
                   >
                     <Icon size={20} className="shrink-0" />
                     <span>{item.label}</span>
-                    {active && (
-                      <span className="ml-auto text-[0.7rem] uppercase tracking-[0.05em] opacity-90">
-                        ativo
-                      </span>
-                    )}
                   </Link>
                 </li>
               )
@@ -173,11 +168,6 @@ export default function AppLayout({ children }) {
                             >
                               <ItemIcon size={18} className="shrink-0" />
                               <span>{item.label}</span>
-                              {active && (
-                                <span className="ml-auto text-[0.65rem] uppercase tracking-[0.05em] opacity-90">
-                                  ativo
-                                </span>
-                              )}
                             </Link>
                           </li>
                         )

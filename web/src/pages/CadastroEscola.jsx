@@ -174,6 +174,14 @@ const errorClass = 'text-red-600 text-sm mt-1'
 
 const ufOptions = UFS.map((uf) => ({ value: uf, label: uf }))
 
+// Ordem dos campos no formulário (para scroll ao primeiro erro de validação)
+const FIELD_ORDER = [
+  'nomeRazaoSocial', 'inep', 'cnpj', 'endereco', 'cidade', 'uf', 'email', 'telefone',
+  'diretorNome', 'diretorCpf', 'diretorRg', 'diretorSenha', 'diretorSenhaConfirm',
+  'coordenadorNome', 'coordenadorCpf', 'coordenadorRg', 'coordenadorEndereco', 'coordenadorEmail', 'coordenadorTelefone',
+  'varianteIds',
+]
+
 function maskCpf(value) {
   const v = value.replace(/\D/g, '').slice(0, 11)
   if (v.length <= 3) return v
@@ -208,9 +216,9 @@ function maskRg(value) {
   return value.replace(/\D/g, '').slice(0, 15)
 }
 
-function SectionCard({ icon: Icon, title, children }) {
+function SectionCard({ icon: Icon, title, children, id }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+    <div id={id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
           <Icon className="w-5 h-5 text-primary" />
@@ -321,6 +329,17 @@ export default function CadastroEscola() {
   const variantesSelecionadas = variantes.filter((v) => (form.varianteIds || []).includes(v.id))
 
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    const errKeys = Object.keys(errors).filter((k) => k !== 'submit')
+    if (errKeys.length === 0) return
+    const firstErrorField = FIELD_ORDER.find((f) => errors[f])
+    if (!firstErrorField) return
+    const el = document.getElementById(firstErrorField)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [errors])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -736,7 +755,7 @@ export default function CadastroEscola() {
           </SectionCard>
 
           {/* SEÇÃO MODALIDADES */}
-          <SectionCard icon={Trophy} title="MODALIDADES">
+          <SectionCard icon={Trophy} title="MODALIDADES" id="varianteIds">
             <p className="text-sm text-gray-600 mb-4">
               Selecione um esporte e marque as combinações (masculino/feminino, infantil/infanto) em que sua escola pretende competir.
             </p>

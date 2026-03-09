@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, Settings, UserCheck } from 'lucide-react'
+import { Users, Settings, ClipboardList } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
@@ -8,7 +8,7 @@ import UsuariosPendentes from './UsuariosPendentes'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
-  { id: 'usuarios-pendentes', label: 'Solicitações pendentes', icon: UserCheck, adminOnly: true },
+  { id: 'usuarios-pendentes', label: 'Solicitações de Inscrição', icon: ClipboardList, adminOnly: true },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
 ]
 
