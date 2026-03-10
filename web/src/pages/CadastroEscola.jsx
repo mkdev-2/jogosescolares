@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Input, Select, Checkbox, Button, Spin } from 'antd'
-import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle, X } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
+import ModalidadesForm from '../components/catalogos/ModalidadesForm'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -270,65 +271,19 @@ export default function CadastroEscola() {
     }
   }
 
-  const toggleVariante = (varianteId) => {
-    setForm((prev) => {
-      const ids = Array.isArray(prev.varianteIds) ? [...prev.varianteIds] : []
-      const idx = ids.indexOf(varianteId)
-      if (idx >= 0) ids.splice(idx, 1)
-      else ids.push(varianteId)
-      return { ...prev, varianteIds: ids }
-    })
-    if (errors.varianteIds) setErrors((prev) => ({ ...prev, varianteIds: undefined }))
-  }
-
-  const selecionarTodasVariantesDoEsporte = (esporteNome) => {
-    const variantesDoEsporte = variantesPorEsporte[esporteNome] || []
-    const idsNovos = variantesDoEsporte.map((v) => v.id)
-    setForm((prev) => {
-      const ids = Array.isArray(prev.varianteIds) ? [...prev.varianteIds] : []
-      const setIds = new Set([...ids, ...idsNovos])
-      return { ...prev, varianteIds: Array.from(setIds) }
-    })
+  const handleModalidadesChange = (ids) => {
+    setForm((prev) => ({ ...prev, varianteIds: ids }))
     if (errors.varianteIds) setErrors((prev) => ({ ...prev, varianteIds: undefined }))
   }
 
   const [variantes, setVariantes] = useState([])
   const [loadingVariantes, setLoadingVariantes] = useState(true)
-  const [esporteSelecionado, setEsporteSelecionado] = useState(null)
   useEffect(() => {
     esporteVariantesService.list()
       .then((data) => setVariantes(Array.isArray(data) ? data : []))
       .catch(() => setVariantes([]))
       .finally(() => setLoadingVariantes(false))
   }, [])
-
-  const variantesPorEsporte = variantes.reduce((acc, v) => {
-    const nome = v.esporte_nome || 'Outros'
-    if (!acc[nome]) acc[nome] = []
-    acc[nome].push(v)
-    return acc
-  }, {})
-
-  const iconePorEsporte = Object.fromEntries(
-    Object.entries(variantesPorEsporte).map(([nome, arr]) => [
-      nome,
-      arr[0]?.esporte_icone || 'Zap',
-    ])
-  )
-
-  const esportesOptions = Object.keys(variantesPorEsporte)
-    .sort()
-    .map((nome) => ({
-      value: nome,
-      label: (
-        <span className="flex items-center gap-2">
-          <ModalidadeIcon icone={iconePorEsporte[nome]} size={18} className="text-primary shrink-0" />
-          {nome}
-        </span>
-      ),
-    }))
-
-  const variantesSelecionadas = variantes.filter((v) => (form.varianteIds || []).includes(v.id))
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -794,96 +749,14 @@ export default function CadastroEscola() {
             <p className="text-sm text-gray-600 mb-4">
               Selecione um esporte e marque as combinações (masculino/feminino, infantil/infanto) em que sua escola pretende competir.
             </p>
-            {errors.varianteIds && <p className={`${errorClass} mb-4`}>{errors.varianteIds}</p>}
-            {loadingVariantes ? (
-              <div className="flex justify-center py-8">
-                <Spin tip="Carregando modalidades..." />
-              </div>
-            ) : variantes.length === 0 ? (
-              <p className="text-gray-500 py-4">Nenhuma modalidade cadastrada no sistema. Entre em contato com a SEMCEJ.</p>
-            ) : (
-              <>
-                <div className="mb-4">
-                  <label htmlFor="esporteSelect" className={labelClass}>
-                    Escolha o esporte
-                  </label>
-                  <Select
-                    id="esporteSelect"
-                    placeholder="Selecione um esporte para ver as opções"
-                    value={esporteSelecionado || undefined}
-                    onChange={setEsporteSelecionado}
-                    options={esportesOptions}
-                    className="w-full"
-                    allowClear
-                    showSearch
-                    filterOption={(input, opt) =>
-                      (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                  />
-                </div>
-
-                {esporteSelecionado && variantesPorEsporte[esporteSelecionado]?.length > 0 && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <p className="text-sm font-medium text-gray-700">
-                        Opções de {esporteSelecionado} — marque as que sua escola pretende participar:
-                      </p>
-                      <Button
-                        type="default"
-                        size="small"
-                        onClick={() => selecionarTodasVariantesDoEsporte(esporteSelecionado)}
-                      >
-                        Selecionar todos
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      {variantesPorEsporte[esporteSelecionado].map((v) => {
-                        const label = `${v.naipe_nome || ''} • ${v.categoria_nome || ''}`
-                        return (
-                          <label
-                            key={v.id}
-                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-md border border-gray-200 hover:border-primary/50 cursor-pointer transition-colors"
-                          >
-                            <ModalidadeIcon icone={v.esporte_icone || 'Zap'} size={18} className="text-primary shrink-0" />
-                            <Checkbox
-                              checked={(form.varianteIds || []).includes(v.id)}
-                              onChange={() => toggleVariante(v.id)}
-                            />
-                            <span className="text-sm text-gray-700">{label}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {variantesSelecionadas.length > 0 && (
-                  <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                    <p className="text-sm font-semibold text-gray-800 mb-2">
-                      Modalidades selecionadas ({variantesSelecionadas.length})
-                    </p>
-                    <ul className="space-y-1.5 text-sm text-gray-700 max-h-48 overflow-y-auto pr-1">
-                      {variantesSelecionadas.map((v) => (
-                        <li key={v.id} className="flex items-center gap-2 group">
-                          <ModalidadeIcon icone={v.esporte_icone || 'Zap'} size={18} className="text-primary shrink-0" />
-                          <span className="flex-1 min-w-0">
-                            {v.esporte_nome} — {v.naipe_nome} • {v.categoria_nome}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => toggleVariante(v.id)}
-                            className="p-1 rounded hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors flex-shrink-0"
-                            title="Remover"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
+            <ModalidadesForm
+              variantes={variantes}
+              value={form.varianteIds || []}
+              onChange={handleModalidadesChange}
+              error={errors.varianteIds}
+              loading={loadingVariantes}
+              emptyMessage="Nenhuma modalidade cadastrada no sistema. Entre em contato com a SEMCEJ."
+            />
           </SectionCard>
 
           <div className="flex gap-4 pt-4">

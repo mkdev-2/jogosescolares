@@ -11,6 +11,7 @@ import psycopg
 from app.schemas import (
     EscolaCreate,
     EscolaResponse,
+    EscolaModalidadesUpdate,
     AdesaoCreate,
     EscolaAdesaoResponse,
 )
@@ -175,6 +176,44 @@ async def get_escola(
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
     return _row_to_response(row)
+
+
+@router.patch("/{escola_id}/modalidades", status_code=status.HTTP_200_OK)
+async def update_escola_modalidades(
+    escola_id: int,
+    data: EscolaModalidadesUpdate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Atualiza as modalidades (variantes) em que a escola está vinculada. Diretor só pode editar a própria escola."""
+    role = current_user.get("role")
+    user_escola_id = current_user.get("escola_id")
+    if role == "DIRETOR":
+        if user_escola_id is None or int(escola_id) != int(user_escola_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode editar as modalidades da sua escola.",
+            )
+    elif role not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado.",
+        )
+
+    modalidades_json = json.dumps({"variante_ids": data.variante_ids})
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+        await cur.execute(
+            "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
+            (modalidades_json, escola_id),
+        )
+        await conn.commit()
+    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
 
 
 @router.post("/{solicitacao_id}/aprovar", status_code=status.HTTP_200_OK)

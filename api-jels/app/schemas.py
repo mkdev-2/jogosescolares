@@ -307,6 +307,11 @@ class EscolaResponse(BaseModel):
         from_attributes = True
 
 
+class EscolaModalidadesUpdate(BaseModel):
+    """Atualização das modalidades (variantes) em que a escola está vinculada."""
+    variante_ids: list[str] = Field(..., min_length=1, description="IDs das variantes de esportes em que a escola pretende competir")
+
+
 class EscolaAdesaoResponse(BaseModel):
     """Resposta de escola/solicitação com dados de adesão (para listagem de pendentes pelo admin)."""
     id: int

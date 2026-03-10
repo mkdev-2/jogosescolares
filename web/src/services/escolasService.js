@@ -92,4 +92,12 @@ export const escolasService = {
     const res = await apiFetch(`${BASE}/${solicitacaoId}/negar`, { method: 'POST' })
     return handleResponse(res, 'Erro ao negar solicitação')
   },
+
+  async updateModalidades(escolaId, varianteIds) {
+    const res = await apiFetch(`${BASE}/${escolaId}/modalidades`, {
+      method: 'PATCH',
+      body: JSON.stringify({ variante_ids: varianteIds }),
+    })
+    return handleResponse(res, 'Erro ao atualizar modalidades')
+  },
 }
