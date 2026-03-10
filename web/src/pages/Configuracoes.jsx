@@ -54,6 +54,13 @@ export default function Configuracoes({ embedded }) {
           setCadastroDataLimite(typeof data.cadastro_data_limite === 'string' ? data.cadastro_data_limite : '')
           setDiretorCadastroAlunosDataLimite(typeof data.diretor_cadastro_alunos_data_limite === 'string' ? data.diretor_cadastro_alunos_data_limite : '')
         }
+        // Rebuscar do servidor para garantir que o estado reflete o que está persistido (ex.: após atualizar a página)
+        configuracoesService.get().then((fresh) => {
+          if (fresh) {
+            setCadastroDataLimite(typeof fresh.cadastro_data_limite === 'string' ? fresh.cadastro_data_limite : '')
+            setDiretorCadastroAlunosDataLimite(typeof fresh.diretor_cadastro_alunos_data_limite === 'string' ? fresh.diretor_cadastro_alunos_data_limite : '')
+          }
+        }).catch(() => {})
       })
       .catch((err) => {
         setMessage({ type: 'error', text: err.message || 'Erro ao salvar.' })

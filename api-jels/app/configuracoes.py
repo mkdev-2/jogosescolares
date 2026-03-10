@@ -95,13 +95,13 @@ async def update_configuracoes(
     """Atualiza configurações (apenas SUPER_ADMIN/ADMIN). Body: cadastro_data_limite, diretor_cadastro_alunos_data_limite (YYYY-MM-DD ou null)."""
     require_admin(current_user)
 
-    updates = {}
-    if payload.cadastro_data_limite is not None:
-        updates["cadastro_data_limite"] = _normalize_data_limite(payload.cadastro_data_limite)
-    if payload.diretor_cadastro_alunos_data_limite is not None:
-        updates["diretor_cadastro_alunos_data_limite"] = _normalize_data_limite(
+    # Sempre gravar as duas chaves para garantir persistência (valor ou None)
+    updates = {
+        "cadastro_data_limite": _normalize_data_limite(payload.cadastro_data_limite),
+        "diretor_cadastro_alunos_data_limite": _normalize_data_limite(
             payload.diretor_cadastro_alunos_data_limite
-        )
+        ),
+    }
 
     async with conn.cursor() as cur:
         for chave, valor in updates.items():
