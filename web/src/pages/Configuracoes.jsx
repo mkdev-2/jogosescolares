@@ -6,7 +6,20 @@ import { configuracoesService } from '../services/configuracoesService'
 
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 
-export default function Configuracoes({ embedded }) {
+/** Normaliza valor vindo da API para string YYYY-MM-DD ou '' (para estado do DatePicker). */
+function toDateStr(val) {
+  if (val == null || val === '') return ''
+  if (typeof val === 'string') return val.trim().slice(0, 10) || ''
+  if (typeof val === 'object' && val instanceof Date) return val.toISOString().slice(0, 10)
+  try {
+    const d = dayjs(val)
+    return d.isValid() ? d.format('YYYY-MM-DD') : ''
+  } catch {
+    return ''
+  }
+}
+
+function Configuracoes({ embedded }) {
   const [cadastroDataLimite, setCadastroDataLimite] = useState('')
   const [diretorCadastroAlunosDataLimite, setDiretorCadastroAlunosDataLimite] = useState('')
   const [loading, setLoading] = useState(true)
@@ -20,11 +33,9 @@ export default function Configuracoes({ embedded }) {
     configuracoesService
       .get()
       .then((data) => {
-        if (!cancelled) {
-          const val = data?.cadastro_data_limite ?? ''
-          setCadastroDataLimite(typeof val === 'string' ? val : '')
-          const val2 = data?.diretor_cadastro_alunos_data_limite ?? ''
-          setDiretorCadastroAlunosDataLimite(typeof val2 === 'string' ? val2 : '')
+        if (!cancelled && data) {
+          setCadastroDataLimite(toDateStr(data.cadastro_data_limite))
+          setDiretorCadastroAlunosDataLimite(toDateStr(data.diretor_cadastro_alunos_data_limite))
         }
       })
       .catch((err) => {
@@ -51,14 +62,14 @@ export default function Configuracoes({ embedded }) {
       .then((data) => {
         setMessage({ type: 'success', text: 'Configurações salvas com sucesso.' })
         if (data) {
-          setCadastroDataLimite(typeof data.cadastro_data_limite === 'string' ? data.cadastro_data_limite : '')
-          setDiretorCadastroAlunosDataLimite(typeof data.diretor_cadastro_alunos_data_limite === 'string' ? data.diretor_cadastro_alunos_data_limite : '')
+          setCadastroDataLimite(toDateStr(data.cadastro_data_limite))
+          setDiretorCadastroAlunosDataLimite(toDateStr(data.diretor_cadastro_alunos_data_limite))
         }
         // Rebuscar do servidor para garantir que o estado reflete o que está persistido (ex.: após atualizar a página)
         configuracoesService.get().then((fresh) => {
           if (fresh) {
-            setCadastroDataLimite(typeof fresh.cadastro_data_limite === 'string' ? fresh.cadastro_data_limite : '')
-            setDiretorCadastroAlunosDataLimite(typeof fresh.diretor_cadastro_alunos_data_limite === 'string' ? fresh.diretor_cadastro_alunos_data_limite : '')
+            setCadastroDataLimite(toDateStr(fresh.cadastro_data_limite))
+            setDiretorCadastroAlunosDataLimite(toDateStr(fresh.diretor_cadastro_alunos_data_limite))
           }
         }).catch(() => {})
       })
@@ -152,3 +163,5 @@ export default function Configuracoes({ embedded }) {
     </div>
   )
 }
+
+export default Configuracoes

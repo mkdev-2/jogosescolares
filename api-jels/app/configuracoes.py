@@ -75,7 +75,7 @@ async def get_configuracoes(
             (list(CHAVES_CONHECIDAS),),
         )
         async for row in cur:
-            result[row["chave"]] = row["valor"]
+            result[row["chave"]] = _valor_para_resposta(row["valor"])
     return result
 
 
@@ -84,6 +84,14 @@ def _normalize_data_limite(value: Optional[str]) -> Optional[str]:
     if value is None or not str(value).strip():
         return None
     return str(value).strip()[:10]
+
+
+def _valor_para_resposta(val):
+    """Garante que o valor lido do banco seja string ou None na resposta JSON."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s[:10] if s else None
 
 
 @router.put("")
@@ -122,5 +130,5 @@ async def update_configuracoes(
             (list(CHAVES_CONHECIDAS),),
         )
         async for row in cur:
-            result[row["chave"]] = row["valor"]
+            result[row["chave"]] = _valor_para_resposta(row["valor"])
     return result
