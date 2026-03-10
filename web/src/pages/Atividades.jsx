@@ -82,15 +82,10 @@ export default function Atividades() {
       setErroModalidades('Selecione pelo menos uma modalidade.')
       return
     }
-    const escolaId = user?.escola_id
-    if (!escolaId) {
-      setErroModalidades('Escola não identificada.')
-      return
-    }
     setErroModalidades(null)
     setSalvandoModalidades(true)
     try {
-      await escolasService.updateModalidades(escolaId, editModalidadeIds)
+      await escolasService.updateMinhaEscolaModalidades(editModalidadeIds)
       setModalModalidadesOpen(false)
       useVariantesState.fetchVariantes()
     } catch (err) {
@@ -109,22 +104,15 @@ export default function Atividades() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-            {isDiretor ? 'Esportes' : 'Atividades'}
-          </h1>
-          <p className="text-[0.9375rem] text-[#64748b] m-0">
-            {isDiretor
-              ? 'Modalidades em que sua escola está vinculada.'
-              : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
-          </p>
-        </div>
-        {isDiretor && (
-          <Button type="primary" onClick={handleAbrirEdicaoModalidades}>
-            Editar modalidades da escola
-          </Button>
-        )}
+      <header className="flex flex-col gap-1">
+        <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
+          {isDiretor ? 'Esportes' : 'Atividades'}
+        </h1>
+        <p className="text-[0.9375rem] text-[#64748b] m-0">
+          {isDiretor
+            ? 'Modalidades em que sua escola está vinculada.'
+            : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
+        </p>
       </header>
 
       <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
@@ -138,6 +126,7 @@ export default function Atividades() {
             deleteEsporte={isDiretor ? undefined : useEsportesState.deleteEsporte}
             onNewEsporte={isDiretor ? undefined : handleNewEsporte}
             onEditVariante={isDiretor ? undefined : handleEditVariante}
+            onEditModalidades={isDiretor ? handleAbrirEdicaoModalidades : undefined}
             emptyMessageDiretor={isDiretor}
           />
           {!isDiretor && (

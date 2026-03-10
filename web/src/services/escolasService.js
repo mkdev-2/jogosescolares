@@ -100,4 +100,13 @@ export const escolasService = {
     })
     return handleResponse(res, 'Erro ao atualizar modalidades')
   },
+
+  /** Para o diretor: atualiza modalidades da própria escola (usa token, evita 404 por rota). */
+  async updateMinhaEscolaModalidades(varianteIds) {
+    const res = await apiFetch(`${BASE}/minha-escola/modalidades`, {
+      method: 'PATCH',
+      body: JSON.stringify({ variante_ids: varianteIds }),
+    })
+    return handleResponse(res, 'Erro ao atualizar modalidades')
+  },
 }

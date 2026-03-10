@@ -159,23 +159,39 @@ async def list_adesoes(
     return [_row_solicitacao_to_adesao_response(r) for r in rows]
 
 
-@router.get("/{escola_id}", response_model=EscolaResponse)
-async def get_escola(
-    escola_id: int,
+@router.patch("/minha-escola/modalidades", status_code=status.HTTP_200_OK)
+async def update_minha_escola_modalidades(
+    data: EscolaModalidadesUpdate,
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Obtém escola por ID."""
+    """Atualiza as modalidades da escola do usuário logado. Para uso do diretor (usa escola_id do token)."""
+    if current_user.get("role") != "DIRETOR":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas o diretor pode editar as modalidades da sua escola por este endpoint.",
+        )
+    escola_id = current_user.get("escola_id")
+    if escola_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuário não está vinculado a uma escola.",
+        )
+    escola_id = int(escola_id)
+    modalidades_json = json.dumps({"variante_ids": data.variante_ids})
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at "
-            "FROM escolas WHERE id = %s",
+            "SELECT id FROM escolas WHERE id = %s",
             (escola_id,),
         )
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
-    return _row_to_response(row)
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+        await cur.execute(
+            "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
+            (modalidades_json, escola_id),
+        )
+        await conn.commit()
+    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
 
 
 @router.patch("/{escola_id}/modalidades", status_code=status.HTTP_200_OK)
@@ -214,6 +230,25 @@ async def update_escola_modalidades(
         )
         await conn.commit()
     return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
+
+
+@router.get("/{escola_id}", response_model=EscolaResponse)
+async def get_escola(
+    escola_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Obtém escola por ID."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at "
+            "FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+    return _row_to_response(row)
 
 
 @router.post("/{solicitacao_id}/aprovar", status_code=status.HTTP_200_OK)

@@ -12,6 +12,7 @@ export default function EsportesList({
   deleteEsporte,
   onNewEsporte,
   onEditVariante,
+  onEditModalidades,
   emptyMessageDiretor,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -112,21 +113,28 @@ export default function EsportesList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Variantes</p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{filteredVariantes.length}</p>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="grid gap-4 flex-1 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))] min-w-0">
+          <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <div className="flex-1">
+              <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Variantes</p>
+              <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{filteredVariantes.length}</p>
+            </div>
+            <Trophy size={28} className="text-[#0f766e]" />
           </div>
-          <Trophy size={28} className="text-[#0f766e]" />
-        </div>
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Esportes</p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{totalEsportes}</p>
+          <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <div className="flex-1">
+              <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Total de Esportes</p>
+              <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{totalEsportes}</p>
+            </div>
+            <Trophy size={28} className="text-[#0f766e]" />
           </div>
-          <Trophy size={28} className="text-[#0f766e]" />
         </div>
+        {onEditModalidades && (
+          <Button type="primary" onClick={onEditModalidades} className="shrink-0">
+            Editar modalidades da escola
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
