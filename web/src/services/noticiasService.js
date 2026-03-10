@@ -1,15 +1,12 @@
 import { apiFetch } from '../config/api'
+import { getStorageUrl } from './storageService'
 
 const BASE = '/api/noticias'
 const BASE_CATEGORIAS = '/api/categorias-noticias'
 
-/**
- * Resolve URL de imagem (storage ou absoluta).
- */
-function getStorageUrl(url) {
+function resolveImageUrl(url) {
   if (!url) return null
-  if (url.startsWith('http')) return url
-  return url.startsWith('/') ? url : `/${url}`
+  return getStorageUrl(url) || url
 }
 
 export const noticiasService = {
@@ -27,8 +24,8 @@ export const noticiasService = {
     const data = await res.json()
     return (data || []).map((n) => ({
       ...n,
-      featured_image_url: getStorageUrl(n.featured_image_url) || n.featured_image_url,
-      gallery_urls: (n.gallery_urls || []).map((u) => getStorageUrl(u) || u),
+      featured_image_url: resolveImageUrl(n.featured_image_url) || n.featured_image_url,
+      gallery_urls: (n.gallery_urls || []).map((u) => resolveImageUrl(u) || u),
     }))
   },
 
@@ -41,8 +38,8 @@ export const noticiasService = {
     const n = await res.json()
     return {
       ...n,
-      featured_image_url: getStorageUrl(n.featured_image_url) || n.featured_image_url,
-      gallery_urls: (n.gallery_urls || []).map((u) => getStorageUrl(u) || u),
+      featured_image_url: resolveImageUrl(n.featured_image_url) || n.featured_image_url,
+      gallery_urls: (n.gallery_urls || []).map((u) => resolveImageUrl(u) || u),
     }
   },
 
@@ -55,8 +52,8 @@ export const noticiasService = {
     const n = await res.json()
     return {
       ...n,
-      featured_image_url: getStorageUrl(n.featured_image_url) || n.featured_image_url,
-      gallery_urls: (n.gallery_urls || []).map((u) => getStorageUrl(u) || u),
+      featured_image_url: resolveImageUrl(n.featured_image_url) || n.featured_image_url,
+      gallery_urls: (n.gallery_urls || []).map((u) => resolveImageUrl(u) || u),
     }
   },
 

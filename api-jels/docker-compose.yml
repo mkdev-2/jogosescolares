@@ -56,9 +56,9 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
       MINIO_ENDPOINT: minio:9000
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jogosescolares}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jogosescolares_pass}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "${AUTH_SERVICE_PORT}:8000"
@@ -75,9 +75,9 @@ services:
     image: minio/minio:latest
     container_name: jogosescolares-minio
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jogosescolares}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jogosescolares_pass}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9001}
     ports:
       - "${MINIO_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:9001"
@@ -103,13 +103,15 @@ services:
     entrypoint: >
       /bin/sh -c "
       sleep 5;
-      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-jogosescolares} ${MINIO_ROOT_PASSWORD:-jogosescolares_pass};
       mc mb myminio/public --ignore-existing;
       mc mb myminio/private --ignore-existing;
       mc mb myminio/documents --ignore-existing;
+      mc mb myminio/jogosescolares --ignore-existing;
       mc anonymous set public myminio/public;
       mc anonymous set download myminio/private;
       mc anonymous set download myminio/documents;
+      mc anonymous set download myminio/jogosescolares;
       echo 'MinIO configurado';
       "
     networks:

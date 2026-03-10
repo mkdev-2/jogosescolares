@@ -143,10 +143,9 @@ export default function NoticiaDetalhes() {
           )}
 
           <div
-            className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-primary whitespace-pre-wrap text-slate-700 leading-relaxed"
-          >
-            {noticia.content}
-          </div>
+            className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-primary text-slate-700 leading-relaxed prose-img:rounded-lg"
+            dangerouslySetInnerHTML={{ __html: noticia.content || '' }}
+          />
 
           {related.length > 0 && (
             <section className="mt-16 pt-10 border-t border-slate-200">

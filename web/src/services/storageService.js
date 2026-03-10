@@ -1,62 +1,63 @@
-import { apiFetch } from '../config/api'
+import { apiFetch, API_SERVICE_URL } from '../config/api'
 
 const BUCKET = 'jogosescolares'
 const FOTOS_PATH = 'estudantes'
 const NOTICIAS_PATH = 'noticias'
 
 /**
- * Faz upload de arquivo de imagem para o storage (MinIO).
- * @param {File} file - Arquivo de imagem
- * @returns {Promise<string>} URL pública do arquivo
+ * Faz upload para o MinIO via backend. bucket e path na query; body só o file.
+ * Retorna path relativo (bucket/path) para usar em getStorageUrl.
  */
-export async function uploadFotoEstudante(file) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const path = `${FOTOS_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+async function uploadToStorage(file, bucket, path) {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('path', path)
-  formData.append('bucket', BUCKET)
-  formData.append('contentType', file.type || 'image/jpeg')
-
-  const res = await apiFetch('/api/storage/upload', {
+  const url = `${API_SERVICE_URL}/api/storage/upload?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
+  const res = await apiFetch(url, {
     method: 'POST',
     body: formData,
   })
-
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.detail || data.message || `Erro ${res.status} no upload`)
   }
-
   const data = await res.json()
   return data.url || ''
+}
+
+/**
+ * Retorna URL para exibir arquivo do storage (via GET /api/storage/file/).
+ * path pode ser relativo (bucket/path) ou URL absoluta (retornada como está).
+ */
+export function getStorageUrl(path) {
+  if (!path) return ''
+  if (typeof path !== 'string') return ''
+  const trimmed = path.trim()
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  const base = API_SERVICE_URL.replace(/\/$/, '')
+  const prefix = base ? `${base}/api/storage/file` : '/api/storage/file'
+  const clean = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed
+  return `${prefix}/${clean}`
+}
+
+/**
+ * Faz upload de arquivo de imagem para o storage (MinIO).
+ * @param {File} file - Arquivo de imagem
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadFotoEstudante(file) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${FOTOS_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
 }
 
 /**
  * Upload de imagem para notícias (destaque ou galeria).
  * @param {File} file - Arquivo de imagem
  * @param {string} [subPath] - Ex: 'destaque' ou 'galeria'
- * @returns {Promise<string>} URL do arquivo
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
  */
 export async function uploadImagemNoticia(file, subPath = 'destaque') {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${NOTICIAS_PATH}/${subPath}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('path', path)
-  formData.append('bucket', BUCKET)
-  formData.append('contentType', file.type || 'image/jpeg')
-
-  const res = await apiFetch('/api/storage/upload', {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.detail || data.message || `Erro ${res.status} no upload`)
-  }
-
-  const data = await res.json()
-  return data.url || ''
+  return uploadToStorage(file, BUCKET, path)
 }
