@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
 
 # Chaves conhecidas de configuração (expandível no futuro)
-CHAVES_CONHECIDAS = {"cadastro_data_limite", "diretor_cadastro_alunos_data_limite"}
+CHAVES_CONHECIDAS = {
+    "cadastro_data_limite",
+    "diretor_cadastro_alunos_data_limite",
+    "diretor_editar_modalidades_data_limite",
+}
 
 
 def require_admin(current_user: dict) -> dict:
@@ -50,16 +54,17 @@ async def get_configuracoes_app(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Retorna configurações para o app (usuário logado): ex. prazo para diretor cadastrar alunos."""
+    """Retorna configurações para o app (usuário logado): prazos para diretor cadastrar alunos e editar modalidades."""
+    chaves = ("diretor_cadastro_alunos_data_limite", "diretor_editar_modalidades_data_limite")
+    result = {k: None for k in chaves}
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT valor FROM configuracoes WHERE chave = %s",
-            ("diretor_cadastro_alunos_data_limite",),
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(chaves),),
         )
-        row = await cur.fetchone()
-    return {
-        "diretor_cadastro_alunos_data_limite": row["valor"] if row and row.get("valor") else None,
-    }
+        async for row in cur:
+            result[row["chave"]] = _valor_para_resposta(row["valor"])
+    return result
 
 
 @router.get("")
@@ -107,11 +112,13 @@ async def update_configuracoes(
     """Atualiza configurações (apenas SUPER_ADMIN/ADMIN). Body: cadastro_data_limite, diretor_cadastro_alunos_data_limite (YYYY-MM-DD ou null)."""
     require_admin(current_user)
 
-    # Sempre gravar as duas chaves para garantir persistência (valor ou None)
     updates = {
         "cadastro_data_limite": _normalize_data_limite(payload.cadastro_data_limite),
         "diretor_cadastro_alunos_data_limite": _normalize_data_limite(
             payload.diretor_cadastro_alunos_data_limite
+        ),
+        "diretor_editar_modalidades_data_limite": _normalize_data_limite(
+            payload.diretor_editar_modalidades_data_limite
         ),
     }
 

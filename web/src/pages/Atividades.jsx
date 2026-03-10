@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { esportesService } from '../services/esportesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import { escolasService } from '../services/escolasService'
+import { configuracoesService } from '../services/configuracoesService'
 
 export default function Atividades() {
   const { user } = useAuth()
@@ -25,6 +26,8 @@ export default function Atividades() {
   const [editModalidadeIds, setEditModalidadeIds] = useState([])
   const [salvandoModalidades, setSalvandoModalidades] = useState(false)
   const [erroModalidades, setErroModalidades] = useState(null)
+  const [prazoEditarModalidadesEncerrado, setPrazoEditarModalidadesEncerrado] = useState(false)
+  const [dataLimiteEditarModalidades, setDataLimiteEditarModalidades] = useState(null)
 
   const handleNewEsporte = () => {
     setEsporteSelecionado(null)
@@ -64,18 +67,36 @@ export default function Atividades() {
   const handleAbrirEdicaoModalidades = () => {
     setEditModalidadeIds(useVariantesState.variantes.map((v) => v.id))
     setErroModalidades(null)
+    setPrazoEditarModalidadesEncerrado(false)
+    setDataLimiteEditarModalidades(null)
     setModalModalidadesOpen(true)
   }
 
   useEffect(() => {
     if (!modalModalidadesOpen) return
     setLoadingVariantesTodas(true)
-    esporteVariantesService
-      .list()
-      .then((data) => setVariantesTodas(Array.isArray(data) ? data : []))
+    const dataLimiteStr = (v) => (v && String(v).trim().slice(0, 10)) || null
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    Promise.all([
+      esporteVariantesService.list(),
+      isDiretor ? configuracoesService.getApp() : Promise.resolve(null),
+    ])
+      .then(([variantesData, configApp]) => {
+        setVariantesTodas(Array.isArray(variantesData) ? variantesData : [])
+        if (isDiretor && configApp) {
+          const limite = dataLimiteStr(configApp.diretor_editar_modalidades_data_limite)
+          setDataLimiteEditarModalidades(limite)
+          if (limite) {
+            const [y, m, d] = limite.split('-').map(Number)
+            const dataLimite = new Date(y, m - 1, d)
+            setPrazoEditarModalidadesEncerrado(hoje > dataLimite)
+          }
+        }
+      })
       .catch(() => setVariantesTodas([]))
       .finally(() => setLoadingVariantesTodas(false))
-  }, [modalModalidadesOpen])
+  }, [modalModalidadesOpen, isDiretor])
 
   const handleSalvarModalidades = async () => {
     if (!editModalidadeIds?.length) {
@@ -153,13 +174,28 @@ export default function Atividades() {
             <Button key="cancel" onClick={handleFecharModalModalidades} disabled={salvandoModalidades}>
               Cancelar
             </Button>,
-            <Button key="save" type="primary" loading={salvandoModalidades} onClick={handleSalvarModalidades}>
+            <Button
+              key="save"
+              type="primary"
+              loading={salvandoModalidades}
+              onClick={handleSalvarModalidades}
+              disabled={prazoEditarModalidadesEncerrado}
+            >
               Salvar
             </Button>,
           ]}
           width={640}
           destroyOnClose
         >
+          {prazoEditarModalidadesEncerrado && (
+            <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <strong>Prazo encerrado.</strong> O período para editar as modalidades da escola encerrou em{' '}
+              {dataLimiteEditarModalidades
+                ? new Date(dataLimiteEditarModalidades + 'T12:00:00').toLocaleDateString('pt-BR')
+                : ''}
+              . Não é possível salvar alterações. Entre em contato com a administração se precisar de ajustes.
+            </div>
+          )}
           <p className="text-sm text-[#64748b] mb-4">
             Selecione ou remova as modalidades em que sua escola pretende participar. É necessário manter pelo menos uma.
           </p>

@@ -3,7 +3,7 @@ Roteador de escolas: CRUD de escolas e adesão (formulário público, listagem d
 """
 import json
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
@@ -178,6 +178,26 @@ async def update_minha_escola_modalidades(
             detail="Usuário não está vinculado a uma escola.",
         )
     escola_id = int(escola_id)
+
+    # Verificar data limite para diretor editar modalidades (configuração admin)
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT valor FROM configuracoes WHERE chave = %s",
+            ("diretor_editar_modalidades_data_limite",),
+        )
+        row_cfg = await cur.fetchone()
+    data_limite_str = row_cfg["valor"] if row_cfg and row_cfg.get("valor") else None
+    if data_limite_str:
+        try:
+            data_limite = datetime.strptime(data_limite_str.strip()[:10], "%Y-%m-%d").date()
+            if date.today() > data_limite:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="O prazo para editar as modalidades da escola foi encerrado. Entre em contato com a administração.",
+                )
+        except (ValueError, TypeError):
+            pass
+
     modalidades_json = json.dumps({"variante_ids": data.variante_ids})
     async with conn.cursor() as cur:
         await cur.execute(

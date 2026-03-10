@@ -22,12 +22,13 @@ function toDateStr(val) {
 function Configuracoes({ embedded }) {
   const [cadastroDataLimite, setCadastroDataLimite] = useState('')
   const [diretorCadastroAlunosDataLimite, setDiretorCadastroAlunosDataLimite] = useState('')
+  const [diretorEditarModalidadesDataLimite, setDiretorEditarModalidadesDataLimite] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
-  // Refs guardam o valor atual do campo no submit (evita estado desatualizado ao clicar Salvar)
   const refCadastro = useRef('')
   const refDiretor = useRef('')
+  const refEditarModalidades = useRef('')
 
   useEffect(() => {
     refCadastro.current = cadastroDataLimite
@@ -35,6 +36,9 @@ function Configuracoes({ embedded }) {
   useEffect(() => {
     refDiretor.current = diretorCadastroAlunosDataLimite
   }, [diretorCadastroAlunosDataLimite])
+  useEffect(() => {
+    refEditarModalidades.current = diretorEditarModalidadesDataLimite
+  }, [diretorEditarModalidadesDataLimite])
 
   useEffect(() => {
     let cancelled = false
@@ -46,10 +50,13 @@ function Configuracoes({ embedded }) {
         if (!cancelled && data) {
           const v1 = toDateStr(data.cadastro_data_limite)
           const v2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
+          const v3 = toDateStr(data.diretor_editar_modalidades_data_limite)
           setCadastroDataLimite(v1)
           setDiretorCadastroAlunosDataLimite(v2)
+          setDiretorEditarModalidadesDataLimite(v3)
           refCadastro.current = v1
           refDiretor.current = v2
+          refEditarModalidades.current = v3
         }
       })
       .catch((err) => {
@@ -70,9 +77,11 @@ function Configuracoes({ embedded }) {
     // Usar refs para ter o valor mais recente no momento do clique (estado pode estar um tick atrás)
     const v1 = (refCadastro.current || '').trim() || null
     const v2 = (refDiretor.current || '').trim() || null
+    const v3 = (refEditarModalidades.current || '').trim() || null
     const payload = {
       cadastro_data_limite: v1,
       diretor_cadastro_alunos_data_limite: v2,
+      diretor_editar_modalidades_data_limite: v3,
     }
     configuracoesService
       .update(payload)
@@ -81,18 +90,22 @@ function Configuracoes({ embedded }) {
         if (data) {
           const d1 = toDateStr(data.cadastro_data_limite)
           const d2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
+          const d3 = toDateStr(data.diretor_editar_modalidades_data_limite)
           setCadastroDataLimite(d1)
           setDiretorCadastroAlunosDataLimite(d2)
+          setDiretorEditarModalidadesDataLimite(d3)
           refCadastro.current = d1
           refDiretor.current = d2
+          refEditarModalidades.current = d3
         }
-        // Rebuscar com cache-bust (não encadeia na promise para não mascarar erro do PUT)
         configuracoesService.getNoCache().then((fresh) => {
           if (fresh) {
             setCadastroDataLimite(toDateStr(fresh.cadastro_data_limite))
             setDiretorCadastroAlunosDataLimite(toDateStr(fresh.diretor_cadastro_alunos_data_limite))
+            setDiretorEditarModalidadesDataLimite(toDateStr(fresh.diretor_editar_modalidades_data_limite))
             refCadastro.current = toDateStr(fresh.cadastro_data_limite)
             refDiretor.current = toDateStr(fresh.diretor_cadastro_alunos_data_limite)
+            refEditarModalidades.current = toDateStr(fresh.diretor_editar_modalidades_data_limite)
           }
         }).catch(() => {})
       })
@@ -168,6 +181,27 @@ function Configuracoes({ embedded }) {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Deixe em branco para não ter limite. Após esta data, diretor e coordenador não poderão cadastrar novos alunos.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="diretor_editar_modalidades_data_limite" className={labelClass}>
+                Data limite para diretor editar modalidades da escola
+              </label>
+              <DatePicker
+                id="diretor_editar_modalidades_data_limite"
+                value={diretorEditarModalidadesDataLimite ? dayjs(diretorEditarModalidadesDataLimite) : null}
+                onChange={(date) => {
+                  const val = date ? date.format('YYYY-MM-DD') : ''
+                  setDiretorEditarModalidadesDataLimite(val)
+                  refEditarModalidades.current = val
+                }}
+                format={['DD/MM/YYYY', 'DDMMYYYY']}
+                placeholder="DD/MM/AAAA ou DDMMAAAA"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Deixe em branco para não ter limite. Após esta data, o diretor não poderá alterar as modalidades em que a escola está vinculada (em Esportes).
               </p>
             </div>
 
