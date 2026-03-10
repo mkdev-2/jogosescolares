@@ -2,6 +2,7 @@ import { apiFetch } from '../config/api'
 
 const BUCKET = 'jogosescolares'
 const FOTOS_PATH = 'estudantes'
+const NOTICIAS_PATH = 'noticias'
 
 /**
  * Faz upload de arquivo de imagem para o storage (MinIO).
@@ -11,6 +12,35 @@ const FOTOS_PATH = 'estudantes'
 export async function uploadFotoEstudante(file) {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${FOTOS_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('path', path)
+  formData.append('bucket', BUCKET)
+  formData.append('contentType', file.type || 'image/jpeg')
+
+  const res = await apiFetch('/api/storage/upload', {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || data.message || `Erro ${res.status} no upload`)
+  }
+
+  const data = await res.json()
+  return data.url || ''
+}
+
+/**
+ * Upload de imagem para notícias (destaque ou galeria).
+ * @param {File} file - Arquivo de imagem
+ * @param {string} [subPath] - Ex: 'destaque' ou 'galeria'
+ * @returns {Promise<string>} URL do arquivo
+ */
+export async function uploadImagemNoticia(file, subPath = 'destaque') {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${NOTICIAS_PATH}/${subPath}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   const formData = new FormData()
   formData.append('file', file)
   formData.append('path', path)

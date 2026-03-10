@@ -23,6 +23,8 @@ from app.estudantes_atletas import router as estudantes_atletas_router
 from app.professores_tecnicos import router as professores_tecnicos_router
 from app.equipes import router as equipes_router
 from app.dashboard import router as dashboard_router
+from app.noticias import router as noticias_router
+from app.categorias_noticias import router as categorias_noticias_router
 
 try:
     from app.storage import router as storage_router
@@ -99,6 +101,8 @@ app.include_router(estudantes_atletas_router)
 app.include_router(professores_tecnicos_router)
 app.include_router(equipes_router)
 app.include_router(dashboard_router)
+app.include_router(noticias_router)
+app.include_router(categorias_noticias_router)
 if STORAGE_AVAILABLE and storage_router:
     app.include_router(storage_router)
 
@@ -122,6 +126,8 @@ async def root():
             "estudantes-atletas": "/estudantes-atletas",
             "professores-tecnicos": "/professores-tecnicos",
             "equipes": "/equipes",
+            "noticias": "/api/noticias",
+            "categorias-noticias": "/api/categorias-noticias",
             "storage": "/api/storage" if STORAGE_AVAILABLE else None,
             "docs": "/docs",
         },
