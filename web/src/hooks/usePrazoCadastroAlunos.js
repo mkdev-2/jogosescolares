@@ -11,6 +11,7 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 export default function usePrazoCadastroAlunos() {
   const { user } = useAuth()
   const [bloqueado, setBloqueado] = useState(false)
+  const [dataLimite, setDataLimite] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const isAdmin = user && ADMIN_ROLES.includes(user.role)
@@ -18,6 +19,7 @@ export default function usePrazoCadastroAlunos() {
   useEffect(() => {
     if (isAdmin) {
       setBloqueado(false)
+      setDataLimite(null)
       setLoading(false)
       return
     }
@@ -28,22 +30,28 @@ export default function usePrazoCadastroAlunos() {
         const limit = data?.diretor_cadastro_alunos_data_limite
         if (!limit || typeof limit !== 'string') {
           setBloqueado(false)
+          setDataLimite(null)
           return
         }
         const limitStr = limit.trim().slice(0, 10)
         if (!limitStr) {
           setBloqueado(false)
+          setDataLimite(null)
           return
         }
+        setDataLimite(limitStr)
         const limitDate = new Date(limitStr)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         limitDate.setHours(0, 0, 0, 0)
         setBloqueado(today > limitDate)
       })
-      .catch(() => setBloqueado(false))
+      .catch(() => {
+        setBloqueado(false)
+        setDataLimite(null)
+      })
       .finally(() => setLoading(false))
   }, [isAdmin])
 
-  return { bloqueado, loading }
+  return { bloqueado, dataLimite, loading }
 }

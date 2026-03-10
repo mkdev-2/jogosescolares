@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Modal, Button } from 'antd'
+import { Modal, Button, Alert } from 'antd'
 import EsportesList from '../components/catalogos/EsportesList'
 import EsporteModal from '../components/catalogos/EsporteModal'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
@@ -28,6 +28,26 @@ export default function Atividades() {
   const [erroModalidades, setErroModalidades] = useState(null)
   const [prazoEditarModalidadesEncerrado, setPrazoEditarModalidadesEncerrado] = useState(false)
   const [dataLimiteEditarModalidades, setDataLimiteEditarModalidades] = useState(null)
+  const [prazoModalidadesPagina, setPrazoModalidadesPagina] = useState(null)
+  const [prazoModalidadesEncerradoPagina, setPrazoModalidadesEncerradoPagina] = useState(false)
+
+  useEffect(() => {
+    if (!isDiretor) return
+    configuracoesService
+      .getApp()
+      .then((data) => {
+        const limite = data?.diretor_editar_modalidades_data_limite
+        const str = limite && String(limite).trim().slice(0, 10)
+        if (!str) return
+        setPrazoModalidadesPagina(str)
+        const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
+        const [y, m, d] = str.split('-').map(Number)
+        const dataLimite = new Date(y, m - 1, d)
+        setPrazoModalidadesEncerradoPagina(hoje > dataLimite)
+      })
+      .catch(() => {})
+  }, [isDiretor])
 
   const handleNewEsporte = () => {
     setEsporteSelecionado(null)
@@ -135,6 +155,20 @@ export default function Atividades() {
             : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
         </p>
       </header>
+
+      {isDiretor && prazoModalidadesPagina && (
+        <Alert
+          type={prazoModalidadesEncerradoPagina ? 'warning' : 'info'}
+          message={prazoModalidadesEncerradoPagina ? 'Prazo encerrado' : 'Prazo para editar modalidades'}
+          description={
+            prazoModalidadesEncerradoPagina
+              ? `O período para editar as modalidades da escola encerrou em ${new Date(prazoModalidadesPagina + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Não é possível salvar alterações.`
+              : `Você pode editar as modalidades da escola até ${new Date(prazoModalidadesPagina + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Após essa data, não será possível alterar.`
+          }
+          showIcon
+          className="mb-0"
+        />
+      )}
 
       <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
         <div className="p-6">

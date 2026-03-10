@@ -59,7 +59,7 @@ export default function Gestao() {
   const { lista: listaEscolas, loading: loadingEscolas, error: errorEscolas, fetchEscolas } = useEscolas()
   const temEscola = !!user?.escola_id
   const { variantes } = useEsporteVariantes(null, { minhaEscola: temEscola })
-  const { bloqueado: cadastroAlunosBloqueado } = usePrazoCadastroAlunos()
+  const { bloqueado: cadastroAlunosBloqueado, dataLimite: prazoCadastroAlunos } = usePrazoCadastroAlunos()
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,6 +101,15 @@ export default function Gestao() {
         <div className="p-6">
           {activeTab === 'alunos' && (
             <>
+              {!cadastroAlunosBloqueado && prazoCadastroAlunos && (
+                <Alert
+                  type="info"
+                  message="Prazo para cadastro de alunos"
+                  description={`Novos alunos podem ser cadastrados até ${new Date(prazoCadastroAlunos + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Após essa data, não será possível incluir novos estudantes-atletas.`}
+                  showIcon
+                  className="mb-4"
+                />
+              )}
               {cadastroAlunosBloqueado && (
                 <Alert
                   type="warning"

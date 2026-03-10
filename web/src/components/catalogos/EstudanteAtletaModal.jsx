@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { User, UserCircle, School, Camera, TriangleAlert } from 'lucide-react'
-import { DatePicker, Input, Select, Button } from 'antd'
+import { DatePicker, Input, Select, Button, Steps } from 'antd'
 import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
@@ -52,30 +52,44 @@ function isValidCpf(cpf) {
   return check === parseInt(d[10], 10)
 }
 
-function validateForm(form) {
+const STEP_KEYS = {
+  instituicao: 0,
+  estudante: 1,
+  responsavel: 2,
+}
+
+function validateStep(step, form) {
   const err = {}
-  // Estudante
-  if (!form.nome?.trim() || form.nome.trim().length < 3) err.nome = 'Nome deve ter pelo menos 3 caracteres'
-  if (onlyDigits(form.cpf).length !== 11) err.cpf = 'CPF deve conter 11 dígitos'
-  else if (!isValidCpf(form.cpf)) err.cpf = 'CPF inválido'
-  if (!form.rg?.trim()) err.rg = 'RG é obrigatório'
-  else if (onlyDigits(form.rg).length > 15) err.rg = 'RG deve ter no máximo 15 caracteres'
-  if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
-  if (!form.sexo) err.sexo = 'Selecione o sexo'
-  if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
-  if (!form.endereco?.trim() || form.endereco.trim().length < 5) err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
-  if (!form.cep?.trim() || onlyDigits(form.cep).length !== 8) err.cep = 'CEP deve conter 8 dígitos'
-  if (form.numeroRegistroConfederacao?.trim() && form.numeroRegistroConfederacao.trim().length > 20) err.numeroRegistroConfederacao = 'Nº Registro deve ter no máximo 20 caracteres'
-  // Responsável
-  if (!form.responsavelNome?.trim() || form.responsavelNome.trim().length < 3) err.responsavelNome = 'Nome do responsável deve ter pelo menos 3 caracteres'
-  if (onlyDigits(form.responsavelCpf).length !== 11) err.responsavelCpf = 'CPF do responsável deve conter 11 dígitos'
-  else if (!isValidCpf(form.responsavelCpf)) err.responsavelCpf = 'CPF do responsável inválido'
-  if (!form.responsavelRg?.trim()) err.responsavelRg = 'RG do responsável é obrigatório'
-  else if (onlyDigits(form.responsavelRg).length > 15) err.responsavelRg = 'RG do responsável deve ter no máximo 15 caracteres'
-  if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
-  if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
-  if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
+  if (step === STEP_KEYS.estudante) {
+    if (!form.nome?.trim() || form.nome.trim().length < 3) err.nome = 'Nome deve ter pelo menos 3 caracteres'
+    if (onlyDigits(form.cpf).length !== 11) err.cpf = 'CPF deve conter 11 dígitos'
+    else if (!isValidCpf(form.cpf)) err.cpf = 'CPF inválido'
+    if (!form.rg?.trim()) err.rg = 'RG é obrigatório'
+    else if (onlyDigits(form.rg).length > 15) err.rg = 'RG deve ter no máximo 15 caracteres'
+    if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
+    if (!form.sexo) err.sexo = 'Selecione o sexo'
+    if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
+    if (!form.endereco?.trim() || form.endereco.trim().length < 5) err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
+    if (!form.cep?.trim() || onlyDigits(form.cep).length !== 8) err.cep = 'CEP deve conter 8 dígitos'
+    if (form.numeroRegistroConfederacao?.trim() && form.numeroRegistroConfederacao.trim().length > 20) err.numeroRegistroConfederacao = 'Nº Registro deve ter no máximo 20 caracteres'
+  }
+  if (step === STEP_KEYS.responsavel) {
+    if (!form.responsavelNome?.trim() || form.responsavelNome.trim().length < 3) err.responsavelNome = 'Nome do responsável deve ter pelo menos 3 caracteres'
+    if (onlyDigits(form.responsavelCpf).length !== 11) err.responsavelCpf = 'CPF do responsável deve conter 11 dígitos'
+    else if (!isValidCpf(form.responsavelCpf)) err.responsavelCpf = 'CPF do responsável inválido'
+    if (!form.responsavelRg?.trim()) err.responsavelRg = 'RG do responsável é obrigatório'
+    else if (onlyDigits(form.responsavelRg).length > 15) err.responsavelRg = 'RG do responsável deve ter no máximo 15 caracteres'
+    if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
+    if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
+    if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
+  }
   return err
+}
+
+function validateForm(form) {
+  const err1 = validateStep(STEP_KEYS.estudante, form)
+  const err2 = validateStep(STEP_KEYS.responsavel, form)
+  return { ...err1, ...err2 }
 }
 
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
@@ -100,6 +114,12 @@ function maskCelular(value) {
   return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
 }
 
+const STEP_ITEMS = [
+  { title: 'Instituição e foto' },
+  { title: 'Dados do estudante' },
+  { title: 'Responsável' },
+]
+
 export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudante = null }) {
   const { user } = useAuth()
   const [form, setForm] = useState(INITIAL_FORM)
@@ -107,6 +127,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [loading, setLoading] = useState(false)
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+  const [currentStep, setCurrentStep] = useState(0)
   const fileInputRef = useRef(null)
 
   const nomeInstituicao = user?.escola_nome ?? ''
@@ -132,8 +153,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavelEmail: estudante.responsavel_email || '',
         responsavelNis: estudante.responsavel_nis || '',
       })
+      setCurrentStep(0)
     } else if (open && !estudante) {
       setForm(INITIAL_FORM)
+      setCurrentStep(0)
     }
   }, [open, estudante])
 
@@ -147,7 +170,23 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     setForm(INITIAL_FORM)
     setErrors({})
     setSubmitError(null)
+    setCurrentStep(0)
     onClose?.()
+  }
+
+  const handleNext = () => {
+    const errs = validateStep(currentStep, form)
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs)
+      return
+    }
+    setErrors({})
+    setCurrentStep((s) => Math.min(s + 1, STEP_ITEMS.length - 1))
+  }
+
+  const handlePrev = () => {
+    setErrors({})
+    setCurrentStep((s) => Math.max(s - 1, 0))
   }
 
   const handleFotoChange = async (e) => {
@@ -216,25 +255,44 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     }
   }
 
+  const isLastStep = currentStep === STEP_ITEMS.length - 1
+
   return (
     <Modal
       isOpen={open}
       onClose={handleClose}
       title={estudante ? 'Editar aluno' : 'Novo aluno'}
-      subtitle={estudante ? 'Altere os dados do estudante e do responsável' : 'Preencha os dados do estudante e do responsável'}
+      subtitle={estudante ? 'Altere os dados do estudante e do responsável' : 'Preencha os dados em etapas'}
       size="xl"
       footer={
-        <div className="flex justify-end gap-3">
-          <Button type="default" onClick={handleClose}>
-            Cancelar
-          </Button>
-          <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
-            {loading ? 'Salvando...' : estudante ? 'Salvar alterações' : 'Cadastrar'}
-          </Button>
+        <div className="flex justify-between gap-3">
+          <div>
+            {currentStep > 0 && (
+              <Button type="default" onClick={handlePrev} disabled={loading}>
+                Voltar
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button type="default" onClick={handleClose} disabled={loading}>
+              Cancelar
+            </Button>
+            {!isLastStep ? (
+              <Button type="primary" onClick={handleNext}>
+                Próximo
+              </Button>
+            ) : (
+              <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
+                {loading ? 'Salvando...' : estudante ? 'Salvar alterações' : 'Cadastrar'}
+              </Button>
+            )}
+          </div>
         </div>
       }
     >
       <div className="p-0">
+        <Steps current={currentStep} items={STEP_ITEMS} className="mb-6" size="small" />
+
         {submitError && (
           <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
             {submitError}
@@ -242,8 +300,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Instituição */}
-          <div className="space-y-4">
+          {/* Step 0: Instituição + Foto */}
+          {currentStep === 0 && (
+          <div className="space-y-6">
+            <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
               <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
@@ -306,9 +366,12 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
               </div>
             </div>
           </div>
+          </div>
+          )}
 
-          {/* Dados do Estudante */}
-          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+          {/* Step 1: Dados do Estudante */}
+          {currentStep === 1 && (
+          <div className="space-y-4 border-t-0 pt-0">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
               <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
@@ -380,8 +443,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
               </div>
             </div>
           </div>
+          )}
 
-          {/* Mãe / Responsável */}
+          {/* Step 2: Mãe / Responsável */}
+          {currentStep === 2 && (
           <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
@@ -423,6 +488,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
               </div>
             </div>
           </div>
+          )}
         </form>
       </div>
     </Modal>
