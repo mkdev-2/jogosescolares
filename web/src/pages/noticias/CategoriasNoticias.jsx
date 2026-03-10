@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import CategoriaTable from './components/CategoriaTable'
 import CategoriaModal from './components/CategoriaModal'
 
-export default function CategoriasNoticias() {
+export default function CategoriasNoticias({ embedded }) {
   const { user } = useAuth()
   const [categorias, setCategorias] = useState([])
   const [loading, setLoading] = useState(false)
@@ -53,18 +53,27 @@ export default function CategoriasNoticias() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:px-12">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 m-0">Categorias de notícias</h1>
-          <p className="text-slate-500 mt-2 text-sm">Gerencie as categorias usadas nas notícias</p>
-        </div>
-        {isAdmin && (
+    <div className={embedded ? '' : 'p-4 sm:p-6 lg:px-12'}>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 m-0">Categorias de notícias</h1>
+            <p className="text-slate-500 mt-2 text-sm">Gerencie as categorias usadas nas notícias</p>
+          </div>
+          {isAdmin && (
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} className="rounded-lg">
             Nova categoria
           </Button>
         )}
-      </div>
+        </div>
+      )}
+      {embedded && isAdmin && (
+        <div className="flex justify-end mb-4">
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} className="rounded-lg">
+            Nova categoria
+          </Button>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <CategoriaTable
           categorias={categorias}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -26,14 +26,21 @@ const menuGroups = [
     ],
   },
   {
+    label: 'Comunicação',
+    icon: Megaphone,
+    requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
+    items: [
+      { label: 'Notícias', path: '/app/comunicacao', icon: Newspaper, tab: 'noticias' },
+      { label: 'Categorias de Notícias', path: '/app/comunicacao', icon: Tag, tab: 'categorias', adminOnly: true },
+    ],
+  },
+  {
     label: 'Administrativo',
     icon: Users,
     requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
     items: [
       { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
       { label: 'Solicitações de Adesão', path: '/app/administrativo', icon: ClipboardList, tab: 'usuarios-pendentes', adminOnly: true },
-      { label: 'Notícias', path: '/app/noticias', icon: Newspaper },
-      { label: 'Categorias de Notícias', path: '/app/noticias/categorias', icon: Tag, adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
     ],
   },
@@ -41,7 +48,7 @@ const menuGroups = [
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Administrativo: true })
+  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Comunicação: true, Administrativo: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -52,14 +59,13 @@ export default function AppLayout({ children }) {
     navigate('/login')
   }
 
-  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios', '/app/noticias': null, '/app/noticias/categorias': null }
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios', '/app/comunicacao': 'noticias' }
   const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
     if (item?.tab) {
       const currentTab = searchParams.get('tab') || DEFAULT_TAB[path] || 'alunos'
       return location.pathname === path && currentTab === item.tab
     }
-    if (path === '/app/noticias') return location.pathname === '/app/noticias'
     return location.pathname.startsWith(path)
   }
 

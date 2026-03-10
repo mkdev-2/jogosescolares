@@ -237,6 +237,7 @@ export default function CadastroEscola() {
   const [success, setSuccess] = useState(false)
   const [formEncerrado, setFormEncerrado] = useState(false)
   const [dataLimite, setDataLimite] = useState(null)
+  const [loadingDataLimite, setLoadingDataLimite] = useState(true)
 
   useEffect(() => {
     configuracoesService.getCadastroDataLimite()
@@ -250,6 +251,7 @@ export default function CadastroEscola() {
         }
       })
       .catch(() => {})
+      .finally(() => setLoadingDataLimite(false))
   }, [])
 
   const updateField = (field, value) => {
@@ -414,6 +416,45 @@ export default function CadastroEscola() {
     )
   }
 
+  if (formEncerrado) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <PublicHeader />
+        <div className="flex flex-col flex-1 items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">
+              Prazo encerrado
+            </h2>
+            <p className="text-gray-600 mb-6">
+              O prazo para envio do formulário de cadastro de escola já foi encerrado. Entre em contato com a SEMCEJ para mais informações.
+            </p>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-lg px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/90 transition"
+            >
+              <ArrowLeft size={18} />
+              Voltar à página inicial
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadingDataLimite) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <PublicHeader />
+        <div className="flex flex-1 items-center justify-center p-6">
+          <Spin size="large" tip="Verificando prazo de cadastro..." />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PublicHeader />
@@ -437,12 +478,6 @@ export default function CadastroEscola() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-10">
-        {formEncerrado && (
-          <div className="mb-6 px-4 py-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-            <p className="font-medium">Período de adesão encerrado.</p>
-            <p className="text-sm mt-1">O prazo para envio do formulário já foi encerrado. Entre em contato com a SEMCEJ para mais informações.</p>
-          </div>
-        )}
         <form onSubmit={handleSubmit} className="space-y-8">
           {errors.submit && (
             <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
@@ -862,9 +897,9 @@ export default function CadastroEscola() {
               type="primary"
               htmlType="submit"
               loading={submitting}
-              disabled={submitting || formEncerrado}
+              disabled={submitting}
             >
-              {submitting ? 'Enviando...' : formEncerrado ? 'Período encerrado' : 'Enviar Cadastro'}
+              {submitting ? 'Enviando...' : 'Enviar Cadastro'}
             </Button>
           </div>
         </form>

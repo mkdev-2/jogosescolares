@@ -9,7 +9,7 @@ import NoticiaModal from './components/NoticiaModal'
 
 const PAGE_SIZE = 8
 
-export default function Noticias() {
+export default function Noticias({ embedded }) {
   const { user } = useAuth()
   const [noticias, setNoticias] = useState([])
   const [loading, setLoading] = useState(false)
@@ -70,23 +70,31 @@ export default function Noticias() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:px-12">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 m-0 tracking-tight">
-            Notícias
-          </h1>
-          <p className="text-slate-500 mt-2 text-sm sm:text-base">
-            Gerencie notícias e publicações do portal
-          </p>
-        </div>
-        {isAdmin && (
+    <div className={embedded ? '' : 'p-4 sm:p-6 lg:px-12'}>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 m-0 tracking-tight">
+              Notícias
+            </h1>
+            <p className="text-slate-500 mt-2 text-sm sm:text-base">
+              Gerencie notícias e publicações do portal
+            </p>
+          </div>
+          {isAdmin && (
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} className="rounded-lg">
             Nova notícia
           </Button>
         )}
-      </div>
-
+        </div>
+      )}
+      {embedded && isAdmin && (
+        <div className="flex justify-end mb-4">
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} className="rounded-lg">
+            Nova notícia
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-6">
         <Input
           placeholder="Buscar por título ou resumo..."
