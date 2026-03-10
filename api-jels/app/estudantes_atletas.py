@@ -185,6 +185,7 @@ async def create_estudante_atleta(
     if not _validar_cpf(resp_cpf):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CPF do responsável inválido")
 
+    row = None
     try:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -221,7 +222,7 @@ async def create_estudante_atleta(
             ),
             )
             row = await cur.fetchone()
-        await conn.commit()
+            await conn.commit()
     except pg_errors.UniqueViolation as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
