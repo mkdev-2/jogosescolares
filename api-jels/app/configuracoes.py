@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
 
 # Chaves conhecidas de configuração (expandível no futuro)
-CHAVES_CONHECIDAS = {"cadastro_data_limite"}
+CHAVES_CONHECIDAS = {"cadastro_data_limite", "diretor_cadastro_alunos_data_limite"}
 
 
 def require_admin(current_user: dict) -> dict:
@@ -44,6 +44,23 @@ async def get_configuracoes_publico(
     return {"cadastro_data_limite": row["valor"] if row and row.get("valor") else None}
 
 
+@router.get("/app")
+async def get_configuracoes_app(
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna configurações para o app (usuário logado): ex. prazo para diretor cadastrar alunos."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT valor FROM configuracoes WHERE chave = %s",
+            ("diretor_cadastro_alunos_data_limite",),
+        )
+        row = await cur.fetchone()
+    return {
+        "diretor_cadastro_alunos_data_limite": row["valor"] if row and row.get("valor") else None,
+    }
+
+
 @router.get("")
 async def get_configuracoes(
     conn: psycopg.AsyncConnection = Depends(get_db),
@@ -63,31 +80,49 @@ async def get_configuracoes(
     return result
 
 
+def _normalize_data_limite(value: Optional[str]) -> Optional[str]:
+    """Normaliza data YYYY-MM-DD ou retorna None."""
+    if value is None or not str(value).strip():
+        return None
+    return str(value).strip()[:10]
+
+
 @router.put("")
 async def update_configuracoes(
     payload: ConfiguracoesUpdate,
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Atualiza configurações (apenas SUPER_ADMIN/ADMIN). Body: { "cadastro_data_limite": "YYYY-MM-DD" ou null }."""
+    """Atualiza configurações (apenas SUPER_ADMIN/ADMIN). Body: cadastro_data_limite, diretor_cadastro_alunos_data_limite (YYYY-MM-DD ou null)."""
     require_admin(current_user)
 
-    cadastro_data_limite = payload.cadastro_data_limite
-
-    if cadastro_data_limite is not None and cadastro_data_limite.strip():
-        valor = cadastro_data_limite.strip()[:10]
-    else:
-        valor = None
+    updates = {}
+    if payload.cadastro_data_limite is not None:
+        updates["cadastro_data_limite"] = _normalize_data_limite(payload.cadastro_data_limite)
+    if payload.diretor_cadastro_alunos_data_limite is not None:
+        updates["diretor_cadastro_alunos_data_limite"] = _normalize_data_limite(
+            payload.diretor_cadastro_alunos_data_limite
+        )
 
     async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            INSERT INTO configuracoes (chave, valor)
-            VALUES ('cadastro_data_limite', %s)
-            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor
-            """,
-            (valor,),
-        )
+        for chave, valor in updates.items():
+            await cur.execute(
+                """
+                INSERT INTO configuracoes (chave, valor)
+                VALUES (%s, %s)
+                ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor
+                """,
+                (chave, valor),
+            )
         await conn.commit()
 
-    return {"cadastro_data_limite": valor}
+    result = {chave: None for chave in CHAVES_CONHECIDAS}
+    result.update(updates)
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(CHAVES_CONHECIDAS),),
+        )
+        for row in await cur.fetchall():
+            result[row["chave"]] = row["valor"]
+    return result

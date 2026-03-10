@@ -2,6 +2,8 @@
 Roteador de estudantes-atletas: listagem e criação por escola do usuário.
 """
 import logging
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 from psycopg import errors as pg_errors
@@ -149,6 +151,27 @@ async def create_estudante_atleta(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Cria estudante-atleta na escola do usuário logado. escola_id é herdado do token."""
+    # Verificar data limite para diretor/coordenador cadastrar alunos
+    if not is_admin(current_user):
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT valor FROM configuracoes WHERE chave = %s",
+                ("diretor_cadastro_alunos_data_limite",),
+            )
+            row = await cur.fetchone()
+        limit_val = row["valor"] if row and row.get("valor") else None
+        if limit_val:
+            limit_str = str(limit_val).strip()[:10]
+            try:
+                limit_date = date.fromisoformat(limit_str)
+                if date.today() > limit_date:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="O prazo para cadastro de novos alunos foi encerrado.",
+                    )
+            except ValueError:
+                pass
+
     escola_id = current_user["escola_id"]
     cpf_clean = "".join(filter(str.isdigit, data.cpf))
     if len(cpf_clean) != 11:

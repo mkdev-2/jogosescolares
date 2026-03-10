@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Alert } from 'antd'
 import { Users, GraduationCap, UsersRound, Building2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import useEstudantes from '../hooks/useEstudantes'
@@ -7,6 +8,7 @@ import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEquipes from '../hooks/useEquipes'
 import useEscolas from '../hooks/useEscolas'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
+import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import ProfessoresTecnicosList from '../components/catalogos/ProfessoresTecnicosList'
 import EquipesList from '../components/catalogos/EquipesList'
@@ -57,6 +59,7 @@ export default function Gestao() {
   const { lista: listaEscolas, loading: loadingEscolas, error: errorEscolas, fetchEscolas } = useEscolas()
   const temEscola = !!user?.escola_id
   const { variantes } = useEsporteVariantes(null, { minhaEscola: temEscola })
+  const { bloqueado: cadastroAlunosBloqueado } = usePrazoCadastroAlunos()
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,11 +101,20 @@ export default function Gestao() {
         <div className="p-6">
           {activeTab === 'alunos' && (
             <>
+              {cadastroAlunosBloqueado && (
+                <Alert
+                  type="warning"
+                  message="Prazo encerrado"
+                  description="O prazo para cadastro de novos alunos foi encerrado. Não é possível incluir novos estudantes-atletas."
+                  showIcon
+                  className="mb-4"
+                />
+              )}
               <EstudantesList
                 lista={listaEstudantes}
                 loading={loadingEstudantes}
                 error={errorEstudantes}
-                onNewAluno={() => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) }}
+                onNewAluno={cadastroAlunosBloqueado ? undefined : () => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) }}
                 onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
                 onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
                 onViewAluno={(item) => setEstudanteParaVer(item)}

@@ -30,6 +30,13 @@ export const configuracoesService = {
     return data?.cadastro_data_limite ?? null
   },
 
+  /** Configurações para o app (usuário logado): ex. prazo para diretor cadastrar alunos. */
+  async getApp() {
+    const res = await apiFetch(`${BASE}/app`)
+    const data = await handleResponse(res, 'Erro ao verificar configurações')
+    return data
+  },
+
   async update(payload) {
     const res = await apiFetch(BASE, {
       method: 'PUT',

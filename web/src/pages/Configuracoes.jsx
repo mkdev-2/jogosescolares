@@ -8,6 +8,7 @@ const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 
 export default function Configuracoes({ embedded }) {
   const [cadastroDataLimite, setCadastroDataLimite] = useState('')
+  const [diretorCadastroAlunosDataLimite, setDiretorCadastroAlunosDataLimite] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
@@ -22,6 +23,8 @@ export default function Configuracoes({ embedded }) {
         if (!cancelled) {
           const val = data?.cadastro_data_limite ?? ''
           setCadastroDataLimite(typeof val === 'string' ? val : '')
+          const val2 = data?.diretor_cadastro_alunos_data_limite ?? ''
+          setDiretorCadastroAlunosDataLimite(typeof val2 === 'string' ? val2 : '')
         }
       })
       .catch((err) => {
@@ -41,6 +44,7 @@ export default function Configuracoes({ embedded }) {
     setSaving(true)
     const payload = {
       cadastro_data_limite: cadastroDataLimite.trim() || null,
+      diretor_cadastro_alunos_data_limite: diretorCadastroAlunosDataLimite.trim() || null,
     }
     configuracoesService
       .update(payload)
@@ -94,6 +98,23 @@ export default function Configuracoes({ embedded }) {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Deixe em branco para não ter limite. Após esta data, o envio do formulário de /cadastro poderá ser bloqueado.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="diretor_cadastro_alunos_data_limite" className={labelClass}>
+                Data limite para diretor cadastrar alunos
+              </label>
+              <DatePicker
+                id="diretor_cadastro_alunos_data_limite"
+                value={diretorCadastroAlunosDataLimite ? dayjs(diretorCadastroAlunosDataLimite) : null}
+                onChange={(date) => setDiretorCadastroAlunosDataLimite(date ? date.format('YYYY-MM-DD') : '')}
+                format={['DD/MM/YYYY', 'DDMMYYYY']}
+                placeholder="DD/MM/AAAA ou DDMMAAAA"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Deixe em branco para não ter limite. Após esta data, diretor e coordenador não poderão cadastrar novos alunos.
               </p>
             </div>
 

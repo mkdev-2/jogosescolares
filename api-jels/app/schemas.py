@@ -356,6 +356,7 @@ class SolicitacaoResponse(BaseModel):
 class ConfiguracoesUpdate(BaseModel):
     """Schema para atualização de configurações (datas e prazos)."""
     cadastro_data_limite: Optional[str] = Field(None, description="Data limite para envio do formulário de cadastro (YYYY-MM-DD) ou null para sem limite")
+    diretor_cadastro_alunos_data_limite: Optional[str] = Field(None, description="Data limite para diretor/coordenador cadastrar alunos (YYYY-MM-DD) ou null para sem limite")
 
 
 # ========== ESTUDANTES ATLETAS ==========

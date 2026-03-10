@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { Alert } from 'antd'
 import useEstudantes from '../hooks/useEstudantes'
+import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
 
 export default function CadastroEstudanteAtleta() {
   const { lista, loading, error, fetchEstudantes } = useEstudantes()
+  const { bloqueado: cadastroAlunosBloqueado } = usePrazoCadastroAlunos()
   const [modalOpen, setModalOpen] = useState(false)
 
   const handleNewAluno = () => {
@@ -31,12 +34,21 @@ export default function CadastroEstudanteAtleta() {
         </p>
       </header>
 
+      {cadastroAlunosBloqueado && (
+        <Alert
+          type="warning"
+          message="Prazo encerrado"
+          description="O prazo para cadastro de novos alunos foi encerrado. Não é possível incluir novos estudantes-atletas."
+          showIcon
+        />
+      )}
+
       <div className="flex-1">
         <EstudantesList
           lista={lista}
           loading={loading}
           error={error}
-          onNewAluno={handleNewAluno}
+          onNewAluno={cadastroAlunosBloqueado ? undefined : handleNewAluno}
         />
       </div>
 
