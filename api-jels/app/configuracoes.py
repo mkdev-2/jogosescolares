@@ -68,15 +68,14 @@ async def get_configuracoes(
 ):
     """Retorna as configurações (apenas SUPER_ADMIN/ADMIN)."""
     require_admin(current_user)
+    result = {chave: None for chave in CHAVES_CONHECIDAS}
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
             (list(CHAVES_CONHECIDAS),),
         )
-        rows = await cur.fetchall()
-    result = {chave: None for chave in CHAVES_CONHECIDAS}
-    for row in rows:
-        result[row["chave"]] = row["valor"]
+        async for row in cur:
+            result[row["chave"]] = row["valor"]
     return result
 
 
@@ -114,15 +113,14 @@ async def update_configuracoes(
                 """,
                 (chave, valor),
             )
-        await conn.commit()
+    await conn.commit()
 
     result = {chave: None for chave in CHAVES_CONHECIDAS}
-    result.update(updates)
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
             (list(CHAVES_CONHECIDAS),),
         )
-        for row in await cur.fetchall():
+        async for row in cur:
             result[row["chave"]] = row["valor"]
     return result

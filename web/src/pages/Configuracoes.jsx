@@ -48,8 +48,12 @@ export default function Configuracoes({ embedded }) {
     }
     configuracoesService
       .update(payload)
-      .then(() => {
+      .then((data) => {
         setMessage({ type: 'success', text: 'Configurações salvas com sucesso.' })
+        if (data) {
+          setCadastroDataLimite(typeof data.cadastro_data_limite === 'string' ? data.cadastro_data_limite : '')
+          setDiretorCadastroAlunosDataLimite(typeof data.diretor_cadastro_alunos_data_limite === 'string' ? data.diretor_cadastro_alunos_data_limite : '')
+        }
       })
       .catch((err) => {
         setMessage({ type: 'error', text: err.message || 'Erro ao salvar.' })
