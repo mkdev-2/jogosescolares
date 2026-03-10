@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Calendar } from 'lucide-react'
 import { DatePicker, Button } from 'antd'
 import dayjs from 'dayjs'
@@ -25,6 +25,16 @@ function Configuracoes({ embedded }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  // Refs guardam o valor atual do campo no submit (evita estado desatualizado ao clicar Salvar)
+  const refCadastro = useRef('')
+  const refDiretor = useRef('')
+
+  useEffect(() => {
+    refCadastro.current = cadastroDataLimite
+  }, [cadastroDataLimite])
+  useEffect(() => {
+    refDiretor.current = diretorCadastroAlunosDataLimite
+  }, [diretorCadastroAlunosDataLimite])
 
   useEffect(() => {
     let cancelled = false
@@ -34,8 +44,12 @@ function Configuracoes({ embedded }) {
       .get()
       .then((data) => {
         if (!cancelled && data) {
-          setCadastroDataLimite(toDateStr(data.cadastro_data_limite))
-          setDiretorCadastroAlunosDataLimite(toDateStr(data.diretor_cadastro_alunos_data_limite))
+          const v1 = toDateStr(data.cadastro_data_limite)
+          const v2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
+          setCadastroDataLimite(v1)
+          setDiretorCadastroAlunosDataLimite(v2)
+          refCadastro.current = v1
+          refDiretor.current = v2
         }
       })
       .catch((err) => {
@@ -53,23 +67,32 @@ function Configuracoes({ embedded }) {
     e.preventDefault()
     setMessage({ type: '', text: '' })
     setSaving(true)
+    // Usar refs para ter o valor mais recente no momento do clique (estado pode estar um tick atrás)
+    const v1 = (refCadastro.current || '').trim() || null
+    const v2 = (refDiretor.current || '').trim() || null
     const payload = {
-      cadastro_data_limite: cadastroDataLimite.trim() || null,
-      diretor_cadastro_alunos_data_limite: diretorCadastroAlunosDataLimite.trim() || null,
+      cadastro_data_limite: v1,
+      diretor_cadastro_alunos_data_limite: v2,
     }
     configuracoesService
       .update(payload)
       .then((data) => {
         setMessage({ type: 'success', text: 'Configurações salvas com sucesso.' })
         if (data) {
-          setCadastroDataLimite(toDateStr(data.cadastro_data_limite))
-          setDiretorCadastroAlunosDataLimite(toDateStr(data.diretor_cadastro_alunos_data_limite))
+          const d1 = toDateStr(data.cadastro_data_limite)
+          const d2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
+          setCadastroDataLimite(d1)
+          setDiretorCadastroAlunosDataLimite(d2)
+          refCadastro.current = d1
+          refDiretor.current = d2
         }
-        // Rebuscar do servidor para garantir que o estado reflete o que está persistido (ex.: após atualizar a página)
-        configuracoesService.get().then((fresh) => {
+        // Rebuscar com cache-bust (não encadeia na promise para não mascarar erro do PUT)
+        configuracoesService.getNoCache().then((fresh) => {
           if (fresh) {
             setCadastroDataLimite(toDateStr(fresh.cadastro_data_limite))
             setDiretorCadastroAlunosDataLimite(toDateStr(fresh.diretor_cadastro_alunos_data_limite))
+            refCadastro.current = toDateStr(fresh.cadastro_data_limite)
+            refDiretor.current = toDateStr(fresh.diretor_cadastro_alunos_data_limite)
           }
         }).catch(() => {})
       })
@@ -113,7 +136,11 @@ function Configuracoes({ embedded }) {
               <DatePicker
                 id="cadastro_data_limite"
                 value={cadastroDataLimite ? dayjs(cadastroDataLimite) : null}
-                onChange={(date) => setCadastroDataLimite(date ? date.format('YYYY-MM-DD') : '')}
+                onChange={(date) => {
+                  const val = date ? date.format('YYYY-MM-DD') : ''
+                  setCadastroDataLimite(val)
+                  refCadastro.current = val
+                }}
                 format={['DD/MM/YYYY', 'DDMMYYYY']}
                 placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"
@@ -130,7 +157,11 @@ function Configuracoes({ embedded }) {
               <DatePicker
                 id="diretor_cadastro_alunos_data_limite"
                 value={diretorCadastroAlunosDataLimite ? dayjs(diretorCadastroAlunosDataLimite) : null}
-                onChange={(date) => setDiretorCadastroAlunosDataLimite(date ? date.format('YYYY-MM-DD') : '')}
+                onChange={(date) => {
+                  const val = date ? date.format('YYYY-MM-DD') : ''
+                  setDiretorCadastroAlunosDataLimite(val)
+                  refDiretor.current = val
+                }}
                 format={['DD/MM/YYYY', 'DDMMYYYY']}
                 placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"

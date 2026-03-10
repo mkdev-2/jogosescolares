@@ -23,6 +23,13 @@ export const configuracoesService = {
     return data
   },
 
+  /** GET sem cache (query ?_t=...) para refetch após salvar. */
+  async getNoCache() {
+    const res = await apiFetch(`${BASE}?_t=${Date.now()}`)
+    const data = await handleResponse(res, 'Erro ao carregar configurações')
+    return data
+  },
+
   /** Data limite de cadastro (público, para formulário de adesão). */
   async getCadastroDataLimite() {
     const res = await apiFetch(`${BASE}/publico`)

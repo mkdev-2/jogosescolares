@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 import psycopg
 
 from app.auth import get_current_user
@@ -76,7 +77,10 @@ async def get_configuracoes(
         )
         async for row in cur:
             result[row["chave"]] = _valor_para_resposta(row["valor"])
-    return result
+    return JSONResponse(
+        content=result,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 def _normalize_data_limite(value: Optional[str]) -> Optional[str]:
