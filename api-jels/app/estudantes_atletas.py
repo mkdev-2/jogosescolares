@@ -219,8 +219,8 @@ async def create_estudante_atleta(
                 data.responsavel_email.strip(),
                 data.responsavel_nis.strip(),
             ),
-        )
-        row = await cur.fetchone()
+            )
+            row = await cur.fetchone()
         await conn.commit()
     except pg_errors.UniqueViolation as e:
         raise HTTPException(
