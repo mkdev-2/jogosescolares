@@ -15,14 +15,14 @@ function handleResponse(res, fallbackError = 'Erro ao processar requisição') {
 }
 
 export const authService = {
-  /** Atualiza nome, email e/ou foto do usuário autenticado (PATCH /auth/me). */
+  /** Atualiza nome, email e/ou foto do usuário autenticado (PUT /auth/me). Usa PUT para evitar 405 em proxies que bloqueiam PATCH. */
   async updateMe({ nome, email, foto_url }) {
     const payload = {}
     if (nome !== undefined) payload.nome = nome?.trim() ?? ''
     if (email !== undefined) payload.email = email?.trim() || null
     if (foto_url !== undefined) payload.foto_url = foto_url?.trim() || null
     const res = await apiFetch('/auth/me', {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(payload),
     })
     return handleResponse(res, 'Erro ao atualizar dados.')

@@ -321,12 +321,13 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 @router.patch("/me", response_model=UserMeResponse)
+@router.put("/me", response_model=UserMeResponse)
 async def update_me(
     data: UserUpdateMe,
     current_user: dict = Depends(get_current_user),
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
-    """Atualiza nome, email e/ou foto do usuário autenticado (minha conta)."""
+    """Atualiza nome, email e/ou foto do usuário autenticado (minha conta). Aceita PATCH e PUT."""
     updates = {}
     if data.nome is not None:
         updates["nome"] = data.nome.strip()
