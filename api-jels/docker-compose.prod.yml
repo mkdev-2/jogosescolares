@@ -92,7 +92,7 @@ services:
       dockerfile: Dockerfile
     container_name: jogosescolares-auth-service
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@jogosescolares-postgres:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_AUD: ${JWT_AUD}
       ALGORITHM: ${ALGORITHM}
@@ -100,7 +100,7 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
       CORS_ORIGINS: ${CORS_ORIGINS}
       AUTH_SERVICE_URL: https://auth-${DOMAIN}
-      MINIO_ENDPOINT: minio:9000
+      MINIO_ENDPOINT: jogosescolares-minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
@@ -217,7 +217,7 @@ services:
       /bin/sh -c "
       echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
       count=0;
-      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} || ! mc mb myminio/jogosescolares --ignore-existing; do
+      while ! mc alias set myminio http://jogosescolares-minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} || ! mc mb myminio/jogosescolares --ignore-existing; do
         count=$$((count+1));
         if [ $$count -ge 30 ]; then
            echo 'Falha ao logar no MinIO apos 60 segundos (Verifique credenciais ou apague o volume local)!';
