@@ -99,11 +99,14 @@ services:
     stdin_open: false
     tty: false
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jogosescolares}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jogosescolares_pass}
     entrypoint: >
       /bin/sh -c "
-      sleep 5;
-      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-jogosescolares} ${MINIO_ROOT_PASSWORD:-jogosescolares_pass};
+      mc alias set myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
       mc mb myminio/public --ignore-existing;
       mc mb myminio/private --ignore-existing;
       mc mb myminio/documents --ignore-existing;
