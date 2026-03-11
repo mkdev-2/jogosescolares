@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Input, Button, Popconfirm } from 'antd'
+import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical } from 'lucide-react'
+import { Input, Button, Popconfirm, Popover } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
+import { getStorageUrl } from '../../services/storageService'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
 
@@ -160,7 +161,16 @@ export default function EstudantesList({
                         </td>
                       )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
-                        {item.nome}
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full overflow-hidden bg-[#e2e8f0] flex items-center justify-center shrink-0">
+                            {item.foto_url ? (
+                              <img src={getStorageUrl(item.foto_url)} alt={item.nome} className="w-full h-full object-cover" />
+                            ) : (
+                              <User size={16} className="text-[#94a3b8]" />
+                            )}
+                          </div>
+                          <span>{item.nome}</span>
+                        </div>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {estudantesService.formatCpf(item.cpf)}
@@ -182,36 +192,54 @@ export default function EstudantesList({
                           className="px-5 py-4 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex justify-end gap-2">
-                            {onEditAluno && (
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                                onClick={() => onEditAluno(item)}
-                                title="Editar aluno"
-                              >
-                                <Pencil size={18} />
-                              </button>
-                            )}
-                            {onDeleteAluno && (
-                              <Popconfirm
-                                title="Excluir aluno"
-                                description={`Excluir "${item.nome}"? O aluno não poderá ser excluído se estiver vinculado a equipes.`}
-                                onConfirm={() => onDeleteAluno(item)}
-                                okText="Sim, excluir"
-                                cancelText="Cancelar"
-                                okButtonProps={{ danger: true }}
-                              >
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                                  title="Excluir aluno"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </Popconfirm>
-                            )}
-                          </div>
+                          <Popover
+                            placement="bottomRight"
+                            trigger="click"
+                            content={
+                              <div className="flex flex-col min-w-[120px]">
+                                {onEditAluno && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => {
+                                      // close popover automatically by letting onClick propagate isn't easy here without a wrapper that holds state or clicking body
+                                      // ant popover closes when we click out.
+                                      onEditAluno(item)
+                                    }}
+                                  >
+                                    <Pencil size={16} />
+                                    Editar
+                                  </button>
+                                )}
+                                {onDeleteAluno && (
+                                  <Popconfirm
+                                    title="Excluir aluno"
+                                    description={`Excluir "${item.nome}"? O aluno não poderá ser excluído se estiver vinculado a equipes.`}
+                                    onConfirm={() => onDeleteAluno(item)}
+                                    okText="Sim, excluir"
+                                    cancelText="Cancelar"
+                                    okButtonProps={{ danger: true }}
+                                    placement="left"
+                                  >
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#dc2626] hover:bg-[#fef2f2] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full mt-1"
+                                    >
+                                      <Trash2 size={16} />
+                                      Excluir
+                                    </button>
+                                  </Popconfirm>
+                                )}
+                              </div>
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9] bg-transparent cursor-pointer"
+                            >
+                              <MoreVertical size={20} />
+                            </button>
+                          </Popover>
                         </td>
                       )}
                     </tr>

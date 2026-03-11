@@ -58,10 +58,9 @@ function isValidCpf(cpf) {
 }
 
 const STEP_KEYS = {
-  instituicao: 0,
-  estudante: 1,
-  responsavel: 2,
-  assinaturas: 3,
+  estudante: 0,
+  responsavel: 1,
+  assinaturas: 2,
 }
 
 function validateStep(step, form) {
@@ -121,7 +120,6 @@ function maskCelular(value) {
 }
 
 const STEP_ITEMS = [
-  { title: 'Instituição e foto' },
   { title: 'Dados do estudante' },
   { title: 'Responsável' },
   { title: 'Assinaturas e documentação' },
@@ -195,7 +193,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
           })
           setCurrentStep(0)
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingEstudante(false))
     } else {
       setLoadingEstudante(false)
@@ -341,8 +339,12 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     <Modal
       isOpen={open}
       onClose={handleClose}
-      title={estudante ? 'Editar aluno' : 'Novo aluno'}
-      subtitle={estudante ? 'Altere os dados do estudante e do responsável' : 'Preencha os dados em etapas'}
+      title={estudante ? form.nome || estudante.nome || 'Editar aluno' : 'Novo aluno'}
+      subtitle={
+        estudante
+          ? (nomeInstituicaoExibido ? `${nomeInstituicaoExibido}${inepInstituicaoExibido ? ` - ${inepInstituicaoExibido}` : ''}` : 'Altere os dados do estudante e do responsável')
+          : 'Preencha os dados em etapas'
+      }
       size="xl"
       footer={
         <div className="flex justify-between gap-3">
@@ -374,315 +376,283 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         {loadingEstudante ? (
           <div className="py-8 text-center text-[#64748b] text-sm">Carregando dados do aluno...</div>
         ) : (
-        <>
-        <Steps current={currentStep} items={STEP_ITEMS} className="mb-6" size="small" />
+          <>
+            <Steps current={currentStep} items={STEP_ITEMS} className="mb-6" size="small" />
 
-        {submitError && (
-          <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
-            {submitError}
-          </div>
-        )}
+            {submitError && (
+              <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
+                {submitError}
+              </div>
+            )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 0: Instituição + Foto */}
-          {currentStep === 0 && (
-          <div className="space-y-6">
-            <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
-                <School className="w-4 h-4 text-[#64748b]" />
-                Instituição
-              </h3>
-            </div>
-            <div>
-              <label className={labelClass}>Nome da instituição</label>
-              <Input
-                value={nomeInstituicaoExibido}
-                readOnly
-                placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com a escola do coordenador'}
-                className="bg-[#f8fafc]"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>INEP da instituição</label>
-              <Input
-                value={inepInstituicaoExibido}
-                readOnly
-                placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com o INEP do coordenador'}
-                className="bg-[#f8fafc]"
-              />
-              <p className="text-sm text-[#64748b] mt-1 m-0">Preenchido automaticamente com o INEP do coordenador.</p>
-            </div>
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Step 0: Dados do Estudante e Foto */}
+              {currentStep === 0 && (
+                <div className="space-y-6 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-6 items-start">
+                    {/* Elemento Fotográfico */}
+                    <div className="flex-shrink-0 flex flex-col items-center">
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingFoto}
+                        className="w-32 h-32 rounded-full border-2 border-dashed border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-center overflow-hidden hover:border-[#0f766e] hover:bg-[#f0fdfa] transition-colors disabled:opacity-60 mb-2 relative group"
+                      >
+                        {form.fotoUrl ? (
+                          <>
+                            <img src={getStorageUrl(form.fotoUrl)} alt="Foto do Estudante" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Camera className="w-6 h-6 text-white" />
+                            </div>
+                          </>
+                        ) : uploadingFoto ? (
+                          <span className="text-xs text-[#64748b] font-medium">Buscando...</span>
+                        ) : (
+                          <Camera className="w-10 h-10 text-[#94a3b8]" />
+                        )}
+                      </button>
+                      <p className="text-xs text-[#64748b] text-center w-32 m-0">
+                        {form.fotoUrl ? 'Clique para alterar' : 'A foto será obrigatória para o crachá'}
+                      </p>
+                    </div>
 
-          {/* Foto do Aluno */}
-          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-              <h3 className="text-base font-semibold text-[#042f2e] m-0">Foto do Aluno</h3>
-            </div>
-            <div className="flex items-center gap-4">
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFotoChange} className="hidden" />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFoto}
-                className="flex-shrink-0 w-24 h-24 rounded-full border-2 border-dashed border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-center overflow-hidden hover:border-[#0f766e] hover:bg-[#f0fdfa] transition-colors disabled:opacity-60"
-              >
-                {form.fotoUrl ? (
-                  <img src={getStorageUrl(form.fotoUrl)} alt="Foto" className="w-full h-full object-cover" />
-                ) : uploadingFoto ? (
-                  <span className="text-xs text-[#64748b]">Enviando...</span>
-                ) : (
-                  <Camera className="w-10 h-10 text-[#94a3b8]" />
-                )}
-              </button>
-              <div>
-                <p className="text-sm text-[#64748b] m-0">
-                  {form.fotoUrl ? 'Clique para trocar a foto' : 'Clique para enviar uma foto do aluno'}
-                </p>
-                <p className="text-xs text-[#94a3b8] mt-1 m-0">Formatos: JPG, PNG. Máximo: 5MB.</p>
-                <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-                  <TriangleAlert size={14} className="shrink-0 text-amber-600" />
-                  O Upload de foto do aluno é opcional por enquanto, mas será OBRIGATÓRIO para a emissão dos crachás dos atletas no início do evento.
-                </span>
-              </div>
-            </div>
-          </div>
-          </div>
-          )}
+                    {/* Inputs Básicos do grid (Nome, CPF...) agrupados à direita se tela grande */}
+                    <div className="flex-grow w-full space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+                        <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
+                          <User className="w-4 h-4 text-[#64748b]" />
+                          Dados Principais
+                        </h3>
+                      </div>
 
-          {/* Step 1: Dados do Estudante */}
-          {currentStep === 1 && (
-          <div className="space-y-4 border-t-0 pt-0">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
-                <User className="w-4 h-4 text-[#64748b]" />
-                Dados do Estudante
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label htmlFor="modal-nome" className={labelClass}>Nome *</label>
-                <Input id="modal-nome" value={form.nome} onChange={(e) => updateField('nome', e.target.value)} placeholder="Nome completo" status={errors.nome ? 'error' : undefined} />
-                {errors.nome && <p className={errorClass}>{errors.nome}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-cpf" className={labelClass}>CPF *</label>
-                <Input id="modal-cpf" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.cpf ? 'error' : undefined} />
-                {errors.cpf && <p className={errorClass}>{errors.cpf}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-rg" className={labelClass}>RG *</label>
-                <Input id="modal-rg" inputMode="numeric" value={form.rg} onChange={(e) => updateField('rg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Número do RG (apenas dígitos)" maxLength={15} status={errors.rg ? 'error' : undefined} />
-                {errors.rg && <p className={errorClass}>{errors.rg}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-dataNascimento" className={labelClass}>Data de Nascimento *</label>
-                <DatePicker
-                  id="modal-dataNascimento"
-                  value={form.dataNascimento ? dayjs(form.dataNascimento) : null}
-                  onChange={(date) => updateField('dataNascimento', date ? date.format('YYYY-MM-DD') : '')}
-                  format={['DD/MM/YYYY', 'DDMMYYYY']}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full"
-                  status={errors.dataNascimento ? 'error' : undefined}
-                />
-                {errors.dataNascimento && <p className={errorClass}>{errors.dataNascimento}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-sexo" className={labelClass}>Sexo *</label>
-                <Select
-                  id="modal-sexo"
-                  value={form.sexo || undefined}
-                  onChange={(v) => updateField('sexo', v)}
-                  placeholder="Selecione"
-                  options={SEXO_OPCOES}
-                  className="w-full"
-                  status={errors.sexo ? 'error' : undefined}
-                />
-                {errors.sexo && <p className={errorClass}>{errors.sexo}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-email" className={labelClass}>E-mail *</label>
-                <Input id="modal-email" type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="email@exemplo.com" status={errors.email ? 'error' : undefined} />
-                {errors.email && <p className={errorClass}>{errors.email}</p>}
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="modal-endereco" className={labelClass}>Endereço *</label>
-                <Input id="modal-endereco" value={form.endereco} onChange={(e) => updateField('endereco', e.target.value)} placeholder="Rua, número, complemento" status={errors.endereco ? 'error' : undefined} />
-                {errors.endereco && <p className={errorClass}>{errors.endereco}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-cep" className={labelClass}>CEP *</label>
-                <Input id="modal-cep" inputMode="numeric" value={form.cep} onChange={(e) => updateField('cep', maskCep(e.target.value))} placeholder="00000-000" maxLength={9} status={errors.cep ? 'error' : undefined} />
-                {errors.cep && <p className={errorClass}>{errors.cep}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-numeroRegistroConfederacao" className={labelClass}>Nº Registro da Conf. (opcional)</label>
-                <Input id="modal-numeroRegistroConfederacao" value={form.numeroRegistroConfederacao} onChange={(e) => updateField('numeroRegistroConfederacao', e.target.value.slice(0, 20))} placeholder="Máx. 20 caracteres" maxLength={20} status={errors.numeroRegistroConfederacao ? 'error' : undefined} />
-                {errors.numeroRegistroConfederacao && <p className={errorClass}>{errors.numeroRegistroConfederacao}</p>}
-              </div>
-            </div>
-          </div>
-          )}
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-x-4 gap-y-5">
+                        <div className="sm:col-span-8">
+                          <label htmlFor="modal-nome" className={labelClass}>Nome Completo *</label>
+                          <Input id="modal-nome" value={form.nome} onChange={(e) => updateField('nome', e.target.value)} placeholder="Digite o nome completo do aluno" status={errors.nome ? 'error' : undefined} />
+                          {errors.nome && <p className={errorClass}>{errors.nome}</p>}
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label htmlFor="modal-cpf" className={labelClass}>CPF *</label>
+                          <Input id="modal-cpf" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.cpf ? 'error' : undefined} />
+                          {errors.cpf && <p className={errorClass}>{errors.cpf}</p>}
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label htmlFor="modal-rg" className={labelClass}>Identidade (RG) *</label>
+                          <Input id="modal-rg" inputMode="numeric" value={form.rg} onChange={(e) => updateField('rg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Número do RG" maxLength={15} status={errors.rg ? 'error' : undefined} />
+                          {errors.rg && <p className={errorClass}>{errors.rg}</p>}
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label htmlFor="modal-dataNascimento" className={labelClass}>Data de Nascimento *</label>
+                          <DatePicker
+                            id="modal-dataNascimento"
+                            value={form.dataNascimento ? dayjs(form.dataNascimento) : null}
+                            onChange={(date) => updateField('dataNascimento', date ? date.format('YYYY-MM-DD') : '')}
+                            format={['DD/MM/YYYY', 'DDMMYYYY']}
+                            placeholder="DD/MM/AAAA"
+                            className="w-full"
+                            status={errors.dataNascimento ? 'error' : undefined}
+                          />
+                          {errors.dataNascimento && <p className={errorClass}>{errors.dataNascimento}</p>}
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label htmlFor="modal-sexo" className={labelClass}>Sexo *</label>
+                          <Select
+                            id="modal-sexo"
+                            value={form.sexo || undefined}
+                            onChange={(v) => updateField('sexo', v)}
+                            placeholder="Selecione o sexo"
+                            options={SEXO_OPCOES}
+                            className="w-full"
+                            status={errors.sexo ? 'error' : undefined}
+                          />
+                          {errors.sexo && <p className={errorClass}>{errors.sexo}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* Step 2: Mãe / Responsável */}
-          {currentStep === 2 && (
-          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
-                <UserCircle className="w-4 h-4 text-[#64748b]" />
-                Mãe / Responsável
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label htmlFor="modal-responsavelNome" className={labelClass}>Nome *</label>
-                <Input id="modal-responsavelNome" value={form.responsavelNome} onChange={(e) => updateField('responsavelNome', e.target.value)} placeholder="Nome completo" status={errors.responsavelNome ? 'error' : undefined} />
-                {errors.responsavelNome && <p className={errorClass}>{errors.responsavelNome}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-responsavelCpf" className={labelClass}>CPF *</label>
-                <Input id="modal-responsavelCpf" inputMode="numeric" value={form.responsavelCpf} onChange={(e) => updateField('responsavelCpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.responsavelCpf ? 'error' : undefined} />
-                {errors.responsavelCpf && <p className={errorClass}>{errors.responsavelCpf}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-responsavelRg" className={labelClass}>RG *</label>
-                <Input id="modal-responsavelRg" inputMode="numeric" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Número do RG (apenas dígitos)" maxLength={15} status={errors.responsavelRg ? 'error' : undefined} />
-                {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-responsavelCelular" className={labelClass}>Celular *</label>
-                <Input id="modal-responsavelCelular" inputMode="numeric" value={form.responsavelCelular} onChange={(e) => updateField('responsavelCelular', maskCelular(e.target.value))} placeholder="(00) 00000-0000" maxLength={15} status={errors.responsavelCelular ? 'error' : undefined} />
-                {errors.responsavelCelular && <p className={errorClass}>{errors.responsavelCelular}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-responsavelEmail" className={labelClass}>E-mail *</label>
-                <Input id="modal-responsavelEmail" type="email" value={form.responsavelEmail} onChange={(e) => updateField('responsavelEmail', e.target.value)} placeholder="email@exemplo.com" status={errors.responsavelEmail ? 'error' : undefined} />
-                {errors.responsavelEmail && <p className={errorClass}>{errors.responsavelEmail}</p>}
-              </div>
-              <div>
-                <label htmlFor="modal-responsavelNis" className={labelClass}>NIS *</label>
-                <Input id="modal-responsavelNis" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Número do NIS" maxLength={11} status={errors.responsavelNis ? 'error' : undefined} />
-                {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
-              </div>
-            </div>
-          </div>
-          )}
-
-          {/* Step 3: Assinaturas e documentação */}
-          {currentStep === 3 && (
-          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
-              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
-                <FileSignature className="w-4 h-4 text-[#64748b]" />
-                Confirmação de assinaturas
-              </h3>
-            </div>
-            <p className="text-sm text-[#64748b] m-0 mb-4">
-              Marque os itens abaixo para confirmar que as assinaturas foram obtidas na documentação.
-            </p>
-            <div className="space-y-3">
-              <Checkbox
-                checked={
-                  form.assinaturaEstudanteAtleta &&
-                  form.assinaturaResponsavelLegal &&
-                  form.assinaturaMedico &&
-                  form.assinaturaResponsavelInstituicao
-                }
-                indeterminate={
-                  [form.assinaturaEstudanteAtleta, form.assinaturaResponsavelLegal, form.assinaturaMedico, form.assinaturaResponsavelInstituicao].some(Boolean) &&
-                  !(form.assinaturaEstudanteAtleta && form.assinaturaResponsavelLegal && form.assinaturaMedico && form.assinaturaResponsavelInstituicao)
-                }
-                onChange={(e) => {
-                  const v = e.target.checked
-                  setForm((prev) => ({
-                    ...prev,
-                    assinaturaEstudanteAtleta: v,
-                    assinaturaResponsavelLegal: v,
-                    assinaturaMedico: v,
-                    assinaturaResponsavelInstituicao: v,
-                  }))
-                }}
-              >
-                Marcar todas
-              </Checkbox>
-              <Checkbox
-                checked={form.assinaturaEstudanteAtleta}
-                onChange={(e) => updateField('assinaturaEstudanteAtleta', e.target.checked)}
-              >
-                Assinatura do estudante-atleta
-              </Checkbox>
-              <Checkbox
-                checked={form.assinaturaResponsavelLegal}
-                onChange={(e) => updateField('assinaturaResponsavelLegal', e.target.checked)}
-              >
-                Assinatura do responsável legal
-              </Checkbox>
-              <Checkbox
-                checked={form.assinaturaMedico}
-                onChange={(e) => updateField('assinaturaMedico', e.target.checked)}
-              >
-                Assinatura do médico
-              </Checkbox>
-              <Checkbox
-                checked={form.assinaturaResponsavelInstituicao}
-                onChange={(e) => updateField('assinaturaResponsavelInstituicao', e.target.checked)}
-              >
-                Assinatura do responsável da instituição de ensino
-              </Checkbox>
-            </div>
-
-            <div className="border-t border-[#e2e8f0] pt-6 mt-6">
-              <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
-              <p className="text-sm text-[#64748b] mb-3 m-0">
-                Envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
-              </p>
-              <input
-                ref={docInputRef}
-                type="file"
-                accept={ACCEPT_DOC}
-                onChange={handleDocumentacaoChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => docInputRef.current?.click()}
-                disabled={uploadingDoc}
-                className="px-4 py-2 rounded-lg text-sm font-medium border border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#f0fdfa] hover:border-[#0f766e] transition-colors disabled:opacity-60"
-              >
-                {uploadingDoc ? 'Enviando...' : form.documentacaoAssinadaUrl ? 'Alterar anexo' : 'Selecionar arquivo'}
-              </button>
-              {form.documentacaoAssinadaUrl && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm text-[#0f766e]">Documento anexado.</span>
-                  <a
-                    href={getStorageUrl(form.documentacaoAssinadaUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-[#0f766e] hover:underline"
-                  >
-                    Abrir
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => updateField('documentacaoAssinadaUrl', '')}
-                    className="text-sm text-[#dc2626] hover:underline"
-                  >
-                    Remover
-                  </button>
+                  {/* Restante dos dados de Contato e Endereço */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-x-4 gap-y-5 mt-2">
+                    <div className="sm:col-span-6">
+                      <label htmlFor="modal-email" className={labelClass}>E-mail *</label>
+                      <Input id="modal-email" type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} placeholder="emaildoaluno@exemplo.com" status={errors.email ? 'error' : undefined} />
+                      {errors.email && <p className={errorClass}>{errors.email}</p>}
+                    </div>
+                    <div className="sm:col-span-6">
+                      <label htmlFor="modal-numeroRegistroConfederacao" className={labelClass}>Nº Registro na Confederação (Opcional)</label>
+                      <Input id="modal-numeroRegistroConfederacao" value={form.numeroRegistroConfederacao} onChange={(e) => updateField('numeroRegistroConfederacao', e.target.value.slice(0, 20))} placeholder="Ex: RJ12345" maxLength={20} status={errors.numeroRegistroConfederacao ? 'error' : undefined} />
+                      {errors.numeroRegistroConfederacao && <p className={errorClass}>{errors.numeroRegistroConfederacao}</p>}
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label htmlFor="modal-cep" className={labelClass}>CEP *</label>
+                      <Input id="modal-cep" inputMode="numeric" value={form.cep} onChange={(e) => updateField('cep', maskCep(e.target.value))} placeholder="00000-000" maxLength={9} status={errors.cep ? 'error' : undefined} />
+                      {errors.cep && <p className={errorClass}>{errors.cep}</p>}
+                    </div>
+                    <div className="sm:col-span-8">
+                      <label htmlFor="modal-endereco" className={labelClass}>Endereço Completo *</label>
+                      <Input id="modal-endereco" value={form.endereco} onChange={(e) => updateField('endereco', e.target.value)} placeholder="Rua, Número, Bairro, Complemento" status={errors.endereco ? 'error' : undefined} />
+                      {errors.endereco && <p className={errorClass}>{errors.endereco}</p>}
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
-          )}
-        </form>
-        </>
+
+              {/* Step 1: Mãe / Responsável */}
+              {currentStep === 1 && (
+                <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+                    <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
+                      <UserCircle className="w-4 h-4 text-[#64748b]" />
+                      Mãe / Responsável
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-x-4 gap-y-5">
+                    <div className="sm:col-span-8">
+                      <label htmlFor="modal-responsavelNome" className={labelClass}>Nome Completo do Responsável *</label>
+                      <Input id="modal-responsavelNome" value={form.responsavelNome} onChange={(e) => updateField('responsavelNome', e.target.value)} placeholder="Nome da mãe, pai ou responsável" status={errors.responsavelNome ? 'error' : undefined} />
+                      {errors.responsavelNome && <p className={errorClass}>{errors.responsavelNome}</p>}
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label htmlFor="modal-responsavelCpf" className={labelClass}>CPF *</label>
+                      <Input id="modal-responsavelCpf" inputMode="numeric" value={form.responsavelCpf} onChange={(e) => updateField('responsavelCpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.responsavelCpf ? 'error' : undefined} />
+                      {errors.responsavelCpf && <p className={errorClass}>{errors.responsavelCpf}</p>}
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label htmlFor="modal-responsavelRg" className={labelClass}>Identidade (RG) *</label>
+                      <Input id="modal-responsavelRg" inputMode="numeric" value={form.responsavelRg} onChange={(e) => updateField('responsavelRg', onlyDigits(e.target.value).slice(0, 15))} placeholder="Apenas os números" maxLength={15} status={errors.responsavelRg ? 'error' : undefined} />
+                      {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label htmlFor="modal-responsavelNis" className={labelClass}>Número do NIS *</label>
+                      <Input id="modal-responsavelNis" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Apenas 11 dígitos" maxLength={11} status={errors.responsavelNis ? 'error' : undefined} />
+                      {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label htmlFor="modal-responsavelCelular" className={labelClass}>Telefone Celular *</label>
+                      <Input id="modal-responsavelCelular" inputMode="numeric" value={form.responsavelCelular} onChange={(e) => updateField('responsavelCelular', maskCelular(e.target.value))} placeholder="(00) 90000-0000" maxLength={15} status={errors.responsavelCelular ? 'error' : undefined} />
+                      {errors.responsavelCelular && <p className={errorClass}>{errors.responsavelCelular}</p>}
+                    </div>
+                    <div className="sm:col-span-12">
+                      <label htmlFor="modal-responsavelEmail" className={labelClass}>E-mail do Responsável *</label>
+                      <Input id="modal-responsavelEmail" type="email" value={form.responsavelEmail} onChange={(e) => updateField('responsavelEmail', e.target.value)} placeholder="emaildoresponsavel@exemplo.com" status={errors.responsavelEmail ? 'error' : undefined} />
+                      {errors.responsavelEmail && <p className={errorClass}>{errors.responsavelEmail}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Assinaturas e documentação */}
+              {currentStep === 2 && (
+                <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+                    <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
+                      <FileSignature className="w-4 h-4 text-[#64748b]" />
+                      Confirmação de assinaturas
+                    </h3>
+                  </div>
+                  <p className="text-sm text-[#64748b] m-0 mb-4">
+                    Marque os itens abaixo para confirmar que as assinaturas foram obtidas na documentação.
+                  </p>
+                  <div className="space-y-3">
+                    <Checkbox
+                      checked={
+                        form.assinaturaEstudanteAtleta &&
+                        form.assinaturaResponsavelLegal &&
+                        form.assinaturaMedico &&
+                        form.assinaturaResponsavelInstituicao
+                      }
+                      indeterminate={
+                        [form.assinaturaEstudanteAtleta, form.assinaturaResponsavelLegal, form.assinaturaMedico, form.assinaturaResponsavelInstituicao].some(Boolean) &&
+                        !(form.assinaturaEstudanteAtleta && form.assinaturaResponsavelLegal && form.assinaturaMedico && form.assinaturaResponsavelInstituicao)
+                      }
+                      onChange={(e) => {
+                        const v = e.target.checked
+                        setForm((prev) => ({
+                          ...prev,
+                          assinaturaEstudanteAtleta: v,
+                          assinaturaResponsavelLegal: v,
+                          assinaturaMedico: v,
+                          assinaturaResponsavelInstituicao: v,
+                        }))
+                      }}
+                    >
+                      Marcar todas
+                    </Checkbox>
+                    <Checkbox
+                      checked={form.assinaturaEstudanteAtleta}
+                      onChange={(e) => updateField('assinaturaEstudanteAtleta', e.target.checked)}
+                    >
+                      Assinatura do estudante-atleta
+                    </Checkbox>
+                    <Checkbox
+                      checked={form.assinaturaResponsavelLegal}
+                      onChange={(e) => updateField('assinaturaResponsavelLegal', e.target.checked)}
+                    >
+                      Assinatura do responsável legal
+                    </Checkbox>
+                    <Checkbox
+                      checked={form.assinaturaMedico}
+                      onChange={(e) => updateField('assinaturaMedico', e.target.checked)}
+                    >
+                      Assinatura do médico
+                    </Checkbox>
+                    <Checkbox
+                      checked={form.assinaturaResponsavelInstituicao}
+                      onChange={(e) => updateField('assinaturaResponsavelInstituicao', e.target.checked)}
+                    >
+                      Assinatura do responsável da instituição de ensino
+                    </Checkbox>
+                  </div>
+
+                  <div className="border-t border-[#e2e8f0] pt-6 mt-6">
+                    <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
+                    <p className="text-sm text-[#64748b] mb-3 m-0">
+                      Envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
+                    </p>
+                    <input
+                      ref={docInputRef}
+                      type="file"
+                      accept={ACCEPT_DOC}
+                      onChange={handleDocumentacaoChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => docInputRef.current?.click()}
+                      disabled={uploadingDoc}
+                      className="px-4 py-2 rounded-lg text-sm font-medium border border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#f0fdfa] hover:border-[#0f766e] transition-colors disabled:opacity-60"
+                    >
+                      {uploadingDoc ? 'Enviando...' : form.documentacaoAssinadaUrl ? 'Alterar anexo' : 'Selecionar arquivo'}
+                    </button>
+                    {form.documentacaoAssinadaUrl && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm text-[#0f766e]">Documento anexado.</span>
+                        <a
+                          href={getStorageUrl(form.documentacaoAssinadaUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-[#0f766e] hover:underline"
+                        >
+                          Abrir
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => updateField('documentacaoAssinadaUrl', '')}
+                          className="text-sm text-[#dc2626] hover:underline"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </form>
+          </>
         )}
       </div>
     </Modal>
