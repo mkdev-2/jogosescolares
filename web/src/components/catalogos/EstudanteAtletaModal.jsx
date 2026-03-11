@@ -144,12 +144,23 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [loadingEstudante, setLoadingEstudante] = useState(false)
   const [instituicaoCarregada, setInstituicaoCarregada] = useState({ nome: '', inep: '' })
 
+  // Exibição: em edição usa instituicaoCarregada e fallback no estudante (lista) para garantir que nome/INEP apareçam
+  const nomeInstituicaoExibido = estudante
+    ? (instituicaoCarregada.nome || estudante.escola_nome || '').trim()
+    : nomeInstituicao
+  const inepInstituicaoExibido = estudante
+    ? (instituicaoCarregada.inep || (estudante.escola_inep != null && String(estudante.escola_inep).trim() !== '' ? String(estudante.escola_inep).trim() : '')).trim()
+    : inepInstituicao
+
   // Ao abrir para edição, carregar dados completos da API (inclui assinaturas e documentação)
   useEffect(() => {
     if (!open) return
     if (estudante?.id) {
       setForm(INITIAL_FORM)
-      setInstituicaoCarregada({ nome: '', inep: '' })
+      setInstituicaoCarregada({
+        nome: estudante.escola_nome ?? '',
+        inep: (estudante.escola_inep != null && String(estudante.escola_inep).trim() !== '') ? String(estudante.escola_inep).trim() : '',
+      })
       setLoadingEstudante(true)
       estudantesService
         .getById(estudante.id)
@@ -387,7 +398,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             <div>
               <label className={labelClass}>Nome da instituição</label>
               <Input
-                value={estudante ? instituicaoCarregada.nome : nomeInstituicao}
+                value={nomeInstituicaoExibido}
                 readOnly
                 placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com a escola do coordenador'}
                 className="bg-[#f8fafc]"
@@ -396,7 +407,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             <div>
               <label className={labelClass}>INEP da instituição</label>
               <Input
-                value={estudante ? instituicaoCarregada.inep : inepInstituicao}
+                value={inepInstituicaoExibido}
                 readOnly
                 placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com o INEP do coordenador'}
                 className="bg-[#f8fafc]"
