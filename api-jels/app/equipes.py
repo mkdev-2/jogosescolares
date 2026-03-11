@@ -238,11 +238,14 @@ async def create_equipe(
             await conn.rollback()
             raw_msg = str(exc)
             logger.warning("Erro ao vincular estudante em equipe (trigger): %s", raw_msg)
-            if "não pode ser cadastrado" in raw_msg:
+            if "já participa de uma modalidade" in raw_msg:
+                msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
+                detail = msg_limpa if msg_limpa else "Cada aluno pode participar de no máximo uma modalidade Individual e uma Coletiva."
+            elif "não pode ser cadastrado" in raw_msg:
                 msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
                 detail = msg_limpa if msg_limpa else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
             else:
-                detail = "Erro ao vincular estudantes. Verifique idade e naipe."
+                detail = "Erro ao vincular estudantes. Verifique idade, naipe e limite de modalidades (1 individual e 1 coletiva por aluno)."
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=detail,
@@ -352,10 +355,27 @@ async def update_equipe(
             )
         if "estudante_ids" in updates:
             await cur.execute("DELETE FROM equipe_estudantes WHERE equipe_id = %s", (equipe_id,))
-            for sid in updates["estudante_ids"]:
-                await cur.execute(
-                    "INSERT INTO equipe_estudantes (equipe_id, estudante_id) VALUES (%s, %s)",
-                    (equipe_id, sid),
+            try:
+                for sid in updates["estudante_ids"]:
+                    await cur.execute(
+                        "INSERT INTO equipe_estudantes (equipe_id, estudante_id) VALUES (%s, %s)",
+                        (equipe_id, sid),
+                    )
+            except Exception as exc:
+                await conn.rollback()
+                raw_msg = str(exc)
+                logger.warning("Erro ao vincular estudante em equipe (trigger) no update: %s", raw_msg)
+                if "já participa de uma modalidade" in raw_msg:
+                    msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
+                    detail = msg_limpa if msg_limpa else "Cada aluno pode participar de no máximo uma modalidade Individual e uma Coletiva."
+                elif "não pode ser cadastrado" in raw_msg:
+                    msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
+                    detail = msg_limpa if msg_limpa else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
+                else:
+                    detail = "Erro ao vincular estudantes. Verifique idade, naipe e limite de modalidades (1 individual e 1 coletiva por aluno)."
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=detail,
                 )
         await conn.commit()
 
