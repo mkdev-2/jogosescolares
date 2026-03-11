@@ -412,7 +412,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                 className="flex-shrink-0 w-24 h-24 rounded-full border-2 border-dashed border-[#e2e8f0] bg-[#f8fafc] flex items-center justify-center overflow-hidden hover:border-[#0f766e] hover:bg-[#f0fdfa] transition-colors disabled:opacity-60"
               >
                 {form.fotoUrl ? (
-                  <img src={form.fotoUrl} alt="Foto" className="w-full h-full object-cover" />
+                  <img src={getStorageUrl(form.fotoUrl)} alt="Foto" className="w-full h-full object-cover" />
                 ) : uploadingFoto ? (
                   <span className="text-xs text-[#64748b]">Enviando...</span>
                 ) : (
