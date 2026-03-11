@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { School, Search, CheckCircle, Loader2, XCircle, Building2, User, Users, Trophy, CheckCircle2, XOctagon } from 'lucide-react'
+import { School, Search, CheckCircle, Loader2, XCircle, Building2, User, Users, Trophy, CheckCircle2, XOctagon, Eye } from 'lucide-react'
 import { Popconfirm, Input } from 'antd'
 import { escolasService } from '../services/escolasService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
@@ -239,42 +239,14 @@ export default function UsuariosPendentes({ embedded }) {
                           {a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '-'}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Popconfirm
-                              title="Negar solicitação"
-                              description="Confirma que deseja negar esta solicitação? Os dados não serão cadastrados no sistema."
-                              onConfirm={() => handleNegar(a.id)}
-                              okText="Sim, negar"
-                              cancelText="Cancelar"
-                              okButtonProps={{ danger: true }}
-                            >
-                              <button
-                                type="button"
-                                disabled={aprovandoId === a.id || negandoId === a.id}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                {negandoId === a.id ? (
-                                  <Loader2 size={16} className="animate-spin" />
-                                ) : (
-                                  <XCircle size={16} />
-                                )}
-                                Negar
-                              </button>
-                            </Popconfirm>
-                            <button
-                              type="button"
-                              disabled={aprovandoId === a.id || negandoId === a.id}
-                              onClick={() => setModalSolicitacao(a)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              {aprovandoId === a.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <CheckCircle size={16} />
-                              )}
-                              Aprovar
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setModalSolicitacao(a)}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-sm font-semibold border border-[#0f766e] text-[#0f766e] hover:bg-teal-50"
+                          >
+                            <Eye size={16} />
+                            Ver detalhes
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -399,6 +371,9 @@ export default function UsuariosPendentes({ embedded }) {
       >
         {modalSolicitacao && (
           <div className="space-y-4">
+            <p className="text-[0.875rem] text-[#64748b] m-0 -mt-1 mb-1">
+              Revise todas as informações enviadas no formulário de cadastro e decida por aprovar ou negar a solicitação.
+            </p>
             {modalSolicitacao.created_at && (
               <p className="text-[0.8125rem] text-[#64748b] m-0 -mt-2 mb-2">
                 Solicitado em {new Date(modalSolicitacao.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
