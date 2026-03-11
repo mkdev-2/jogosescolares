@@ -2,6 +2,7 @@ import { apiFetch, API_SERVICE_URL } from '../config/api'
 
 const BUCKET = 'jogosescolares'
 const FOTOS_PATH = 'estudantes'
+const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
 
 /**
@@ -47,6 +48,17 @@ export function getStorageUrl(path) {
 export async function uploadFotoEstudante(file) {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${FOTOS_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload de foto de perfil do usuário (minha conta).
+ * @param {File} file - Arquivo de imagem
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadFotoPerfil(file) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${PERFIL_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }
 

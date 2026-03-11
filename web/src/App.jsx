@@ -27,6 +27,7 @@ import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 import Equipes from './pages/Equipes'
 import Comunicacao from './pages/Comunicacao'
+import MinhaConta from './pages/MinhaConta'
 import PublicNoticias from './pages/public/Noticias'
 import PublicNoticiaDetalhes from './pages/public/NoticiaDetalhes'
 
@@ -43,6 +44,7 @@ function App() {
           <Route path="/noticias/:slug" element={<PublicNoticiaDetalhes />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
+            <Route path="/app/minha-conta" element={<MinhaConta />} />
             <Route path="/app/gestao" element={<Gestao />} />
             <Route path="/app/atividades" element={<Atividades />} />
             <Route path="/app/estudantes-atletas" element={<CadastroEstudanteAtleta />} />

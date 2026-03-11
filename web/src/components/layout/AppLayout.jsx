@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
   { label: 'Dashboard', path: '/app', icon: LayoutDashboard },
 ]
+
+const menuFooterItem = { label: 'Minha conta', path: '/app/minha-conta', icon: UserCircle }
 
 const menuGroups = [
   {
@@ -106,8 +108,8 @@ export default function AppLayout({ children }) {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <ul className="flex flex-col gap-1 list-none m-0 p-0">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 flex flex-col min-h-0">
+          <ul className="flex flex-col gap-1 list-none m-0 p-0 flex-1">
             {menuItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.path)
@@ -186,6 +188,20 @@ export default function AppLayout({ children }) {
                 </li>
               )
             })}
+            <li className="mt-auto pt-4 border-t border-[rgba(15,118,110,0.2)]">
+              <Link
+                to={menuFooterItem.path}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${
+                  location.pathname === menuFooterItem.path
+                    ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
+                    : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                }`}
+              >
+                <UserCircle size={20} className="shrink-0" />
+                <span>{menuFooterItem.label}</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>

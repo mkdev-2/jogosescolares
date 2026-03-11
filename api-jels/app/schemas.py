@@ -214,6 +214,7 @@ class UserUpdateMe(BaseModel):
     """Schema para atualização do próprio perfil pelo usuário."""
     nome: Optional[str] = Field(None, min_length=1, description="Nome completo do usuário")
     email: Optional[EmailStr] = Field(None, description="Email do usuário")
+    foto_url: Optional[str] = Field(None, description="URL ou path da foto de perfil")
 
 
 class UserUpdate(BaseModel):

@@ -94,8 +94,14 @@ export function AuthProvider({ children }) {
     clearTokens()
   }
 
+  const refreshUser = useCallback(async () => {
+    const data = await fetchMe()
+    if (data) setUser(data)
+    return data
+  }, [fetchMe])
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -9,8 +9,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import psycopg
 
 from app.schemas import (
-    UserCreate, UserLogin, Token, UserResponse, UserMeResponse, RefreshTokenRequest,
-    ChangePasswordRequest,
+    UserCreate, UserLogin, Token, UserResponse, UserMeResponse, UserUpdateMe,
+    RefreshTokenRequest, ChangePasswordRequest,
 )
 from app.security import (
     verify_password, get_password_hash,
@@ -315,6 +315,91 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         created_at=created_at,
         foto_url=current_user.get("foto_url"),
         can_create_users=can_create,
+        allowed_roles_for_create=allowed,
+        max_users_per_escola=MAX_USERS_PER_ESCOLA,
+    )
+
+
+@router.patch("/me", response_model=UserMeResponse)
+async def update_me(
+    data: UserUpdateMe,
+    current_user: dict = Depends(get_current_user),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+):
+    """Atualiza nome, email e/ou foto do usuário autenticado (minha conta)."""
+    updates = {}
+    if data.nome is not None:
+        updates["nome"] = data.nome.strip()
+    if data.email is not None:
+        updates["email"] = data.email.strip() or None
+    if data.foto_url is not None:
+        updates["foto_url"] = data.foto_url.strip() or None
+    if not updates:
+        role = current_user.get("role", "")
+        allowed = ALLOWED_CREATE_ROLES.get(role, [])
+        created_at = current_user.get("created_at")
+        if created_at:
+            created_at = created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
+        return UserMeResponse(
+            id=current_user["id"],
+            cpf=current_user.get("cpf"),
+            email=current_user.get("email"),
+            nome=current_user.get("nome", ""),
+            role=current_user.get("role", ""),
+            escola_id=current_user.get("escola_id"),
+            escola_inep=str(current_user["escola_inep"]) if current_user.get("escola_inep") else None,
+            escola_nome=current_user.get("escola_nome"),
+            status=current_user.get("status", "ATIVO"),
+            created_at=created_at,
+            foto_url=current_user.get("foto_url"),
+            can_create_users=len(allowed) > 0,
+            allowed_roles_for_create=allowed,
+            max_users_per_escola=MAX_USERS_PER_ESCOLA,
+        )
+
+    async with conn.cursor() as cur:
+        set_clause = ", ".join(f"{k} = %s" for k in updates)
+        values = list(updates.values()) + [current_user["id"]]
+        await cur.execute(
+            f"UPDATE users SET {set_clause}, updated_at = NOW() WHERE id = %s RETURNING id",
+            values,
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+        await conn.commit()
+
+    # Recarregar usuário para resposta
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id, u.status, u.created_at, u.foto_url,
+                      s.inep AS escola_inep, s.nome_escola AS escola_nome
+               FROM users u
+               LEFT JOIN escolas s ON s.id = u.escola_id
+               WHERE u.id = %s""",
+            (current_user["id"],),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+    row = dict(row)
+    role = row.get("role", "")
+    allowed = ALLOWED_CREATE_ROLES.get(role, [])
+    created_at = row.get("created_at")
+    if created_at:
+        created_at = created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
+    return UserMeResponse(
+        id=row["id"],
+        cpf=row.get("cpf"),
+        email=row.get("email"),
+        nome=row["nome"],
+        role=row["role"],
+        escola_id=row.get("escola_id"),
+        escola_inep=str(row["escola_inep"]) if row.get("escola_inep") else None,
+        escola_nome=row.get("escola_nome"),
+        status=row["status"],
+        created_at=created_at,
+        foto_url=row.get("foto_url"),
+        can_create_users=len(allowed) > 0,
         allowed_roles_for_create=allowed,
         max_users_per_escola=MAX_USERS_PER_ESCOLA,
     )
