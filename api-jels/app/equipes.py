@@ -14,6 +14,28 @@ router = APIRouter(prefix="/equipes", tags=["equipes"])
 logger = logging.getLogger(__name__)
 
 
+def _mensagem_erro_trigger_equipe(exc: Exception) -> str:
+    """Extrai mensagem amigável do erro do trigger ao vincular estudante à equipe."""
+    raw = ""
+    if hasattr(exc, "diag") and exc.diag is not None and getattr(exc.diag, "message_primary", None):
+        raw = exc.diag.message_primary
+    if not raw:
+        raw = str(exc)
+    # Remover prefixos comuns (ex.: "ERROR: " do driver) e trechos de contexto
+    for sep in (" CONTEXT:", " at RAISE", "\n"):
+        raw = raw.split(sep)[0]
+    msg = raw.strip()
+    for prefix in ("ERROR: ", "error: ", "Exception: "):
+        if msg.startswith(prefix):
+            msg = msg[len(prefix):].strip()
+            break
+    if "já participa de uma modalidade" in msg or "no máximo uma modalidade Individual e uma Coletiva" in msg:
+        return msg if msg else "Cada aluno pode participar de no máximo uma modalidade Individual e uma Coletiva."
+    if "não pode ser cadastrado" in msg:
+        return msg if msg else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
+    return "Erro ao vincular estudantes. Verifique idade, naipe e limite de modalidades (1 individual e 1 coletiva por aluno)."
+
+
 def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = None) -> EquipeResponse:
     """Converte row do banco para EquipeResponse."""
     return EquipeResponse(
@@ -236,16 +258,8 @@ async def create_equipe(
                 )
         except Exception as exc:
             await conn.rollback()
-            raw_msg = str(exc)
-            logger.warning("Erro ao vincular estudante em equipe (trigger): %s", raw_msg)
-            if "já participa de uma modalidade" in raw_msg:
-                msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
-                detail = msg_limpa if msg_limpa else "Cada aluno pode participar de no máximo uma modalidade Individual e uma Coletiva."
-            elif "não pode ser cadastrado" in raw_msg:
-                msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
-                detail = msg_limpa if msg_limpa else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
-            else:
-                detail = "Erro ao vincular estudantes. Verifique idade, naipe e limite de modalidades (1 individual e 1 coletiva por aluno)."
+            logger.warning("Erro ao vincular estudante em equipe (trigger): %s", exc)
+            detail = _mensagem_erro_trigger_equipe(exc)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=detail,
@@ -363,16 +377,8 @@ async def update_equipe(
                     )
             except Exception as exc:
                 await conn.rollback()
-                raw_msg = str(exc)
-                logger.warning("Erro ao vincular estudante em equipe (trigger) no update: %s", raw_msg)
-                if "já participa de uma modalidade" in raw_msg:
-                    msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
-                    detail = msg_limpa if msg_limpa else "Cada aluno pode participar de no máximo uma modalidade Individual e uma Coletiva."
-                elif "não pode ser cadastrado" in raw_msg:
-                    msg_limpa = raw_msg.split(" CONTEXT:")[0].split(" at RAISE")[0].strip()
-                    detail = msg_limpa if msg_limpa else "O aluno não atende aos requisitos de idade ou naipe desta modalidade."
-                else:
-                    detail = "Erro ao vincular estudantes. Verifique idade, naipe e limite de modalidades (1 individual e 1 coletiva por aluno)."
+                logger.warning("Erro ao vincular estudante em equipe (trigger) no update: %s", exc)
+                detail = _mensagem_erro_trigger_equipe(exc)
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=detail,
