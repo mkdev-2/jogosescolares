@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Search, Plus, Trophy, Pencil, Trash2 } from 'lucide-react'
+import { Users, Search, Plus, Trophy, Pencil, Trash2, FileText } from 'lucide-react'
 import { Input, Button, Popconfirm } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
@@ -11,6 +11,7 @@ export default function EquipesList({
   onEditEquipe,
   onDeleteEquipe,
   onViewEquipe,
+  onFichaColetiva,
   showInstituicao = false,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -124,7 +125,7 @@ export default function EquipesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
-                    {(onEditEquipe || onDeleteEquipe) && (
+                    {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ações
                       </th>
@@ -158,12 +159,22 @@ export default function EquipesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getQtdAlunos(item)} aluno(s)
                       </td>
-                      {(onEditEquipe || onDeleteEquipe) && (
+                      {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
                         <td
                           className="px-5 py-4 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 flex-wrap">
+                            {onFichaColetiva && item.tipo_modalidade_nome === 'COLETIVAS' && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                                onClick={() => onFichaColetiva(item)}
+                                title="Gerar Ficha Coletiva JELS"
+                              >
+                                <FileText size={18} />
+                              </button>
+                            )}
                             {onEditEquipe && (
                               <button
                                 type="button"

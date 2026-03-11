@@ -5,6 +5,9 @@ import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import EquipesList from '../components/catalogos/EquipesList'
 import EquipeModal from '../components/catalogos/EquipeModal'
+import FichaColetivaPrint from '../components/catalogos/FichaColetivaPrint'
+import Modal from '../components/ui/Modal'
+import { equipesService } from '../services/equipesService'
 
 export default function Equipes() {
   const { lista, loading, error, fetchLista } = useEquipes()
@@ -12,6 +15,9 @@ export default function Equipes() {
   const { lista: professoresTecnicos } = useProfessoresTecnicos()
   const { variantes } = useEsporteVariantes()
   const [modalOpen, setModalOpen] = useState(false)
+  const [fichaColetivaOpen, setFichaColetivaOpen] = useState(false)
+  const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
+  const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
 
   const handleNewEquipe = () => {
     setModalOpen(true)
@@ -24,6 +30,26 @@ export default function Equipes() {
   const handleModalSuccess = () => {
     setModalOpen(false)
     fetchLista()
+  }
+
+  const handleFichaColetiva = async (equipe) => {
+    setFichaColetivaOpen(true)
+    setFichaColetivaDados(null)
+    setFichaColetivaLoading(true)
+    try {
+      const data = await equipesService.getFichaColetiva(equipe.id)
+      setFichaColetivaDados(data)
+    } catch (err) {
+      setFichaColetivaOpen(false)
+      alert(err.message || 'Erro ao carregar dados da ficha coletiva.')
+    } finally {
+      setFichaColetivaLoading(false)
+    }
+  }
+
+  const handleFichaColetivaClose = () => {
+    setFichaColetivaOpen(false)
+    setFichaColetivaDados(null)
   }
 
   return (
@@ -43,6 +69,7 @@ export default function Equipes() {
           loading={loading}
           error={error}
           onNewEquipe={handleNewEquipe}
+          onFichaColetiva={handleFichaColetiva}
         />
       </div>
 
@@ -54,6 +81,29 @@ export default function Equipes() {
         estudantes={estudantes}
         professoresTecnicos={professoresTecnicos}
       />
+
+      <Modal
+        isOpen={fichaColetivaOpen}
+        onClose={handleFichaColetivaClose}
+        title="Ficha Coletiva – JELS"
+        subtitle={fichaColetivaDados ? `${fichaColetivaDados.instituicao || ''} • ${fichaColetivaDados.modalidade || ''}` : ''}
+        size="xl"
+        footer={null}
+      >
+        <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+          {fichaColetivaLoading && (
+            <div className="flex justify-center py-8">
+              <div className="w-10 h-10 border-[3px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
+            </div>
+          )}
+          {!fichaColetivaLoading && fichaColetivaDados && (
+            <FichaColetivaPrint
+              dados={fichaColetivaDados}
+              onClose={handleFichaColetivaClose}
+            />
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

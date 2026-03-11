@@ -67,4 +67,16 @@ export const equipesService = {
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
     }
   },
+
+  /**
+   * Dados para impressão da Ficha Coletiva JELS (apenas modalidades coletivas).
+   */
+  async getFichaColetiva(equipeId) {
+    const res = await apiFetch(`/equipes/${equipeId}/ficha-coletiva`)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json()
+  },
 }

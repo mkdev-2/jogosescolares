@@ -2,11 +2,20 @@
 Roteador de equipes: listagem e criação por escola do usuário.
 Validações de idade e naipe são feitas pelo trigger no banco ao inserir em equipe_estudantes.
 """
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 
-from app.schemas import EquipeCreate, EquipeUpdate, EquipeResponse, EquipeEstudanteItem
+from app.schemas import (
+    EquipeCreate,
+    EquipeUpdate,
+    EquipeResponse,
+    EquipeEstudanteItem,
+    FichaColetivaResponse,
+    FichaColetivaEstudanteItem,
+    FichaColetivaProfessorItem,
+)
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
@@ -132,6 +141,94 @@ def _check_equipe_visible(current_user: dict, escola_id: int | None) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso negado a este registro.",
         )
+
+
+@router.get("/{equipe_id}/ficha-coletiva", response_model=FichaColetivaResponse)
+async def get_ficha_coletiva(
+    equipe_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna dados para impressão da Ficha Coletiva JELS. Apenas para equipes de modalidade COLETIVA."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id, e.professor_tecnico_id,
+                   esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
+                   tm.codigo AS tipo_modalidade_codigo,
+                   s.nome_escola AS escola_nome, s.dados_coordenador AS dados_coordenador,
+                   p.nome AS professor_tecnico_nome, p.cref AS professor_tecnico_cref
+            FROM equipes e
+            JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
+            JOIN categorias c ON c.id = ev.categoria_id
+            JOIN naipes n ON n.id = ev.naipe_id
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            WHERE e.id = %s
+            """,
+            (equipe_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
+    _check_equipe_visible(current_user, row["escola_id"])
+
+    if row.get("tipo_modalidade_codigo") != "COLETIVAS":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ficha Coletiva está disponível apenas para equipes de modalidades coletivas.",
+        )
+
+    dados_coord = row.get("dados_coordenador") or {}
+    if isinstance(dados_coord, str):
+        try:
+            dados_coord = json.loads(dados_coord)
+        except Exception:
+            dados_coord = {}
+    if not isinstance(dados_coord, dict):
+        dados_coord = {}
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT est.nome, est.data_nascimento
+            FROM equipe_estudantes ee
+            JOIN estudantes_atletas est ON est.id = ee.estudante_id
+            WHERE ee.equipe_id = %s
+            ORDER BY est.nome
+            """,
+            (equipe_id,),
+        )
+        est_rows = await cur.fetchall()
+
+    estudantes = [
+        FichaColetivaEstudanteItem(
+            nome=er["nome"],
+            data_nascimento=er["data_nascimento"].strftime("%d/%m/%Y") if er.get("data_nascimento") else None,
+        )
+        for er in est_rows
+    ]
+    professor_nome = row.get("professor_tecnico_nome")
+    professor_cref = row.get("professor_tecnico_cref")
+    professores_tecnicos = (
+        [FichaColetivaProfessorItem(nome=professor_nome or "", cref=professor_cref)]
+        if professor_nome or professor_cref
+        else []
+    )
+
+    return FichaColetivaResponse(
+        instituicao=row.get("escola_nome"),
+        coordenador_nome=dados_coord.get("nome"),
+        coordenador_contato=dados_coord.get("telefone"),
+        coordenador_email=dados_coord.get("email"),
+        modalidade=row.get("esporte_nome"),
+        categoria=row.get("categoria_nome"),
+        naipe=row.get("naipe_nome"),
+        estudantes=estudantes,
+        professores_tecnicos=professores_tecnicos,
+    )
 
 
 @router.get("/{equipe_id}", response_model=EquipeResponse)

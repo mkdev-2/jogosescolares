@@ -527,3 +527,31 @@ class EquipeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------- Ficha Coletiva JELS (impressão) ----------
+
+
+class FichaColetivaEstudanteItem(BaseModel):
+    """Estudante na ficha coletiva (nome e data de nascimento)."""
+    nome: str
+    data_nascimento: Optional[str] = None
+
+
+class FichaColetivaProfessorItem(BaseModel):
+    """Professor-técnico na ficha coletiva (nome e CREF)."""
+    nome: str
+    cref: Optional[str] = None
+
+
+class FichaColetivaResponse(BaseModel):
+    """Dados para impressão da Ficha Coletiva JELS (modalidades coletivas)."""
+    instituicao: Optional[str] = None
+    coordenador_nome: Optional[str] = None
+    coordenador_contato: Optional[str] = None
+    coordenador_email: Optional[str] = None
+    modalidade: Optional[str] = None
+    categoria: Optional[str] = None
+    naipe: Optional[str] = None
+    estudantes: list[FichaColetivaEstudanteItem] = Field(default_factory=list)
+    professores_tecnicos: list[FichaColetivaProfessorItem] = Field(default_factory=list)
