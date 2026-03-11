@@ -215,15 +215,26 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jogosescolares_pass}
     entrypoint: >
       /bin/sh -c "
-      mc alias set myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
-      mc mb myminio/public --ignore-existing;
-      mc mb myminio/private --ignore-existing;
-      mc mb myminio/documents --ignore-existing;
-      mc mb myminio/jogosescolares --ignore-existing;
-      mc anonymous set public myminio/public;
-      mc anonymous set download myminio/private;
-      mc anonymous set download myminio/documents;
-      mc anonymous set download myminio/jogosescolares;
+      echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
+      max_retries=30;
+      count=0;
+      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-jogosescolares} $${MINIO_ROOT_PASSWORD:-jogosescolares_pass}; do
+        count=$$((count+1));
+        if [ $$count -ge $$max_retries ]; then
+           echo 'Falha ao conectar no MinIO apos 60 segundos!';
+           exit 1;
+        fi;
+        echo 'MinIO ainda não está pronto. Tentando novamente em 2s (tentativa $$count / $$max_retries)...';
+        sleep 2;
+      done;
+      mc mb myminio/public --ignore-existing || true;
+      mc mb myminio/private --ignore-existing || true;
+      mc mb myminio/documents --ignore-existing || true;
+      mc mb myminio/jogosescolares --ignore-existing || true;
+      mc anonymous set public myminio/public || true;
+      mc anonymous set download myminio/private || true;
+      mc anonymous set download myminio/documents || true;
+      mc anonymous set download myminio/jogosescolares || true;
       echo 'MinIO configurado com buckets inicializados';
       "
     networks:
