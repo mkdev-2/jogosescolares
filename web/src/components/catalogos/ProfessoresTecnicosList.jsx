@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Input, Button, Popconfirm } from 'antd'
+import { Input, Button, Popconfirm, Select } from 'antd'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
 
 export default function ProfessoresTecnicosList({
@@ -12,10 +12,16 @@ export default function ProfessoresTecnicosList({
   onDeleteProfessor,
   onViewProfessor,
   showInstituicao = false,
+  escolas = [],
 }) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [escolaFilterId, setEscolaFilterId] = useState(null)
 
-  const filteredLista = lista.filter((item) => {
+  const filteredByEscola = escolaFilterId != null && escolaFilterId !== ''
+    ? lista.filter((item) => Number(item.escola_id) === Number(escolaFilterId))
+    : lista
+
+  const filteredLista = filteredByEscola.filter((item) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     const nome = (item.nome || '').toLowerCase()
@@ -40,7 +46,7 @@ export default function ProfessoresTecnicosList({
               Total de Professores-Técnicos
             </p>
             <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
-              {lista.length}
+              {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
             </p>
           </div>
           <Users size={28} className="text-[#0f766e]" />
@@ -48,6 +54,19 @@ export default function ProfessoresTecnicosList({
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
+        {showInstituicao && escolas?.length > 0 && (
+          <Select
+            placeholder="Filtrar por escola"
+            allowClear
+            value={escolaFilterId ?? undefined}
+            onChange={(v) => setEscolaFilterId(v ?? null)}
+            options={[
+              { value: '', label: 'Todas as escolas' },
+              ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
+            ]}
+            className="min-w-[220px]"
+          />
+        )}
         <div className="flex-1 min-w-[200px]">
           <Input
             placeholder="Buscar por nome, CPF ou CREF..."

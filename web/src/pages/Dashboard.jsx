@@ -143,16 +143,15 @@ export default function Dashboard() {
 
       {/* Contagem regressiva prazo cadastro de alunos (apenas diretores/coordenadores) */}
       {!isAdmin && prazoCadastroAlunos && !prazoEncerrado && (
-        <section className="rounded-2xl border border-red-200 bg-[#fdf5f6] p-5 sm:p-6 shadow-sm">
-          {/* Linha 1: título à esquerda, caixas da contagem à direita */}
+        <section className="rounded-xl border border-red-200 bg-[#fdf5f6] px-3 py-3 sm:px-4 sm:py-3.5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 text-[#1e3a4b] shrink-0">
-              <Clock className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 text-red-800" strokeWidth={2.5} />
-              <span className="font-bold text-lg sm:text-xl">
+            <div className="flex items-center gap-1.5 text-[#1e3a4b] shrink-0">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-red-800" strokeWidth={2.5} />
+              <span className="font-bold text-sm sm:text-base">
                 Cadastro de alunos encerra em
               </span>
             </div>
-            <div className="flex gap-3 sm:gap-4">
+            <div className="flex gap-2 sm:gap-2.5">
               {[
                 { value: restante?.days ?? 0, label: 'DIAS' },
                 { value: restante ? String(restante.hours).padStart(2, '0') : '00', label: 'HORAS' },
@@ -160,22 +159,21 @@ export default function Dashboard() {
                 { value: restante ? String(restante.seconds).padStart(2, '0') : '00', label: 'SEG' },
               ].map(({ value, label }) => (
                 <div key={label} className="flex flex-col items-center">
-                  <div className="min-w-[4rem] sm:min-w-[5rem] rounded-xl bg-red-500 px-3 py-3 sm:px-4 sm:py-3.5 text-center shadow">
-                    <span className="font-bold text-white text-2xl sm:text-3xl tabular-nums">
+                  <div className="min-w-[2.5rem] sm:min-w-[3rem] rounded-lg bg-red-500 px-2 py-1.5 sm:px-2.5 sm:py-2 text-center shadow">
+                    <span className="font-bold text-white text-lg sm:text-xl tabular-nums">
                       {value}
                     </span>
                   </div>
-                  <span className="text-red-600 text-xs sm:text-sm font-semibold mt-1.5 uppercase tracking-wide">
+                  <span className="text-red-600 text-[10px] sm:text-xs font-semibold mt-0.5 uppercase tracking-wide">
                     {label}
                   </span>
                 </div>
               ))}
             </div>
           </div>
-          {/* Linha 2: data e aviso em uma linha (quebra em telas pequenas) */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-4 pt-4 border-t border-red-200/50">
-            <div className="flex items-center gap-2 text-[#1e3a4b] text-base sm:text-lg">
-              <Calendar className="w-4 h-4 text-red-600 shrink-0" />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-2.5 pt-2.5 border-t border-red-200/50">
+            <div className="flex items-center gap-1.5 text-[#1e3a4b] text-xs sm:text-sm">
+              <Calendar className="w-3.5 h-3.5 text-red-600 shrink-0" />
               <span className="font-medium">
                 Último dia para cadastro:{' '}
                 <span className="text-red-600 font-bold">
@@ -183,7 +181,7 @@ export default function Dashboard() {
                 </span>
               </span>
             </div>
-            <span className="text-[#1e3a4b]/90 text-sm sm:text-base">
+            <span className="text-[#1e3a4b]/90 text-xs sm:text-sm">
               Após essa data não será possível incluir novos atletas.
             </span>
           </div>

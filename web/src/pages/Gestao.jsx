@@ -134,6 +134,7 @@ export default function Gestao() {
                 onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
                 onViewAluno={(item) => setEstudanteParaVer(item)}
                 showInstituicao={isAdmin}
+                escolas={isAdmin ? listaEscolas : []}
               />
               <EstudanteViewModal
                 open={!!estudanteParaVer}
@@ -163,6 +164,7 @@ export default function Gestao() {
                 onDeleteProfessor={async (item) => { try { await deleteProfessor(item.id) } catch (e) { alert(e.message) } }}
                 onViewProfessor={(item) => setProfessorParaVer(item)}
                 showInstituicao={isAdmin}
+                escolas={isAdmin ? listaEscolas : []}
               />
               <ProfessorViewModal
                 open={!!professorParaVer}
@@ -191,6 +193,8 @@ export default function Gestao() {
                 onEditEquipe={(item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) }}
                 onDeleteEquipe={async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } }}
                 onViewEquipe={(item) => setEquipeParaVer(item)}
+                showInstituicao={isAdmin}
+                escolas={isAdmin ? listaEscolas : []}
                 onFichaColetiva={async (equipe) => {
                   setFichaColetivaOpen(true)
                   setFichaColetivaDados(null)
@@ -205,7 +209,6 @@ export default function Gestao() {
                     setFichaColetivaLoading(false)
                   }
                 }}
-                showInstituicao={isAdmin}
               />
               <Modal
                 isOpen={fichaColetivaOpen}
