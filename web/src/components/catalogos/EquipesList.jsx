@@ -40,6 +40,12 @@ export default function EquipesList({
   const getTecnicoNome = (item) => item.professor_tecnico_nome || item.professor_tecnico?.nome || '-'
   const getQtdAlunos = (item) => (item.estudantes && item.estudantes.length) || item.estudante_ids?.length || 0
 
+  const isModalidadeColetiva = (item) => {
+    const codigo = String(item.tipo_modalidade_codigo || '').trim().toUpperCase()
+    const nome = String(item.tipo_modalidade_nome || '').trim().toUpperCase()
+    return codigo === 'COLETIVAS' || nome === 'COLETIVAS'
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
@@ -125,7 +131,12 @@ export default function EquipesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
-                    {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
+                    {onFichaColetiva && (
+                      <th className="w-[80px] text-center px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Ficha
+                      </th>
+                    )}
+                    {(onEditEquipe || onDeleteEquipe) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ações
                       </th>
@@ -159,22 +170,31 @@ export default function EquipesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getQtdAlunos(item)} aluno(s)
                       </td>
-                      {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
+                      {onFichaColetiva && (
+                        <td
+                          className="px-5 py-4 text-center border-b border-[#f1f5f9]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isModalidadeColetiva(item) ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                              onClick={() => onFichaColetiva(item)}
+                              title="Gerar Ficha Coletiva JELS"
+                            >
+                              <FileText size={18} />
+                            </button>
+                          ) : (
+                            <span className="text-[#cbd5e1]">–</span>
+                          )}
+                        </td>
+                      )}
+                      {(onEditEquipe || onDeleteEquipe) && (
                         <td
                           className="px-5 py-4 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex justify-end gap-2 flex-wrap">
-                            {onFichaColetiva && item.tipo_modalidade_nome === 'COLETIVAS' && (
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                                onClick={() => onFichaColetiva(item)}
-                                title="Gerar Ficha Coletiva JELS"
-                              >
-                                <FileText size={18} />
-                              </button>
-                            )}
+                          <div className="flex justify-end gap-2">
                             {onEditEquipe && (
                               <button
                                 type="button"

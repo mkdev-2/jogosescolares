@@ -518,6 +518,7 @@ class EquipeResponse(BaseModel):
     esporte_icone: Optional[str] = None
     categoria_nome: Optional[str] = None
     naipe_nome: Optional[str] = None
+    tipo_modalidade_codigo: Optional[str] = None
     tipo_modalidade_nome: Optional[str] = None
     professor_tecnico_id: int
     professor_tecnico_nome: Optional[str] = None
