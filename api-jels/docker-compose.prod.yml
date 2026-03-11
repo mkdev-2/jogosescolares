@@ -216,21 +216,19 @@ services:
     entrypoint: >
       /bin/sh -c "
       echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
-      max_retries=30;
       count=0;
-      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} > /dev/null 2>&1 || ! mc ls myminio > /dev/null 2>&1; do
+      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} >/dev/null 2>&1 || ! mc mb myminio/jogosescolares --ignore-existing >/dev/null 2>&1; do
         count=$$((count+1));
-        if [ $$count -ge $$max_retries ]; then
+        if [ $$count -ge 30 ]; then
            echo 'Falha ao logar no MinIO apos 60 segundos (Verifique credenciais ou apague o volume local)!';
            exit 1;
         fi;
-        echo \"MinIO IAM ainda não está pronto. Tentando em 2s (tentativa $$count / $$max_retries)...\";
+        echo \"MinIO IAM ainda não está pronto. Tentando em 2s (tentativa $$count / 30)...\";
         sleep 2;
       done;
       mc mb myminio/public --ignore-existing || true;
       mc mb myminio/private --ignore-existing || true;
       mc mb myminio/documents --ignore-existing || true;
-      mc mb myminio/jogosescolares --ignore-existing || true;
       mc anonymous set public myminio/public || true;
       mc anonymous set download myminio/private || true;
       mc anonymous set download myminio/documents || true;
