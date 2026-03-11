@@ -107,10 +107,9 @@ services:
     entrypoint: >
       /bin/sh -c "
       echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
-      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
       max_retries=30;
       count=0;
-      while ! mc ls myminio > /dev/null 2>&1; do
+      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} > /dev/null 2>&1 || ! mc ls myminio > /dev/null 2>&1; do
         count=$$((count+1));
         if [ $$count -ge $$max_retries ]; then
            echo 'Falha ao logar no MinIO apos 60 segundos (Verifique credenciais ou apague o volume local)!';
