@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Building2,
   Users,
@@ -7,11 +8,30 @@ import {
   GraduationCap,
   ClipboardList,
   Activity,
+  Clock,
+  Calendar,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useDashboard } from '../hooks/useDashboard'
+import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
+
+/** Retorna { days, hours, minutes, seconds } até o fim do dia da data limite (23:59:59), ou null se já passou. */
+function getRestante(dataLimiteStr, now = new Date()) {
+  if (!dataLimiteStr || typeof dataLimiteStr !== 'string') return null
+  const fimDoDia = new Date(dataLimiteStr.trim().slice(0, 10) + 'T23:59:59')
+  let ms = fimDoDia.getTime() - now.getTime()
+  if (ms <= 0) return null
+  const days = Math.floor(ms / (24 * 60 * 60 * 1000))
+  ms %= 24 * 60 * 60 * 1000
+  const hours = Math.floor(ms / (60 * 60 * 1000))
+  ms %= 60 * 60 * 1000
+  const minutes = Math.floor(ms / (60 * 1000))
+  ms %= 60 * 1000
+  const seconds = Math.floor(ms / 1000)
+  return { days, hours, minutes, seconds }
+}
 
 function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to }) {
   const variants = {
@@ -67,7 +87,20 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
 export default function Dashboard() {
   const { user } = useAuth()
   const { data, loading, error } = useDashboard()
+  const { dataLimite: prazoCadastroAlunos, bloqueado: prazoEncerrado } = usePrazoCadastroAlunos()
+  const [now, setNow] = useState(() => new Date())
   const isAdmin = ADMIN_ROLES.includes(user?.role)
+
+  const restante = useMemo(
+    () => getRestante(prazoCadastroAlunos, now),
+    [prazoCadastroAlunos, now]
+  )
+
+  useEffect(() => {
+    if (!prazoCadastroAlunos || prazoEncerrado) return
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [prazoCadastroAlunos, prazoEncerrado])
 
   if (error) {
     return (
@@ -107,6 +140,55 @@ export default function Dashboard() {
           Atualizado em {new Date().toLocaleDateString('pt-BR')}
         </div>
       </div>
+
+      {/* Contagem regressiva prazo cadastro de alunos (apenas diretores/coordenadores) */}
+      {!isAdmin && prazoCadastroAlunos && !prazoEncerrado && (
+        <section className="rounded-2xl border border-red-200 bg-[#fdf5f6] p-5 sm:p-6 shadow-sm">
+          {/* Linha 1: título à esquerda, caixas da contagem à direita */}
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 text-[#1e3a4b] shrink-0">
+              <Clock className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 text-red-800" strokeWidth={2.5} />
+              <span className="font-bold text-lg sm:text-xl">
+                Cadastro de alunos encerra em
+              </span>
+            </div>
+            <div className="flex gap-3 sm:gap-4">
+              {[
+                { value: restante?.days ?? 0, label: 'DIAS' },
+                { value: restante ? String(restante.hours).padStart(2, '0') : '00', label: 'HORAS' },
+                { value: restante ? String(restante.minutes).padStart(2, '0') : '00', label: 'MIN' },
+                { value: restante ? String(restante.seconds).padStart(2, '0') : '00', label: 'SEG' },
+              ].map(({ value, label }) => (
+                <div key={label} className="flex flex-col items-center">
+                  <div className="min-w-[4rem] sm:min-w-[5rem] rounded-xl bg-red-500 px-3 py-3 sm:px-4 sm:py-3.5 text-center shadow">
+                    <span className="font-bold text-white text-2xl sm:text-3xl tabular-nums">
+                      {value}
+                    </span>
+                  </div>
+                  <span className="text-red-600 text-xs sm:text-sm font-semibold mt-1.5 uppercase tracking-wide">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Linha 2: data e aviso em uma linha (quebra em telas pequenas) */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-4 pt-4 border-t border-red-200/50">
+            <div className="flex items-center gap-2 text-[#1e3a4b] text-base sm:text-lg">
+              <Calendar className="w-4 h-4 text-red-600 shrink-0" />
+              <span className="font-medium">
+                Último dia para cadastro:{' '}
+                <span className="text-red-600 font-bold">
+                  {new Date(prazoCadastroAlunos + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </span>
+              </span>
+            </div>
+            <span className="text-[#1e3a4b]/90 text-sm sm:text-base">
+              Após essa data não será possível incluir novos atletas.
+            </span>
+          </div>
+        </section>
+      )}
 
       {/* Cards de métricas */}
       <section className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
