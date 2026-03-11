@@ -39,6 +39,7 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
         id=row["id"],
         escola_id=row["escola_id"],
         escola_nome=row.get("escola_nome"),
+        escola_inep=str(row["escola_inep"]) if row.get("escola_inep") is not None else None,
         nome=row["nome"],
         cpf=row.get("cpf", ""),
         rg=row.get("rg"),
@@ -80,7 +81,7 @@ async def list_estudantes_atletas(
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.assinatura_estudante_atleta, e.assinatura_responsavel_legal,
                        e.assinatura_medico, e.assinatura_responsavel_instituicao, e.documentacao_assinada_url,
-                       e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                       e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
                 ORDER BY s.nome_escola NULLS LAST, e.nome
@@ -102,7 +103,7 @@ async def list_estudantes_atletas(
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.assinatura_estudante_atleta, e.assinatura_responsavel_legal,
                        e.assinatura_medico, e.assinatura_responsavel_instituicao, e.documentacao_assinada_url,
-                       e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                       e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
                 WHERE e.escola_id = %s
@@ -141,7 +142,7 @@ async def get_estudante_atleta(
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.assinatura_estudante_atleta, e.assinatura_responsavel_legal,
                    e.assinatura_medico, e.assinatura_responsavel_instituicao, e.documentacao_assinada_url,
-                   e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                   e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
             FROM estudantes_atletas e
             LEFT JOIN escolas s ON s.id = e.escola_id
             WHERE e.id = %s
@@ -283,7 +284,7 @@ async def update_estudante_atleta(
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.assinatura_estudante_atleta, e.assinatura_responsavel_legal,
                        e.assinatura_medico, e.assinatura_responsavel_instituicao, e.documentacao_assinada_url,
-                       e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                       e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
                 WHERE e.id = %s
@@ -341,7 +342,7 @@ async def update_estudante_atleta(
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.assinatura_estudante_atleta, e.assinatura_responsavel_legal,
                    e.assinatura_medico, e.assinatura_responsavel_instituicao, e.documentacao_assinada_url,
-                   e.created_at, e.updated_at, s.nome_escola AS escola_nome
+                   e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
             FROM estudantes_atletas e
             LEFT JOIN escolas s ON s.id = e.escola_id
             WHERE e.id = %s

@@ -4,7 +4,7 @@ import { DatePicker, Button } from 'antd'
 import dayjs from 'dayjs'
 import { configuracoesService } from '../services/configuracoesService'
 
-const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
+const labelClass = 'block text-lg font-medium text-gray-800 mb-2'
 
 /** Normaliza valor vindo da API para string YYYY-MM-DD ou '' (para estado do DatePicker). */
 function toDateStr(val) {
@@ -135,7 +135,7 @@ function Configuracoes({ embedded }) {
           <div className="w-10 h-10 rounded-lg bg-[#0f766e]/10 flex items-center justify-center">
             <Calendar className="w-5 h-5 text-[#0f766e]" />
           </div>
-          <h2 className="font-display text-xl font-bold text-gray-900">Datas e prazos</h2>
+          <h2 className="font-display text-2xl font-bold text-gray-900">Datas e prazos</h2>
         </div>
 
         {loading ? (
@@ -158,7 +158,7 @@ function Configuracoes({ embedded }) {
                 placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-base text-gray-600 mt-2">
                 Deixe em branco para não ter limite. Após esta data, o envio do formulário de /cadastro poderá ser bloqueado.
               </p>
             </div>
@@ -179,7 +179,7 @@ function Configuracoes({ embedded }) {
                 placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-base text-gray-600 mt-2">
                 Deixe em branco para não ter limite. Após esta data, diretor e coordenador não poderão cadastrar novos alunos.
               </p>
             </div>
@@ -200,7 +200,7 @@ function Configuracoes({ embedded }) {
                 placeholder="DD/MM/AAAA ou DDMMAAAA"
                 className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-base text-gray-600 mt-2">
                 Deixe em branco para não ter limite. Após esta data, o diretor não poderá alterar as modalidades em que a escola está vinculada (em Esportes).
               </p>
             </div>

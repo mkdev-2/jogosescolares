@@ -425,6 +425,7 @@ class EstudanteAtletaResponse(BaseModel):
     id: int
     escola_id: int
     escola_nome: Optional[str] = None
+    escola_inep: Optional[str] = None
     nome: str
     cpf: str
     rg: Optional[str] = None

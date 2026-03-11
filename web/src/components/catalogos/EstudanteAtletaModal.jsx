@@ -142,17 +142,23 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
   const [loadingEstudante, setLoadingEstudante] = useState(false)
+  const [instituicaoCarregada, setInstituicaoCarregada] = useState({ nome: '', inep: '' })
 
   // Ao abrir para edição, carregar dados completos da API (inclui assinaturas e documentação)
   useEffect(() => {
     if (!open) return
     if (estudante?.id) {
       setForm(INITIAL_FORM)
+      setInstituicaoCarregada({ nome: '', inep: '' })
       setLoadingEstudante(true)
       estudantesService
         .getById(estudante.id)
         .then((full) => {
           if (!full) return
+          setInstituicaoCarregada({
+            nome: full.escola_nome ?? '',
+            inep: full.escola_inep != null && full.escola_inep !== '' ? String(full.escola_inep) : '',
+          })
           setForm({
             fotoUrl: full.foto_url || '',
             nome: full.nome || '',
@@ -182,6 +188,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         .finally(() => setLoadingEstudante(false))
     } else {
       setLoadingEstudante(false)
+      setInstituicaoCarregada({ nome: '', inep: '' })
       setForm(INITIAL_FORM)
       setCurrentStep(0)
     }
@@ -195,6 +202,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
 
   const handleClose = () => {
     setForm(INITIAL_FORM)
+    setInstituicaoCarregada({ nome: '', inep: '' })
     setErrors({})
     setSubmitError(null)
     setCurrentStep(0)
@@ -379,18 +387,18 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             <div>
               <label className={labelClass}>Nome da instituição</label>
               <Input
-                value={nomeInstituicao}
+                value={estudante ? instituicaoCarregada.nome : nomeInstituicao}
                 readOnly
-                placeholder="Preenchido automaticamente com a escola do coordenador"
+                placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com a escola do coordenador'}
                 className="bg-[#f8fafc]"
               />
             </div>
             <div>
               <label className={labelClass}>INEP da instituição</label>
               <Input
-                value={inepInstituicao}
+                value={estudante ? instituicaoCarregada.inep : inepInstituicao}
                 readOnly
-                placeholder="Preenchido automaticamente com o INEP do coordenador"
+                placeholder={estudante ? (loadingEstudante ? 'Carregando...' : '—') : 'Preenchido automaticamente com o INEP do coordenador'}
                 className="bg-[#f8fafc]"
               />
               <p className="text-sm text-[#64748b] mt-1 m-0">Preenchido automaticamente com o INEP do coordenador.</p>
