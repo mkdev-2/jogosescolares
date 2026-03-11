@@ -216,7 +216,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
-      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-jogosescolares} $${MINIO_ROOT_PASSWORD:-jogosescolares_pass};
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
       max_retries=30;
       count=0;
       while ! mc ls myminio > /dev/null 2>&1; do
