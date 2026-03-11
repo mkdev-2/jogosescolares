@@ -235,11 +235,11 @@ async def create_estudante_atleta(
                 data.responsavel_celular.strip(),
                 data.responsavel_email.strip(),
                 data.responsavel_nis.strip(),
-                getattr(data, "assinatura_estudante_atleta", False),
-                getattr(data, "assinatura_responsavel_legal", False),
-                getattr(data, "assinatura_medico", False),
-                getattr(data, "assinatura_responsavel_instituicao", False),
-                getattr(data, "documentacao_assinada_url", None),
+                data.assinatura_estudante_atleta,
+                data.assinatura_responsavel_legal,
+                data.assinatura_medico,
+                data.assinatura_responsavel_instituicao,
+                data.documentacao_assinada_url,
             ),
             )
             row = await cur.fetchone()

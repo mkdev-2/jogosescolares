@@ -141,38 +141,51 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
 
   const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
+  const [loadingEstudante, setLoadingEstudante] = useState(false)
 
+  // Ao abrir para edição, carregar dados completos da API (inclui assinaturas e documentação)
   useEffect(() => {
-    if (open && estudante) {
-      setForm({
-        fotoUrl: estudante.foto_url || '',
-        nome: estudante.nome || '',
-        cpf: estudantesService.formatCpf(estudante.cpf) || '',
-        rg: estudante.rg || '',
-        dataNascimento: estudante.data_nascimento || '',
-        sexo: estudante.sexo || '',
-        email: estudante.email || '',
-        endereco: estudante.endereco || '',
-        cep: estudante.cep ? maskCep(String(estudante.cep).replace(/\D/g, '')) : '',
-        numeroRegistroConfederacao: estudante.numero_registro_confederacao || '',
-        responsavelNome: estudante.responsavel_nome || '',
-        responsavelCpf: estudantesService.formatCpf(estudante.responsavel_cpf) || '',
-        responsavelRg: estudante.responsavel_rg || '',
-        responsavelCelular: estudante.responsavel_celular ? maskCelular(String(estudante.responsavel_celular).replace(/\D/g, '')) : '',
-        responsavelEmail: estudante.responsavel_email || '',
-        responsavelNis: estudante.responsavel_nis || '',
-        assinaturaEstudanteAtleta: !!estudante.assinatura_estudante_atleta,
-        assinaturaResponsavelLegal: !!estudante.assinatura_responsavel_legal,
-        assinaturaMedico: !!estudante.assinatura_medico,
-        assinaturaResponsavelInstituicao: !!estudante.assinatura_responsavel_instituicao,
-        documentacaoAssinadaUrl: estudante.documentacao_assinada_url || '',
-      })
-      setCurrentStep(0)
-    } else if (open && !estudante) {
+    if (!open) return
+    if (estudante?.id) {
+      setForm(INITIAL_FORM)
+      setLoadingEstudante(true)
+      estudantesService
+        .getById(estudante.id)
+        .then((full) => {
+          if (!full) return
+          setForm({
+            fotoUrl: full.foto_url || '',
+            nome: full.nome || '',
+            cpf: estudantesService.formatCpf(full.cpf) || '',
+            rg: full.rg || '',
+            dataNascimento: full.data_nascimento || '',
+            sexo: full.sexo || '',
+            email: full.email || '',
+            endereco: full.endereco || '',
+            cep: full.cep ? maskCep(String(full.cep).replace(/\D/g, '')) : '',
+            numeroRegistroConfederacao: full.numero_registro_confederacao || '',
+            responsavelNome: full.responsavel_nome || '',
+            responsavelCpf: estudantesService.formatCpf(full.responsavel_cpf) || '',
+            responsavelRg: full.responsavel_rg || '',
+            responsavelCelular: full.responsavel_celular ? maskCelular(String(full.responsavel_celular).replace(/\D/g, '')) : '',
+            responsavelEmail: full.responsavel_email || '',
+            responsavelNis: full.responsavel_nis || '',
+            assinaturaEstudanteAtleta: Boolean(full.assinatura_estudante_atleta),
+            assinaturaResponsavelLegal: Boolean(full.assinatura_responsavel_legal),
+            assinaturaMedico: Boolean(full.assinatura_medico),
+            assinaturaResponsavelInstituicao: Boolean(full.assinatura_responsavel_instituicao),
+            documentacaoAssinadaUrl: full.documentacao_assinada_url || '',
+          })
+          setCurrentStep(0)
+        })
+        .catch(() => {})
+        .finally(() => setLoadingEstudante(false))
+    } else {
+      setLoadingEstudante(false)
       setForm(INITIAL_FORM)
       setCurrentStep(0)
     }
-  }, [open, estudante])
+  }, [open, estudante?.id])
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -282,10 +295,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
-        assinatura_estudante_atleta: !!form.assinaturaEstudanteAtleta,
-        assinatura_responsavel_legal: !!form.assinaturaResponsavelLegal,
-        assinatura_medico: !!form.assinaturaMedico,
-        assinatura_responsavel_instituicao: !!form.assinaturaResponsavelInstituicao,
+        assinatura_estudante_atleta: Boolean(form.assinaturaEstudanteAtleta),
+        assinatura_responsavel_legal: Boolean(form.assinaturaResponsavelLegal),
+        assinatura_medico: Boolean(form.assinaturaMedico),
+        assinatura_responsavel_instituicao: Boolean(form.assinaturaResponsavelInstituicao),
         documentacao_assinada_url: form.documentacaoAssinadaUrl?.trim() || null,
       }
       if (estudante?.id) {
@@ -316,21 +329,21 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         <div className="flex justify-between gap-3">
           <div>
             {currentStep > 0 && (
-              <Button type="default" onClick={handlePrev} disabled={loading}>
+              <Button type="default" onClick={handlePrev} disabled={loading || loadingEstudante}>
                 Voltar
               </Button>
             )}
           </div>
           <div className="flex gap-3">
-            <Button type="default" onClick={handleClose} disabled={loading}>
+            <Button type="default" onClick={handleClose} disabled={loading || loadingEstudante}>
               Cancelar
             </Button>
             {!isLastStep ? (
-              <Button type="primary" onClick={handleNext}>
+              <Button type="primary" onClick={handleNext} disabled={loadingEstudante}>
                 Próximo
               </Button>
             ) : (
-              <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading}>
+              <Button type="primary" onClick={handleSubmit} loading={loading} disabled={loading || loadingEstudante}>
                 {loading ? 'Salvando...' : estudante ? 'Salvar alterações' : 'Cadastrar'}
               </Button>
             )}
@@ -339,6 +352,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
       }
     >
       <div className="p-0">
+        {loadingEstudante ? (
+          <div className="py-8 text-center text-[#64748b] text-sm">Carregando dados do aluno...</div>
+        ) : (
+        <>
         <Steps current={currentStep} items={STEP_ITEMS} className="mb-6" size="small" />
 
         {submitError && (
@@ -553,6 +570,30 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             </p>
             <div className="space-y-3">
               <Checkbox
+                checked={
+                  form.assinaturaEstudanteAtleta &&
+                  form.assinaturaResponsavelLegal &&
+                  form.assinaturaMedico &&
+                  form.assinaturaResponsavelInstituicao
+                }
+                indeterminate={
+                  [form.assinaturaEstudanteAtleta, form.assinaturaResponsavelLegal, form.assinaturaMedico, form.assinaturaResponsavelInstituicao].some(Boolean) &&
+                  !(form.assinaturaEstudanteAtleta && form.assinaturaResponsavelLegal && form.assinaturaMedico && form.assinaturaResponsavelInstituicao)
+                }
+                onChange={(e) => {
+                  const v = e.target.checked
+                  setForm((prev) => ({
+                    ...prev,
+                    assinaturaEstudanteAtleta: v,
+                    assinaturaResponsavelLegal: v,
+                    assinaturaMedico: v,
+                    assinaturaResponsavelInstituicao: v,
+                  }))
+                }}
+              >
+                Marcar todas
+              </Checkbox>
+              <Checkbox
                 checked={form.assinaturaEstudanteAtleta}
                 onChange={(e) => updateField('assinaturaEstudanteAtleta', e.target.checked)}
               >
@@ -581,7 +622,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             <div className="border-t border-[#e2e8f0] pt-6 mt-6">
               <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
               <p className="text-sm text-[#64748b] mb-3 m-0">
-                Opcional: envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
+                Envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
               </p>
               <input
                 ref={docInputRef}
@@ -622,6 +663,8 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
           </div>
           )}
         </form>
+        </>
+        )}
       </div>
     </Modal>
   )
