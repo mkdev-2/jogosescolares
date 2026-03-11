@@ -387,6 +387,12 @@ class EstudanteAtletaCreate(BaseModel):
     responsavel_email: str = Field(..., min_length=1)
     responsavel_nis: str = Field(..., min_length=1)
     inep_instituicao: Optional[str] = None  # ignorado; escola vem do token
+    # Confirmação de assinaturas e anexo da documentação assinada
+    assinatura_estudante_atleta: bool = Field(default=False, description="Confirmação assinatura do estudante-atleta")
+    assinatura_responsavel_legal: bool = Field(default=False, description="Confirmação assinatura do responsável legal")
+    assinatura_medico: bool = Field(default=False, description="Confirmação assinatura do médico")
+    assinatura_responsavel_instituicao: bool = Field(default=False, description="Confirmação assinatura do responsável da instituição")
+    documentacao_assinada_url: Optional[str] = Field(None, max_length=500, description="URL do anexo da documentação assinada")
 
 
 class EstudanteAtletaUpdate(BaseModel):
@@ -407,6 +413,11 @@ class EstudanteAtletaUpdate(BaseModel):
     responsavel_celular: Optional[str] = None
     responsavel_email: Optional[str] = Field(None, min_length=1)
     responsavel_nis: Optional[str] = Field(None, min_length=1)
+    assinatura_estudante_atleta: Optional[bool] = None
+    assinatura_responsavel_legal: Optional[bool] = None
+    assinatura_medico: Optional[bool] = None
+    assinatura_responsavel_instituicao: Optional[bool] = None
+    documentacao_assinada_url: Optional[str] = Field(None, max_length=500)
 
 
 class EstudanteAtletaResponse(BaseModel):
@@ -430,6 +441,11 @@ class EstudanteAtletaResponse(BaseModel):
     responsavel_celular: Optional[str] = None
     responsavel_email: str
     responsavel_nis: str
+    assinatura_estudante_atleta: bool = False
+    assinatura_responsavel_legal: bool = False
+    assinatura_medico: bool = False
+    assinatura_responsavel_instituicao: bool = False
+    documentacao_assinada_url: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

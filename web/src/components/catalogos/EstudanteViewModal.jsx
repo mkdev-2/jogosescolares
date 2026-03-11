@@ -1,6 +1,7 @@
-import { User, UserCircle, School } from 'lucide-react'
+import { User, UserCircle, School, FileSignature, Check, X } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { estudantesService } from '../../services/estudantesService'
+import { getStorageUrl } from '../../services/storageService'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
 
@@ -96,6 +97,45 @@ export default function EstudanteViewModal({ open, onClose, estudante }) {
             <InfoRow label="NIS" value={estudante.responsavel_nis} />
           </div>
         </div>
+
+        {(estudante.assinatura_estudante_atleta || estudante.assinatura_responsavel_legal || estudante.assinatura_medico || estudante.assinatura_responsavel_instituicao || estudante.documentacao_assinada_url) && (
+          <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
+            <div className="flex items-center gap-2">
+              <FileSignature className="w-4 h-4 text-[#64748b]" />
+              <h3 className="text-sm font-semibold text-[#042f2e] m-0">Assinaturas e documentação</h3>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-[#334155]">
+                {estudante.assinatura_estudante_atleta ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
+                <span>Assinatura do estudante-atleta</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[#334155]">
+                {estudante.assinatura_responsavel_legal ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
+                <span>Assinatura do responsável legal</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[#334155]">
+                {estudante.assinatura_medico ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
+                <span>Assinatura do médico</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[#334155]">
+                {estudante.assinatura_responsavel_instituicao ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
+                <span>Assinatura do responsável da instituição de ensino</span>
+              </div>
+            </div>
+            {estudante.documentacao_assinada_url && (
+              <div className="pt-2">
+                <a
+                  href={getStorageUrl(estudante.documentacao_assinada_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#0f766e] hover:underline"
+                >
+                  Abrir documentação assinada (anexo)
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   )

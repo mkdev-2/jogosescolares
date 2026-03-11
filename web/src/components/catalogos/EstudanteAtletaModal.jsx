@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { User, UserCircle, School, Camera, TriangleAlert } from 'lucide-react'
-import { DatePicker, Input, Select, Button, Steps } from 'antd'
+import { User, UserCircle, School, Camera, TriangleAlert, FileSignature } from 'lucide-react'
+import { DatePicker, Input, Select, Button, Steps, Checkbox } from 'antd'
 import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
 import { estudantesService } from '../../services/estudantesService'
-import { uploadFotoEstudante } from '../../services/storageService'
+import { uploadFotoEstudante, uploadDocumentacaoAssinada, getStorageUrl } from '../../services/storageService'
 
 const SEXO_OPCOES = [
   { value: 'M', label: 'Masculino' },
@@ -29,6 +29,11 @@ const INITIAL_FORM = {
   responsavelCelular: '',
   responsavelEmail: '',
   responsavelNis: '',
+  assinaturaEstudanteAtleta: false,
+  assinaturaResponsavelLegal: false,
+  assinaturaMedico: false,
+  assinaturaResponsavelInstituicao: false,
+  documentacaoAssinadaUrl: '',
 }
 
 function onlyDigits(s) {
@@ -56,6 +61,7 @@ const STEP_KEYS = {
   instituicao: 0,
   estudante: 1,
   responsavel: 2,
+  assinaturas: 3,
 }
 
 function validateStep(step, form) {
@@ -118,6 +124,7 @@ const STEP_ITEMS = [
   { title: 'Instituição e foto' },
   { title: 'Dados do estudante' },
   { title: 'Responsável' },
+  { title: 'Assinaturas e documentação' },
 ]
 
 export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudante = null }) {
@@ -126,9 +133,11 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [uploadingFoto, setUploadingFoto] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
   const [submitError, setSubmitError] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
   const fileInputRef = useRef(null)
+  const docInputRef = useRef(null)
 
   const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
@@ -152,6 +161,11 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavelCelular: estudante.responsavel_celular ? maskCelular(String(estudante.responsavel_celular).replace(/\D/g, '')) : '',
         responsavelEmail: estudante.responsavel_email || '',
         responsavelNis: estudante.responsavel_nis || '',
+        assinaturaEstudanteAtleta: !!estudante.assinatura_estudante_atleta,
+        assinaturaResponsavelLegal: !!estudante.assinatura_responsavel_legal,
+        assinaturaMedico: !!estudante.assinatura_medico,
+        assinaturaResponsavelInstituicao: !!estudante.assinatura_responsavel_instituicao,
+        documentacaoAssinadaUrl: estudante.documentacao_assinada_url || '',
       })
       setCurrentStep(0)
     } else if (open && !estudante) {
@@ -210,6 +224,35 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     }
   }
 
+  const ACCEPT_DOC = '.pdf,.jpg,.jpeg,.png'
+  const MAX_DOC_MB = 10
+  const handleDocumentacaoChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isPdf = file.type === 'application/pdf'
+    const isImage = file.type.startsWith('image/')
+    if (!isPdf && !isImage) {
+      setSubmitError('Envie um arquivo PDF ou imagem (JPG, PNG).')
+      if (docInputRef.current) docInputRef.current.value = ''
+      return
+    }
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setSubmitError(`O arquivo excede o limite de ${MAX_DOC_MB}MB.`)
+      if (docInputRef.current) docInputRef.current.value = ''
+      return
+    }
+    setUploadingDoc(true)
+    try {
+      const url = await uploadDocumentacaoAssinada(file)
+      updateField('documentacaoAssinadaUrl', url)
+    } catch (err) {
+      setSubmitError(err.message || 'Erro ao enviar documentação')
+    } finally {
+      setUploadingDoc(false)
+      if (docInputRef.current) docInputRef.current.value = ''
+    }
+  }
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
     const errs = validateForm(form)
@@ -239,6 +282,11 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
+        assinatura_estudante_atleta: !!form.assinaturaEstudanteAtleta,
+        assinatura_responsavel_legal: !!form.assinaturaResponsavelLegal,
+        assinatura_medico: !!form.assinaturaMedico,
+        assinatura_responsavel_instituicao: !!form.assinaturaResponsavelInstituicao,
+        documentacao_assinada_url: form.documentacaoAssinadaUrl?.trim() || null,
       }
       if (estudante?.id) {
         const { inep_instituicao, ...updatePayload } = payload
@@ -486,6 +534,90 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                 <Input id="modal-responsavelNis" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Número do NIS" maxLength={11} status={errors.responsavelNis ? 'error' : undefined} />
                 {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
               </div>
+            </div>
+          </div>
+          )}
+
+          {/* Step 3: Assinaturas e documentação */}
+          {currentStep === 3 && (
+          <div className="space-y-4 border-t border-[#e2e8f0] pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
+              <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
+                <FileSignature className="w-4 h-4 text-[#64748b]" />
+                Confirmação de assinaturas
+              </h3>
+            </div>
+            <p className="text-sm text-[#64748b] m-0 mb-4">
+              Marque os itens abaixo para confirmar que as assinaturas foram obtidas na documentação.
+            </p>
+            <div className="space-y-3">
+              <Checkbox
+                checked={form.assinaturaEstudanteAtleta}
+                onChange={(e) => updateField('assinaturaEstudanteAtleta', e.target.checked)}
+              >
+                Assinatura do estudante-atleta
+              </Checkbox>
+              <Checkbox
+                checked={form.assinaturaResponsavelLegal}
+                onChange={(e) => updateField('assinaturaResponsavelLegal', e.target.checked)}
+              >
+                Assinatura do responsável legal
+              </Checkbox>
+              <Checkbox
+                checked={form.assinaturaMedico}
+                onChange={(e) => updateField('assinaturaMedico', e.target.checked)}
+              >
+                Assinatura do médico
+              </Checkbox>
+              <Checkbox
+                checked={form.assinaturaResponsavelInstituicao}
+                onChange={(e) => updateField('assinaturaResponsavelInstituicao', e.target.checked)}
+              >
+                Assinatura do responsável da instituição de ensino
+              </Checkbox>
+            </div>
+
+            <div className="border-t border-[#e2e8f0] pt-6 mt-6">
+              <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
+              <p className="text-sm text-[#64748b] mb-3 m-0">
+                Opcional: envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
+              </p>
+              <input
+                ref={docInputRef}
+                type="file"
+                accept={ACCEPT_DOC}
+                onChange={handleDocumentacaoChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => docInputRef.current?.click()}
+                disabled={uploadingDoc}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#f0fdfa] hover:border-[#0f766e] transition-colors disabled:opacity-60"
+              >
+                {uploadingDoc ? 'Enviando...' : form.documentacaoAssinadaUrl ? 'Alterar anexo' : 'Selecionar arquivo'}
+              </button>
+              {form.documentacaoAssinadaUrl && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-[#0f766e]">Documento anexado.</span>
+                  <a
+                    href={getStorageUrl(form.documentacaoAssinadaUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#0f766e] hover:underline"
+                  >
+                    Abrir
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => updateField('documentacaoAssinadaUrl', '')}
+                    className="text-sm text-[#dc2626] hover:underline"
+                  >
+                    Remover
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           )}
