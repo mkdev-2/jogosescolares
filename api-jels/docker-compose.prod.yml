@@ -217,7 +217,7 @@ services:
       /bin/sh -c "
       echo 'Aguardando o MinIO inicializar suas credenciais IAM...';
       count=0;
-      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} >/dev/null 2>&1 || ! mc mb myminio/jogosescolares --ignore-existing >/dev/null 2>&1; do
+      while ! mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} || ! mc mb myminio/jogosescolares --ignore-existing; do
         count=$$((count+1));
         if [ $$count -ge 30 ]; then
            echo 'Falha ao logar no MinIO apos 60 segundos (Verifique credenciais ou apague o volume local)!';
