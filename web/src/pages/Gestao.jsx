@@ -19,6 +19,9 @@ import EquipeModal from '../components/catalogos/EquipeModal'
 import EstudanteViewModal from '../components/catalogos/EstudanteViewModal'
 import ProfessorViewModal from '../components/catalogos/ProfessorViewModal'
 import EquipeViewModal from '../components/catalogos/EquipeViewModal'
+import FichaColetivaPrint from '../components/catalogos/FichaColetivaPrint'
+import Modal from '../components/ui/Modal'
+import { equipesService } from '../services/equipesService'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
@@ -46,6 +49,9 @@ export default function Gestao() {
   const [estudanteParaEditar, setEstudanteParaEditar] = useState(null)
   const [professorParaEditar, setProfessorParaEditar] = useState(null)
   const [equipeParaEditar, setEquipeParaEditar] = useState(null)
+  const [fichaColetivaOpen, setFichaColetivaOpen] = useState(false)
+  const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
+  const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
@@ -185,8 +191,44 @@ export default function Gestao() {
                 onEditEquipe={(item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) }}
                 onDeleteEquipe={async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } }}
                 onViewEquipe={(item) => setEquipeParaVer(item)}
+                onFichaColetiva={async (equipe) => {
+                  setFichaColetivaOpen(true)
+                  setFichaColetivaDados(null)
+                  setFichaColetivaLoading(true)
+                  try {
+                    const data = await equipesService.getFichaColetiva(equipe.id)
+                    setFichaColetivaDados(data)
+                  } catch (err) {
+                    setFichaColetivaOpen(false)
+                    alert(err.message || 'Erro ao carregar dados da ficha coletiva.')
+                  } finally {
+                    setFichaColetivaLoading(false)
+                  }
+                }}
                 showInstituicao={isAdmin}
               />
+              <Modal
+                isOpen={fichaColetivaOpen}
+                onClose={() => { setFichaColetivaOpen(false); setFichaColetivaDados(null) }}
+                title="Ficha Coletiva – JELS"
+                subtitle={fichaColetivaDados ? `${fichaColetivaDados.instituicao || ''} • ${fichaColetivaDados.modalidade || ''}` : ''}
+                size="xl"
+                footer={null}
+              >
+                <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+                  {fichaColetivaLoading && (
+                    <div className="flex justify-center py-8">
+                      <div className="w-10 h-10 border-[3px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {!fichaColetivaLoading && fichaColetivaDados && (
+                    <FichaColetivaPrint
+                      dados={fichaColetivaDados}
+                      onClose={() => { setFichaColetivaOpen(false); setFichaColetivaDados(null) }}
+                    />
+                  )}
+                </div>
+              </Modal>
               <EquipeViewModal
                 open={!!equipeParaVer}
                 onClose={() => setEquipeParaVer(null)}
