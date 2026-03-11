@@ -95,11 +95,11 @@ async def upload_file(
             "path": path,
             "size": file_size,
         }
-    except S3Error as e:
-        logger.error(f"Erro S3 ao fazer upload. Credenciais usadas - User: {MINIO_ACCESS_KEY}, SSL: {MINIO_USE_SSL}, Endpoint: {MINIO_ENDPOINT}. Erro: {e}")
+        errmsg = f"Erro S3: {e}. Debug do Backend - User: {MINIO_ACCESS_KEY}, SSL: {MINIO_USE_SSL}, Endpoint: {MINIO_ENDPOINT}"
+        logger.error(errmsg)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao fazer upload: {str(e)}",
+            detail=errmsg,
         )
     except Exception as e:
         logger.error(f"Erro ao fazer upload: {e}")
