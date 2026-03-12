@@ -51,4 +51,13 @@ export const configuracoesService = {
     })
     return handleResponse(res, 'Erro ao salvar configurações')
   },
+
+  /** Atualiza apenas as logos (mídias). Payload: { logo_secretaria?: string, logo_jels?: string } */
+  async updateLogos(payload) {
+    const res = await apiFetch(`${BASE}/logos`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao salvar logos')
+  },
 }

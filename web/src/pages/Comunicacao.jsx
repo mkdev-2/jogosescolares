@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Newspaper, Tag } from 'lucide-react'
+import { Newspaper, Tag, Image } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import Noticias from './noticias/Noticias'
 import CategoriasNoticias from './noticias/CategoriasNoticias'
+import Midias from './noticias/Midias'
 
 const ALL_TABS = [
   { id: 'noticias', label: 'Notícias', icon: Newspaper },
   { id: 'categorias', label: 'Categorias de Notícias', icon: Tag, adminOnly: true },
+  { id: 'midias', label: 'Mídias', icon: Image, adminOnly: true },
 ]
 
 export default function Comunicacao() {
@@ -65,6 +67,7 @@ export default function Comunicacao() {
         <div className="p-6">
           {activeTab === 'noticias' && <Noticias embedded />}
           {activeTab === 'categorias' && <CategoriasNoticias embedded />}
+          {activeTab === 'midias' && <Midias embedded />}
         </div>
       </div>
     </div>

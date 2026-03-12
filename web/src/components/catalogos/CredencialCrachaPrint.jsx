@@ -34,18 +34,35 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
   const instituicao = estudante?.escola_nome || '–'
   const cpf = estudantesService.formatCpf(estudante?.cpf) || '–'
 
-  const formatModalidade = (m) =>
-    [m.esporte_nome, m.categoria_nome, m.naipe_nome, m.tipo_nome].filter(Boolean).join(' · ')
+  const formatModalidadeResto = (m) =>
+    [m.categoria_nome, m.naipe_nome, m.tipo_nome].filter(Boolean).join(' · ')
 
   return (
     <div className="bg-white text-[#334155]">
       <style>{`
-        @page { margin: 8mm; size: 100mm 70mm; }
+        @page { margin: 0; size: 100mm 70mm; }
         @media print {
           body * { visibility: hidden; }
           [data-credencial-cracha], [data-credencial-cracha] * { visibility: visible; }
-          [data-credencial-cracha] { position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 0; box-sizing: border-box; }
-          [data-credencial-cracha] .cracha-card { box-shadow: none !important; }
+          [data-credencial-cracha] {
+            position: absolute !important; left: 0 !important; top: 0 !important;
+            width: 100mm !important; height: 70mm !important; max-width: 100mm !important; max-height: 70mm !important;
+            padding: 0 !important; margin: 0 !important; box-sizing: border-box;
+            background: white; overflow: hidden;
+          }
+          [data-credencial-cracha] .cracha-print-wrapper {
+            padding: 0 !important; margin: 0 !important;
+            width: 100mm !important; height: 70mm !important;
+            min-width: 100mm !important; min-height: 70mm !important;
+            max-width: 100mm !important; max-height: 70mm !important;
+            box-sizing: border-box;
+          }
+          [data-credencial-cracha] .cracha-card {
+            box-shadow: none !important;
+            width: 100mm !important; min-width: 100mm !important; max-width: 100mm !important;
+            min-height: 70mm !important; max-height: 70mm !important; height: 70mm !important;
+            box-sizing: border-box;
+          }
           .no-print { display: none !important; }
         }
       `}</style>
@@ -69,15 +86,15 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
         </button>
       </div>
 
-      <div ref={printRef} data-credencial-cracha className="flex justify-center p-2">
+      <div ref={printRef} data-credencial-cracha className="cracha-print-wrapper flex justify-center items-start p-2 box-border">
         <div
-          className="cracha-card border-2 border-[#0f766e] rounded-xl overflow-hidden bg-white shadow-lg flex flex-col"
+          className="cracha-card border-2 border-[#0f766e] rounded-xl overflow-hidden bg-white shadow-lg flex flex-col box-border"
           style={{ width: '100mm', minHeight: '70mm', maxHeight: '70mm' }}
         >
           {/* Cabeçalho evento */}
           <div className="bg-[#0f766e] text-white text-center py-2 px-3 shrink-0">
-            <p className="text-[13px] font-bold m-0 uppercase tracking-wide">JELS {ano}</p>
-            <p className="text-[10px] m-0 opacity-90">Credencial do Atleta</p>
+            <p className="text-[15px] font-bold m-0 uppercase tracking-wide">JELS {ano}</p>
+            <p className="text-[12px] m-0 opacity-90">Credencial do Atleta</p>
           </div>
 
           <div className="flex flex-1 min-h-0 p-3 gap-3 w-full">
@@ -97,15 +114,15 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
 
             {/* Dados à direita - ocupa toda a largura restante */}
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 w-full">
-              <p className="text-[13px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full" title={nome}>
+              <p className="text-[15px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full" title={nome}>
                 {nome}
               </p>
               <p className="text-[10px] text-[#64748b] m-0 uppercase tracking-wide font-medium">Instituição</p>
-              <p className="text-[11px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-2 w-full" title={instituicao}>
+              <p className="text-[13px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-2 w-full" title={instituicao}>
                 {instituicao}
               </p>
               <p className="text-[10px] text-[#64748b] m-0 uppercase tracking-wide pt-0.5 font-medium">CPF</p>
-              <p className="text-[11px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
+              <p className="text-[13px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
             </div>
           </div>
 
@@ -117,8 +134,9 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
             ) : modalidades.length > 0 ? (
               <ul className="m-0 p-0 list-none space-y-0.5 max-h-[16mm] overflow-y-auto">
                 {modalidades.map((m, i) => (
-                  <li key={i} className="text-[10px] text-[#334155] leading-tight">
-                    {formatModalidade(m)}
+                  <li key={i} className="text-[13px] text-[#334155] leading-tight">
+                    <span className="font-bold">{m.esporte_nome || '–'}</span>
+                    {formatModalidadeResto(m) ? ` · ${formatModalidadeResto(m)}` : ''}
                   </li>
                 ))}
               </ul>
