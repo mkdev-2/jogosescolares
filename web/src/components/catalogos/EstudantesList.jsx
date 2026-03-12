@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical } from 'lucide-react'
+import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical, IdCard } from 'lucide-react'
 import { Input, Button, Popconfirm, Popover, Select } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
 import { getStorageUrl } from '../../services/storageService'
@@ -24,6 +24,7 @@ export default function EstudantesList({
   onEditAluno,
   onDeleteAluno,
   onViewAluno,
+  onGerarCredencial,
   showInstituicao = false,
   escolas = [],
 }) {
@@ -160,7 +161,7 @@ export default function EstudantesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Responsável
                     </th>
-                    {(onEditAluno || onDeleteAluno) && (
+                    {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ações
                       </th>
@@ -206,7 +207,7 @@ export default function EstudantesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {item.responsavel_nome || '-'}
                       </td>
-                      {(onEditAluno || onDeleteAluno) && (
+                      {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
                         <td
                           className="px-5 py-4 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
@@ -216,6 +217,16 @@ export default function EstudantesList({
                             trigger="click"
                             content={
                               <div className="flex flex-col min-w-[120px]">
+                                {onGerarCredencial && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onGerarCredencial(item)}
+                                  >
+                                    <IdCard size={16} />
+                                    Gerar credencial
+                                  </button>
+                                )}
                                 {onEditAluno && (
                                   <button
                                     type="button"

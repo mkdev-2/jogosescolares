@@ -22,7 +22,7 @@ const InfoRow = ({ label, value }) => (
   </div>
 )
 
-export default function EstudanteViewModal({ open, onClose, estudante }) {
+export default function EstudanteViewModal({ open, onClose, estudante, onGerarCredencial }) {
   if (!estudante) return null
 
   return (
@@ -33,20 +33,31 @@ export default function EstudanteViewModal({ open, onClose, estudante }) {
       subtitle="Dados do aluno"
       size="xl"
       footer={
-        <button
-          type="button"
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
-          onClick={onClose}
-        >
-          Fechar
-        </button>
+        <div className="flex flex-wrap gap-2 justify-end">
+          {onGerarCredencial && (
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d6961]"
+              onClick={() => { onGerarCredencial(estudante); onClose?.() }}
+            >
+              Gerar credencial
+            </button>
+          )}
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+            onClick={onClose}
+          >
+            Fechar
+          </button>
+        </div>
       }
     >
       <div className="space-y-6">
         {estudante.foto_url && (
           <div className="flex justify-center">
             <img
-              src={estudante.foto_url}
+              src={getStorageUrl(estudante.foto_url)}
               alt={estudante.nome}
               className="w-24 h-24 rounded-full object-cover border-2 border-[#e2e8f0]"
             />

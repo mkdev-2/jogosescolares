@@ -20,6 +20,7 @@ import EstudanteViewModal from '../components/catalogos/EstudanteViewModal'
 import ProfessorViewModal from '../components/catalogos/ProfessorViewModal'
 import EquipeViewModal from '../components/catalogos/EquipeViewModal'
 import FichaColetivaPrint from '../components/catalogos/FichaColetivaPrint'
+import CredencialCrachaPrint from '../components/catalogos/CredencialCrachaPrint'
 import Modal from '../components/ui/Modal'
 import { equipesService } from '../services/equipesService'
 
@@ -52,6 +53,7 @@ export default function Gestao() {
   const [fichaColetivaOpen, setFichaColetivaOpen] = useState(false)
   const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
   const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
+  const [estudanteParaCredencial, setEstudanteParaCredencial] = useState(null)
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
@@ -133,6 +135,7 @@ export default function Gestao() {
                 onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
                 onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
                 onViewAluno={(item) => setEstudanteParaVer(item)}
+                onGerarCredencial={(item) => setEstudanteParaCredencial(item)}
                 showInstituicao={isAdmin}
                 escolas={isAdmin ? listaEscolas : []}
               />
@@ -140,7 +143,25 @@ export default function Gestao() {
                 open={!!estudanteParaVer}
                 onClose={() => setEstudanteParaVer(null)}
                 estudante={estudanteParaVer}
+                onGerarCredencial={(item) => { setEstudanteParaVer(null); setEstudanteParaCredencial(item) }}
               />
+              <Modal
+                isOpen={!!estudanteParaCredencial}
+                onClose={() => setEstudanteParaCredencial(null)}
+                title="Credencial / Crachá"
+                subtitle={estudanteParaCredencial?.nome}
+                size="md"
+                footer={null}
+              >
+                <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+                  {estudanteParaCredencial && (
+                    <CredencialCrachaPrint
+                      estudante={estudanteParaCredencial}
+                      onClose={() => setEstudanteParaCredencial(null)}
+                    />
+                  )}
+                </div>
+              </Modal>
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
                 onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null) }}
