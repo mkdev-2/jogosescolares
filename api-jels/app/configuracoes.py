@@ -69,6 +69,24 @@ async def get_configuracoes_app(
     return result
 
 
+@router.get("/logos")
+async def get_configuracoes_logos(
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna apenas as URLs das logos (mídias) para exibição no crachá e em outros lugares do app."""
+    chaves = ("logo_secretaria", "logo_jels")
+    result = {k: None for k in chaves}
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(chaves),),
+        )
+        async for row in cur:
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+    return result
+
+
 @router.get("")
 async def get_configuracoes(
     conn: psycopg.AsyncConnection = Depends(get_db),

@@ -44,6 +44,13 @@ export const configuracoesService = {
     return data
   },
 
+  /** Retorna apenas as logos (mídias) para exibição no crachá etc. */
+  async getLogos() {
+    const res = await apiFetch(`${BASE}/logos`)
+    const data = await handleResponse(res, 'Erro ao carregar logos')
+    return data
+  },
+
   async update(payload) {
     const res = await apiFetch(BASE, {
       method: 'PUT',
