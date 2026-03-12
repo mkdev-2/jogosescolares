@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md' }) {
+export default function Modal({ isOpen, onClose, title, subtitle, titleLeft, titleRight, children, footer, size = 'md' }) {
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') onClose?.()
@@ -32,13 +32,17 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-6 py-5 border-b border-[#e2e8f0] shrink-0">
-          <div>
-            <h2 id="modal-title" className="text-[1.25rem] font-semibold text-[#042f2e] m-0">{title}</h2>
+        <div className="flex items-center justify-between gap-4 px-6 py-5 border-b border-[#e2e8f0] shrink-0">
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+            {titleLeft && <div className="shrink-0">{titleLeft}</div>}
+            <div className="min-w-0">
+              <h2 id="modal-title" className="text-[1.25rem] font-semibold text-[#042f2e] m-0">{title}</h2>
             {subtitle && (
               <p className="mt-1 text-[0.875rem] text-[#64748b] m-0">{subtitle}</p>
             )}
+            </div>
           </div>
+          {titleRight && <div className="shrink-0">{titleRight}</div>}
           <button
             type="button"
             className="text-[1.5rem] text-[#64748b] p-1 leading-none hover:text-[#334155] rounded focus:outline-none focus:ring-2 focus:ring-[#0f766e]"

@@ -4,7 +4,14 @@ import { Input, Button, Popconfirm, Popover, Select } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
 import { getStorageUrl } from '../../services/storageService'
 
-const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
+function SexoBadge({ sexo }) {
+  if (!sexo) return <span className="text-[#94a3b8]">-</span>
+  const isF = String(sexo).toUpperCase() === 'F'
+  const isM = String(sexo).toUpperCase() === 'M'
+  if (isF) return <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">F</span>
+  if (isM) return <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">M</span>
+  return <span>{sexo}</span>
+}
 
 function formatDate(str) {
   if (!str) return '-'
@@ -149,9 +156,6 @@ export default function EstudantesList({
                       CPF
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      RG
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Nascimento
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -195,13 +199,10 @@ export default function EstudantesList({
                         {estudantesService.formatCpf(item.cpf)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {item.rg || '-'}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {formatDate(item.data_nascimento)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {SEXO_LABEL[item.sexo] || item.sexo || '-'}
+                        <SexoBadge sexo={item.sexo} />
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {item.responsavel_nome || '-'}

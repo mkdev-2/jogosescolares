@@ -29,10 +29,7 @@ const INITIAL_FORM = {
   responsavelCelular: '',
   responsavelEmail: '',
   responsavelNis: '',
-  assinaturaEstudanteAtleta: false,
-  assinaturaResponsavelLegal: false,
-  assinaturaMedico: false,
-  assinaturaResponsavelInstituicao: false,
+  fichaAssinada: false,
   documentacaoAssinadaUrl: '',
 }
 
@@ -185,10 +182,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             responsavelCelular: full.responsavel_celular ? maskCelular(String(full.responsavel_celular).replace(/\D/g, '')) : '',
             responsavelEmail: full.responsavel_email || '',
             responsavelNis: full.responsavel_nis || '',
-            assinaturaEstudanteAtleta: Boolean(full.assinatura_estudante_atleta),
-            assinaturaResponsavelLegal: Boolean(full.assinatura_responsavel_legal),
-            assinaturaMedico: Boolean(full.assinatura_medico),
-            assinaturaResponsavelInstituicao: Boolean(full.assinatura_responsavel_instituicao),
+            fichaAssinada: Boolean(full.ficha_assinada),
             documentacaoAssinadaUrl: full.documentacao_assinada_url || '',
           })
           setCurrentStep(0)
@@ -312,10 +306,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
-        assinatura_estudante_atleta: Boolean(form.assinaturaEstudanteAtleta),
-        assinatura_responsavel_legal: Boolean(form.assinaturaResponsavelLegal),
-        assinatura_medico: Boolean(form.assinaturaMedico),
-        assinatura_responsavel_instituicao: Boolean(form.assinaturaResponsavelInstituicao),
+        ficha_assinada: Boolean(form.fichaAssinada),
         documentacao_assinada_url: form.documentacaoAssinadaUrl?.trim() || null,
       }
       if (estudante?.id) {
@@ -347,18 +338,16 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
       }
       size="xl"
       footer={
-        <div className="flex justify-between gap-3">
-          <div>
+        <div className="flex justify-between gap-3 w-full">
+          <Button type="default" onClick={handleClose} disabled={loading || loadingEstudante}>
+            Cancelar
+          </Button>
+          <div className="flex gap-3">
             {currentStep > 0 && (
               <Button type="default" onClick={handlePrev} disabled={loading || loadingEstudante}>
                 Voltar
               </Button>
             )}
-          </div>
-          <div className="flex gap-3">
-            <Button type="default" onClick={handleClose} disabled={loading || loadingEstudante}>
-              Cancelar
-            </Button>
             {!isLastStep ? (
               <Button type="primary" onClick={handleNext} disabled={loadingEstudante}>
                 Próximo
@@ -551,60 +540,15 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                     <div className="w-0.5 h-5 bg-[#0f766e] rounded-full" />
                     <h3 className="text-base font-semibold text-[#042f2e] flex items-center gap-2 m-0">
                       <FileSignature className="w-4 h-4 text-[#64748b]" />
-                      Confirmação de assinaturas
+                      Assinaturas e documentação
                     </h3>
                   </div>
-                  <p className="text-sm text-[#64748b] m-0 mb-4">
-                    Marque os itens abaixo para confirmar que as assinaturas foram obtidas na documentação.
-                  </p>
                   <div className="space-y-3">
                     <Checkbox
-                      checked={
-                        form.assinaturaEstudanteAtleta &&
-                        form.assinaturaResponsavelLegal &&
-                        form.assinaturaMedico &&
-                        form.assinaturaResponsavelInstituicao
-                      }
-                      indeterminate={
-                        [form.assinaturaEstudanteAtleta, form.assinaturaResponsavelLegal, form.assinaturaMedico, form.assinaturaResponsavelInstituicao].some(Boolean) &&
-                        !(form.assinaturaEstudanteAtleta && form.assinaturaResponsavelLegal && form.assinaturaMedico && form.assinaturaResponsavelInstituicao)
-                      }
-                      onChange={(e) => {
-                        const v = e.target.checked
-                        setForm((prev) => ({
-                          ...prev,
-                          assinaturaEstudanteAtleta: v,
-                          assinaturaResponsavelLegal: v,
-                          assinaturaMedico: v,
-                          assinaturaResponsavelInstituicao: v,
-                        }))
-                      }}
+                      checked={form.fichaAssinada}
+                      onChange={(e) => updateField('fichaAssinada', e.target.checked)}
                     >
-                      Marcar todas
-                    </Checkbox>
-                    <Checkbox
-                      checked={form.assinaturaEstudanteAtleta}
-                      onChange={(e) => updateField('assinaturaEstudanteAtleta', e.target.checked)}
-                    >
-                      Assinatura do estudante-atleta
-                    </Checkbox>
-                    <Checkbox
-                      checked={form.assinaturaResponsavelLegal}
-                      onChange={(e) => updateField('assinaturaResponsavelLegal', e.target.checked)}
-                    >
-                      Assinatura do responsável legal
-                    </Checkbox>
-                    <Checkbox
-                      checked={form.assinaturaMedico}
-                      onChange={(e) => updateField('assinaturaMedico', e.target.checked)}
-                    >
-                      Assinatura do médico
-                    </Checkbox>
-                    <Checkbox
-                      checked={form.assinaturaResponsavelInstituicao}
-                      onChange={(e) => updateField('assinaturaResponsavelInstituicao', e.target.checked)}
-                    >
-                      Assinatura do responsável da instituição de ensino
+                      Assinaturas de Médico, Aluno, Responsável e Escola coletadas
                     </Checkbox>
                   </div>
 
