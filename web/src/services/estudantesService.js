@@ -55,6 +55,18 @@ export const estudantesService = {
     return res.json().catch(() => ({}))
   },
 
+  /**
+   * Lista as modalidades (equipes) em que o estudante participa.
+   */
+  async getModalidades(estudanteId) {
+    const res = await apiFetch(`/estudantes-atletas/${estudanteId}/modalidades`)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => [])
+  },
+
   async criar(payload) {
     const res = await apiFetch('/estudantes-atletas', {
       method: 'POST',

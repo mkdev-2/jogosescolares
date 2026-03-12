@@ -5,6 +5,7 @@ const FOTOS_PATH = 'estudantes'
 const DOCUMENTACAO_PATH = 'estudantes/documentacao'
 const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
+const MIDIAS_PATH = 'midias'
 
 /**
  * Faz upload para o MinIO via backend. bucket e path na query; body só o file.
@@ -83,5 +84,17 @@ export async function uploadFotoPerfil(file) {
 export async function uploadImagemNoticia(file, subPath = 'destaque') {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${NOTICIAS_PATH}/${subPath}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload de logo para mídias (secretaria ou JELS).
+ * @param {File} file - Arquivo de imagem (PNG, JPG, etc.)
+ * @param {'logo_secretaria'|'logo_jels'} tipo - Qual logo atualizar
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadLogoMidias(file, tipo) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'png').replace(/[^a-z0-9]/g, '')
+  const path = `${MIDIAS_PATH}/${tipo}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }

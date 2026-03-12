@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -34,6 +34,7 @@ const menuGroups = [
     items: [
       { label: 'Notícias', path: '/app/comunicacao', icon: Newspaper, tab: 'noticias' },
       { label: 'Categorias de Notícias', path: '/app/comunicacao', icon: Tag, tab: 'categorias', adminOnly: true },
+      { label: 'Mídias', path: '/app/comunicacao', icon: Image, tab: 'midias', adminOnly: true },
     ],
   },
   {

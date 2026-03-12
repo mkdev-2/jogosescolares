@@ -44,11 +44,27 @@ export const configuracoesService = {
     return data
   },
 
+  /** Retorna apenas as logos (mídias) para exibição no crachá etc. */
+  async getLogos() {
+    const res = await apiFetch(`${BASE}/logos`)
+    const data = await handleResponse(res, 'Erro ao carregar logos')
+    return data
+  },
+
   async update(payload) {
     const res = await apiFetch(BASE, {
       method: 'PUT',
       body: JSON.stringify(payload),
     })
     return handleResponse(res, 'Erro ao salvar configurações')
+  },
+
+  /** Atualiza apenas as logos (mídias). Payload: { logo_secretaria?: string, logo_jels?: string } */
+  async updateLogos(payload) {
+    const res = await apiFetch(`${BASE}/logos`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao salvar logos')
   },
 }

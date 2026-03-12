@@ -22,7 +22,8 @@ const InfoRow = ({ label, value }) => (
   </div>
 )
 
-export default function EstudanteViewModal({ open, onClose, estudante, onEdit }) {
+export default function EstudanteViewModal({ open, onClose, estudante, onEdit, onGerarCredencial }) {
+
   if (!estudante) return null
 
   const fotoOuIcone = estudante.foto_url ? (
@@ -46,7 +47,7 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit })
       titleLeft={fotoOuIcone}
       size="xl"
       footer={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap gap-2 justify-end items-center">
           {onEdit && (
             <button
               type="button"
@@ -55,6 +56,15 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit })
             >
               <Pencil size={16} />
               Editar
+            </button>
+          )}
+          {onGerarCredencial && (
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d6961]"
+              onClick={() => { onGerarCredencial(estudante); onClose?.() }}
+            >
+              Gerar credencial
             </button>
           )}
           <button
@@ -68,7 +78,17 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit })
       }
     >
       <div className="space-y-6">
-        <div className="space-y-2">
+        {estudante.escola_nome && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <School className="w-4 h-4 text-[#64748b]" />
+              <h3 className="text-sm font-semibold text-[#042f2e] m-0">Instituição</h3>
+            </div>
+            <InfoRow label="Escola" value={estudante.escola_nome} />
+          </div>
+        )}
+
+        <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-[#64748b]" />
             <h3 className="text-sm font-semibold text-[#042f2e] m-0">Dados do Estudante</h3>
@@ -102,16 +122,6 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit })
             <InfoRow label="NIS" value={estudante.responsavel_nis} />
           </div>
         </div>
-
-        {estudante.escola_nome && (
-          <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
-            <div className="flex items-center gap-2">
-              <School className="w-4 h-4 text-[#64748b]" />
-              <h3 className="text-sm font-semibold text-[#042f2e] m-0">Instituição</h3>
-            </div>
-            <InfoRow label="Escola" value={estudante.escola_nome} />
-          </div>
-        )}
 
         {(estudante.ficha_assinada || estudante.documentacao_assinada_url) && (
           <div className="space-y-2 border-t border-[#e2e8f0] pt-4">

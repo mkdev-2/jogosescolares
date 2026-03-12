@@ -10,7 +10,7 @@ import psycopg
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.schemas import ConfiguracoesUpdate
+from app.schemas import ConfiguracoesUpdate, ConfiguracoesLogosUpdate
 
 router = APIRouter(prefix="/api/configuracoes", tags=["configuracoes"])
 logger = logging.getLogger(__name__)
@@ -22,6 +22,8 @@ CHAVES_CONHECIDAS = {
     "cadastro_data_limite",
     "diretor_cadastro_alunos_data_limite",
     "diretor_editar_modalidades_data_limite",
+    "logo_secretaria",
+    "logo_jels",
 }
 
 
@@ -63,7 +65,25 @@ async def get_configuracoes_app(
             (list(chaves),),
         )
         async for row in cur:
-            result[row["chave"]] = _valor_para_resposta(row["valor"])
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+    return result
+
+
+@router.get("/logos")
+async def get_configuracoes_logos(
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna apenas as URLs das logos (mídias) para exibição no crachá e em outros lugares do app."""
+    chaves = ("logo_secretaria", "logo_jels")
+    result = {k: None for k in chaves}
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(chaves),),
+        )
+        async for row in cur:
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
     return result
 
 
@@ -81,7 +101,7 @@ async def get_configuracoes(
             (list(CHAVES_CONHECIDAS),),
         )
         async for row in cur:
-            result[row["chave"]] = _valor_para_resposta(row["valor"])
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
     return JSONResponse(
         content=result,
         headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
@@ -95,12 +115,17 @@ def _normalize_data_limite(value: Optional[str]) -> Optional[str]:
     return str(value).strip()[:10]
 
 
-def _valor_para_resposta(val):
-    """Garante que o valor lido do banco seja string ou None na resposta JSON."""
+def _valor_para_resposta(val, chave: Optional[str] = None):
+    """Garante que o valor lido do banco seja string ou None na resposta JSON.
+    Para chaves de data (data_limite) retorna só os primeiros 10 chars (YYYY-MM-DD)."""
     if val is None:
         return None
     s = str(val).strip()
-    return s[:10] if s else None
+    if not s:
+        return None
+    if chave and "data_limite" in chave:
+        return s[:10]
+    return s
 
 
 @router.put("")
@@ -141,5 +166,54 @@ async def update_configuracoes(
             (list(CHAVES_CONHECIDAS),),
         )
         async for row in cur:
-            result[row["chave"]] = _valor_para_resposta(row["valor"])
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+    return result
+
+
+@router.patch("/logos")
+async def update_configuracoes_logos(
+    payload: ConfiguracoesLogosUpdate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Atualiza apenas as logos (logo_secretaria, logo_jels). Apenas SUPER_ADMIN/ADMIN."""
+    require_admin(current_user)
+
+    updates = {}
+    if payload.logo_secretaria is not None:
+        updates["logo_secretaria"] = str(payload.logo_secretaria).strip() or None
+    if payload.logo_jels is not None:
+        updates["logo_jels"] = str(payload.logo_jels).strip() or None
+
+    if not updates:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+                (list(CHAVES_CONHECIDAS),),
+            )
+            result = {chave: None for chave in CHAVES_CONHECIDAS}
+            async for row in cur:
+                result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+        return result
+
+    async with conn.cursor() as cur:
+        for chave, valor in updates.items():
+            await cur.execute(
+                """
+                INSERT INTO configuracoes (chave, valor)
+                VALUES (%s, %s)
+                ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor
+                """,
+                (chave, valor),
+            )
+    await conn.commit()
+
+    result = {chave: None for chave in CHAVES_CONHECIDAS}
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(CHAVES_CONHECIDAS),),
+        )
+        async for row in cur:
+            result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
     return result

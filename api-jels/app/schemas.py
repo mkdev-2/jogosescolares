@@ -366,6 +366,12 @@ class ConfiguracoesUpdate(BaseModel):
     diretor_editar_modalidades_data_limite: Optional[str] = Field(None, description="Data limite para diretor editar modalidades da escola (YYYY-MM-DD) ou null para sem limite")
 
 
+class ConfiguracoesLogosUpdate(BaseModel):
+    """Schema para atualização apenas das logos (mídias)."""
+    logo_secretaria: Optional[str] = Field(None, description="Path do storage da logo da secretaria")
+    logo_jels: Optional[str] = Field(None, description="Path do storage da logo JELS")
+
+
 # ========== ESTUDANTES ATLETAS ==========
 
 class EstudanteAtletaCreate(BaseModel):

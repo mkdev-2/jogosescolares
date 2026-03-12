@@ -4,11 +4,14 @@ import useEstudantes from '../hooks/useEstudantes'
 import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
+import CredencialCrachaPrint from '../components/catalogos/CredencialCrachaPrint'
+import Modal from '../components/ui/Modal'
 
 export default function CadastroEstudanteAtleta() {
   const { lista, loading, error, fetchEstudantes } = useEstudantes()
   const { bloqueado: cadastroAlunosBloqueado } = usePrazoCadastroAlunos()
   const [modalOpen, setModalOpen] = useState(false)
+  const [estudanteParaCredencial, setEstudanteParaCredencial] = useState(null)
 
   const handleNewAluno = () => {
     setModalOpen(true)
@@ -49,8 +52,27 @@ export default function CadastroEstudanteAtleta() {
           loading={loading}
           error={error}
           onNewAluno={cadastroAlunosBloqueado ? undefined : handleNewAluno}
+          onGerarCredencial={(item) => setEstudanteParaCredencial(item)}
         />
       </div>
+
+      <Modal
+        isOpen={!!estudanteParaCredencial}
+        onClose={() => setEstudanteParaCredencial(null)}
+        title="Credencial / Crachá"
+        subtitle={estudanteParaCredencial?.nome}
+        size="md"
+        footer={null}
+      >
+        <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+          {estudanteParaCredencial && (
+            <CredencialCrachaPrint
+              estudante={estudanteParaCredencial}
+              onClose={() => setEstudanteParaCredencial(null)}
+            />
+          )}
+        </div>
+      </Modal>
 
       <EstudanteAtletaModal
         open={modalOpen}

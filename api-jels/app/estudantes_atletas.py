@@ -113,6 +113,53 @@ async def list_estudantes_atletas(
     return [_row_to_response(dict(r)) for r in rows]
 
 
+@router.get("/{estudante_id}/modalidades")
+async def get_estudante_modalidades(
+    estudante_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna as modalidades (equipes) em que o estudante participa: esporte, categoria, naipe e tipo."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id FROM estudantes_atletas e WHERE e.id = %s
+            """,
+            (estudante_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+    _check_estudante_visible(current_user, row["escola_id"])
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome, tm.nome AS tipo_nome
+            FROM equipe_estudantes ee
+            JOIN equipes eq ON eq.id = ee.equipe_id
+            JOIN esporte_variantes ev ON ev.id = eq.esporte_variante_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
+            JOIN categorias c ON c.id = ev.categoria_id
+            JOIN naipes n ON n.id = ev.naipe_id
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ee.estudante_id = %s
+            ORDER BY esp.nome, c.idade_min, n.codigo
+            """,
+            (estudante_id,),
+        )
+        rows = await cur.fetchall()
+    return [
+        {
+            "esporte_nome": r["esporte_nome"],
+            "categoria_nome": r["categoria_nome"],
+            "naipe_nome": r["naipe_nome"],
+            "tipo_nome": r["tipo_nome"],
+        }
+        for r in rows
+    ]
+
+
 def _check_estudante_visible(current_user: dict, escola_id: int | None) -> None:
     """Verifica se o usuário pode acessar o estudante (mesma escola ou admin)."""
     if is_admin(current_user):
