@@ -2,7 +2,8 @@ import { useRef, useState, useEffect } from 'react'
 import { estudantesService } from '../../services/estudantesService'
 import { configuracoesService } from '../../services/configuracoesService'
 import { getStorageUrl } from '../../services/storageService'
-import { User } from 'lucide-react'
+import { User, Medal } from 'lucide-react'
+import ModalidadeIcon from './ModalidadeIcon'
 
 /**
  * Credencial/crachá para impressão: 9cm x 12cm (vertical).
@@ -45,7 +46,10 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
   const cpf = estudantesService.formatCpf(estudante?.cpf) || '–'
 
   const formatModalidadeResto = (m) =>
-    [m.categoria_nome, m.naipe_nome, m.tipo_nome].filter(Boolean).join(' · ')
+    [m.categoria_nome, m.naipe_nome].filter(Boolean).join(' · ')
+
+  const BADGE_COLORS = ['#0f766e', '#b45309', '#0369a1', '#0d9488']
+  const getBadgeColor = (i) => BADGE_COLORS[i % BADGE_COLORS.length]
 
   return (
     <div className="bg-white text-[#334155]">
@@ -101,30 +105,18 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
           className="cracha-card border-2 border-[#0f766e] rounded-xl overflow-hidden bg-white shadow-lg flex flex-col box-border"
           style={{ width: '90mm', minHeight: '120mm', maxHeight: '120mm' }}
         >
-          {/* Cabeçalho evento: logos (Mídias) + título */}
-          <div className="bg-[#0f766e] text-white py-2 px-2 shrink-0 flex items-center justify-between gap-2">
-            <div className="flex items-center justify-center min-w-[32px] h-8 shrink-0">
-              {logos.logo_secretaria ? (
-                <img src={getStorageUrl(logos.logo_secretaria)} alt="Secretaria" className="max-h-8 max-w-[55px] object-contain object-center" />
-              ) : (
-                <span className="w-0" />
-              )}
-            </div>
+          {/* Cabeçalho: ícone medalha + título (layout da imagem) */}
+          <div className="bg-[#0f766e] text-white py-2 px-3 shrink-0 flex items-center justify-center gap-2">
+            <Medal className="w-8 h-8 shrink-0 opacity-95" strokeWidth={2} />
             <div className="text-center flex-1 min-w-0">
               <p className="text-[14px] font-bold m-0 uppercase tracking-wide leading-tight">JELS {ano}</p>
               <p className="text-[11px] m-0 opacity-90 leading-tight">Credencial do Atleta</p>
             </div>
-            <div className="flex items-center justify-center min-w-[32px] h-8 shrink-0">
-              {logos.logo_jels ? (
-                <img src={getStorageUrl(logos.logo_jels)} alt="JELS" className="max-h-8 max-w-[55px] object-contain object-center" />
-              ) : (
-                <span className="w-0" />
-              )}
-            </div>
+            <span className="w-8 shrink-0" aria-hidden />
           </div>
 
-          <div className="flex flex-1 min-h-0 p-3 gap-3 w-full">
-            {/* Foto à esquerda */}
+          {/* Foto + informações */}
+          <div className="flex flex-1 min-h-0 p-3 gap-3 w-full border-b border-[#e2e8f0]">
             <div className="flex items-center justify-center shrink-0">
               <div
                 className="rounded-full overflow-hidden border-2 border-[#e2e8f0] bg-[#f1f5f9] flex items-center justify-center"
@@ -137,39 +129,62 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
                 )}
               </div>
             </div>
-
-            {/* Dados à direita */}
-            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 w-full">
-              <p className="text-[14px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full" title={nome}>
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 w-full">
+              <p className="text-[13px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full uppercase" title={nome}>
                 {nome}
               </p>
-              <p className="text-[10px] text-[#64748b] m-0 uppercase tracking-wide font-medium">Instituição</p>
-              <p className="text-[12px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-2 w-full" title={instituicao}>
+              <p className="text-[11px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-1 w-full" title={instituicao}>
                 {instituicao}
               </p>
-              <p className="text-[10px] text-[#64748b] m-0 uppercase tracking-wide pt-0.5 font-medium">CPF</p>
-              <p className="text-[12px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
+              <p className="text-[9px] text-[#64748b] m-0 uppercase tracking-wide font-medium pt-0.5">CPF</p>
+              <p className="text-[11px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
             </div>
           </div>
 
-          {/* Modalidades */}
-          <div className="shrink-0 border-t border-[#e2e8f0] bg-[#f8fafc] px-3 py-2">
-            <p className="text-[9px] text-[#64748b] m-0 mb-0.5 uppercase tracking-wide font-semibold">Modalidades</p>
+          {/* Modalidades: badges/tags esportivas com ícone */}
+          <div className="shrink-0 px-3 py-2 border-b border-[#e2e8f0]">
+            <p className="text-[10px] text-[#0f766e] m-0 mb-1.5 uppercase tracking-wide font-bold text-center">Modalidades</p>
             {loadingModalidades ? (
-              <p className="text-[10px] text-[#64748b] m-0">Carregando...</p>
+              <p className="text-[11px] text-[#64748b] m-0 text-center">Carregando...</p>
             ) : modalidades.length > 0 ? (
-              <ul className="m-0 p-0 list-none space-y-0.5 max-h-[22mm] overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5 justify-center items-center max-h-[22mm] overflow-y-auto">
                 {modalidades.map((m, i) => (
-                  <li key={i} className="text-[12px] text-[#334155] leading-tight">
-                    <span className="font-bold">{m.esporte_nome || '–'}</span>
-                    {formatModalidadeResto(m) ? ` · ${formatModalidadeResto(m)}` : ''}
-                  </li>
+                  <div
+                    key={i}
+                    className="inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 border border-white/40 shadow-sm min-w-0"
+                    style={{ backgroundColor: getBadgeColor(i) }}
+                  >
+                    <ModalidadeIcon icone={m.esporte_icone || 'Zap'} size={12} className="text-white shrink-0" />
+                    <span className="text-[9px] font-bold text-white uppercase leading-tight truncate max-w-[45mm]">
+                      {m.esporte_nome || '–'}
+                      {formatModalidadeResto(m) ? ` · ${formatModalidadeResto(m)}` : ''}
+                    </span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-[10px] text-[#94a3b8] m-0">Nenhuma modalidade vinculada</p>
+              <p className="text-[11px] text-[#94a3b8] m-0 italic text-center">Nenhuma modalidade vinculada</p>
             )}
           </div>
+
+          {/* Rodapé: REALIZAÇÃO + logos */}
+          <div className="shrink-0 bg-[#f8fafc] border-t border-[#e2e8f0] pt-2 pb-2.5 px-3">
+            <p className="text-[9px] text-[#64748b] m-0 mb-1.5 uppercase tracking-wide font-semibold text-center">Realização</p>
+            <div className="flex items-center justify-center gap-6">
+              {logos.logo_secretaria ? (
+                <img src={getStorageUrl(logos.logo_secretaria)} alt="Secretaria" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
+              ) : null}
+              {logos.logo_jels ? (
+                <img src={getStorageUrl(logos.logo_jels)} alt="JELS" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
+              ) : null}
+              {!logos.logo_secretaria && !logos.logo_jels ? (
+                <span className="text-[10px] text-[#94a3b8]">Logos em Comunicação → Mídias</span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Faixa verde inferior (simetria com o cabeçalho) */}
+          <div className="shrink-0 bg-[#0f766e] h-1.5" aria-hidden />
         </div>
       </div>
     </div>
