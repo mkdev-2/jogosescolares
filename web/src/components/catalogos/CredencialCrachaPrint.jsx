@@ -107,12 +107,12 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
         >
           {/* Cabeçalho: ícone medalha + título (layout da imagem) */}
           <div className="bg-[#0f766e] text-white py-2 px-3 shrink-0 flex items-center justify-center gap-2">
-            <Medal className="w-8 h-8 shrink-0 opacity-95" strokeWidth={2} />
+            <Medal className="w-9 h-9 shrink-0 opacity-95" strokeWidth={2} />
             <div className="text-center flex-1 min-w-0">
-              <p className="text-[14px] font-bold m-0 uppercase tracking-wide leading-tight">JELS {ano}</p>
-              <p className="text-[11px] m-0 opacity-90 leading-tight">Credencial do Atleta</p>
+              <p className="text-[16px] font-bold m-0 uppercase tracking-wide leading-tight">JELS {ano}</p>
+              <p className="text-[13px] m-0 opacity-90 leading-tight">Credencial do Atleta</p>
             </div>
-            <span className="w-8 shrink-0" aria-hidden />
+            <span className="w-9 shrink-0" aria-hidden />
           </div>
 
           {/* Foto + informações */}
@@ -130,22 +130,22 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
               </div>
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 w-full">
-              <p className="text-[13px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full uppercase" title={nome}>
+              <p className="text-[15px] font-bold text-[#042f2e] m-0 leading-tight break-words line-clamp-2 w-full uppercase" title={nome}>
                 {nome}
               </p>
-              <p className="text-[11px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-1 w-full" title={instituicao}>
+              <p className="text-[13px] font-semibold text-[#334155] m-0 leading-tight break-words line-clamp-1 w-full" title={instituicao}>
                 {instituicao}
               </p>
-              <p className="text-[9px] text-[#64748b] m-0 uppercase tracking-wide font-medium pt-0.5">CPF</p>
-              <p className="text-[11px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
+              <p className="text-[11px] text-[#64748b] m-0 uppercase tracking-wide font-medium pt-0.5">CPF</p>
+              <p className="text-[13px] font-mono font-semibold text-[#042f2e] m-0 w-full">{cpf}</p>
             </div>
           </div>
 
           {/* Modalidades: badges/tags esportivas com ícone */}
           <div className="shrink-0 px-3 py-2 border-b border-[#e2e8f0]">
-            <p className="text-[10px] text-[#0f766e] m-0 mb-1.5 uppercase tracking-wide font-bold text-center">Modalidades</p>
+            <p className="text-[12px] text-[#0f766e] m-0 mb-1.5 uppercase tracking-wide font-bold text-center">Modalidades</p>
             {loadingModalidades ? (
-              <p className="text-[11px] text-[#64748b] m-0 text-center">Carregando...</p>
+              <p className="text-[12px] text-[#64748b] m-0 text-center">Carregando...</p>
             ) : modalidades.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 justify-center items-center max-h-[22mm] overflow-y-auto">
                 {modalidades.map((m, i) => (
@@ -154,8 +154,8 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
                     className="inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-2.5 py-1 border border-white/40 shadow-sm min-w-0"
                     style={{ backgroundColor: getBadgeColor(i) }}
                   >
-                    <ModalidadeIcon icone={m.esporte_icone || 'Zap'} size={12} className="text-white shrink-0" />
-                    <span className="text-[9px] font-bold text-white uppercase leading-tight truncate max-w-[45mm]">
+                    <ModalidadeIcon icone={m.esporte_icone || 'Zap'} size={14} className="text-white shrink-0" />
+                    <span className="text-[11px] font-bold text-white uppercase leading-tight truncate max-w-[45mm]">
                       {m.esporte_nome || '–'}
                       {formatModalidadeResto(m) ? ` · ${formatModalidadeResto(m)}` : ''}
                     </span>
@@ -163,13 +163,13 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-[#94a3b8] m-0 italic text-center">Nenhuma modalidade vinculada</p>
+              <p className="text-[12px] text-[#94a3b8] m-0 italic text-center">Nenhuma modalidade vinculada</p>
             )}
           </div>
 
           {/* Rodapé: REALIZAÇÃO + logos */}
           <div className="shrink-0 bg-[#f8fafc] border-t border-[#e2e8f0] pt-2 pb-2.5 px-3">
-            <p className="text-[9px] text-[#64748b] m-0 mb-1.5 uppercase tracking-wide font-semibold text-center">Realização</p>
+            <p className="text-[11px] text-[#64748b] m-0 mb-1.5 uppercase tracking-wide font-semibold text-center">Realização</p>
             <div className="flex items-center justify-center gap-6">
               {logos.logo_secretaria ? (
                 <img src={getStorageUrl(logos.logo_secretaria)} alt="Secretaria" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
@@ -178,7 +178,7 @@ export default function CredencialCrachaPrint({ estudante, ano = new Date().getF
                 <img src={getStorageUrl(logos.logo_jels)} alt="JELS" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
               ) : null}
               {!logos.logo_secretaria && !logos.logo_jels ? (
-                <span className="text-[10px] text-[#94a3b8]">Logos em Comunicação → Mídias</span>
+                <span className="text-[12px] text-[#94a3b8]">Logos em Comunicação → Mídias</span>
               ) : null}
             </div>
           </div>
