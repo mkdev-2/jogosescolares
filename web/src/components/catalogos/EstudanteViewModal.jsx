@@ -1,4 +1,4 @@
-import { User, UserCircle, School, FileSignature, Check, X } from 'lucide-react'
+import { User, UserCircle, School, FileSignature, Check, X, Pencil } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { estudantesService } from '../../services/estudantesService'
 import { getStorageUrl } from '../../services/storageService'
@@ -22,8 +22,21 @@ const InfoRow = ({ label, value }) => (
   </div>
 )
 
-export default function EstudanteViewModal({ open, onClose, estudante, onGerarCredencial }) {
+export default function EstudanteViewModal({ open, onClose, estudante, onEdit, onGerarCredencial }) {
+
   if (!estudante) return null
+
+  const fotoOuIcone = estudante.foto_url ? (
+    <img
+      src={getStorageUrl(estudante.foto_url)}
+      alt={estudante.nome}
+      className="w-16 h-16 rounded-full object-cover border-2 border-[#e2e8f0]"
+    />
+  ) : (
+    <div className="w-16 h-16 rounded-full bg-[#e2e8f0] flex items-center justify-center">
+      <User size={32} className="text-[#94a3b8]" />
+    </div>
+  )
 
   return (
     <Modal
@@ -31,9 +44,20 @@ export default function EstudanteViewModal({ open, onClose, estudante, onGerarCr
       onClose={onClose}
       title={estudante.nome}
       subtitle="Dados do aluno"
+      titleLeft={fotoOuIcone}
       size="xl"
       footer={
-        <div className="flex flex-wrap gap-2 justify-end">
+        <div className="flex flex-wrap gap-2 justify-end items-center">
+          {onEdit && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d9488]"
+              onClick={() => { onClose(); onEdit(estudante) }}
+            >
+              <Pencil size={16} />
+              Editar
+            </button>
+          )}
           {onGerarCredencial && (
             <button
               type="button"
@@ -54,16 +78,6 @@ export default function EstudanteViewModal({ open, onClose, estudante, onGerarCr
       }
     >
       <div className="space-y-6">
-        {estudante.foto_url && (
-          <div className="flex justify-center">
-            <img
-              src={getStorageUrl(estudante.foto_url)}
-              alt={estudante.nome}
-              className="w-24 h-24 rounded-full object-cover border-2 border-[#e2e8f0]"
-            />
-          </div>
-        )}
-
         {estudante.escola_nome && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -109,7 +123,7 @@ export default function EstudanteViewModal({ open, onClose, estudante, onGerarCr
           </div>
         </div>
 
-        {(estudante.assinatura_estudante_atleta || estudante.assinatura_responsavel_legal || estudante.assinatura_medico || estudante.assinatura_responsavel_instituicao || estudante.documentacao_assinada_url) && (
+        {(estudante.ficha_assinada || estudante.documentacao_assinada_url) && (
           <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
             <div className="flex items-center gap-2">
               <FileSignature className="w-4 h-4 text-[#64748b]" />
@@ -117,20 +131,8 @@ export default function EstudanteViewModal({ open, onClose, estudante, onGerarCr
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-[#334155]">
-                {estudante.assinatura_estudante_atleta ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
-                <span>Assinatura do estudante-atleta</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[#334155]">
-                {estudante.assinatura_responsavel_legal ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
-                <span>Assinatura do responsável legal</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[#334155]">
-                {estudante.assinatura_medico ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
-                <span>Assinatura do médico</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[#334155]">
-                {estudante.assinatura_responsavel_instituicao ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
-                <span>Assinatura do responsável da instituição de ensino</span>
+                {estudante.ficha_assinada ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
+                <span>Assinaturas de Médico, Aluno, Responsável e Escola coletadas</span>
               </div>
             </div>
             {estudante.documentacao_assinada_url && (

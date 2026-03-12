@@ -25,6 +25,7 @@ import Modal from '../components/ui/Modal'
 import { equipesService } from '../services/equipesService'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
+const CADASTRO_ROLES = ['DIRETOR', 'COORDENADOR']
 
 const TABS_BASE = [
   { id: 'alunos', label: 'Alunos', icon: Users },
@@ -36,6 +37,7 @@ const TAB_ESCOLAS = { id: 'escolas', label: 'Escolas', icon: Building2 }
 export default function Gestao() {
   const { user } = useAuth()
   const isAdmin = user && ADMIN_ROLES.includes(user.role)
+  const canCreateEntities = user && CADASTRO_ROLES.includes(user.role)
   const TABS = isAdmin ? [...TABS_BASE, TAB_ESCOLAS] : TABS_BASE
   const TAB_IDS = TABS.map((t) => t.id)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -131,7 +133,7 @@ export default function Gestao() {
                 lista={listaEstudantes}
                 loading={loadingEstudantes}
                 error={errorEstudantes}
-                onNewAluno={cadastroAlunosBloqueado ? undefined : () => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) }}
+                onNewAluno={canCreateEntities && !cadastroAlunosBloqueado ? () => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) } : undefined}
                 onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
                 onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
                 onViewAluno={(item) => setEstudanteParaVer(item)}
@@ -143,6 +145,7 @@ export default function Gestao() {
                 open={!!estudanteParaVer}
                 onClose={() => setEstudanteParaVer(null)}
                 estudante={estudanteParaVer}
+                onEdit={(item) => { setEstudanteParaVer(null); setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
                 onGerarCredencial={(item) => { setEstudanteParaVer(null); setEstudanteParaCredencial(item) }}
               />
               <Modal
@@ -180,7 +183,7 @@ export default function Gestao() {
                 lista={listaProfessores}
                 loading={loadingProfessores}
                 error={errorProfessores}
-                onNewProfessor={() => { setProfessorParaEditar(null); setModalProfessorOpen(true) }}
+                onNewProfessor={canCreateEntities ? () => { setProfessorParaEditar(null); setModalProfessorOpen(true) } : undefined}
                 onEditProfessor={(item) => { setProfessorParaEditar(item); setModalProfessorOpen(true) }}
                 onDeleteProfessor={async (item) => { try { await deleteProfessor(item.id) } catch (e) { alert(e.message) } }}
                 onViewProfessor={(item) => setProfessorParaVer(item)}
@@ -210,7 +213,7 @@ export default function Gestao() {
                 lista={listaEquipes}
                 loading={loadingEquipes}
                 error={errorEquipes}
-                onNewEquipe={() => { setEquipeParaEditar(null); setModalEquipeOpen(true) }}
+                onNewEquipe={canCreateEntities ? () => { setEquipeParaEditar(null); setModalEquipeOpen(true) } : undefined}
                 onEditEquipe={(item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) }}
                 onDeleteEquipe={async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } }}
                 onViewEquipe={(item) => setEquipeParaVer(item)}
