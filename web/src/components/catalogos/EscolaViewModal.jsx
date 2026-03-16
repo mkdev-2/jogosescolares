@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, User, Users, GraduationCap, UserCircle } from 'lucide-react'
+import { Building2, User, Users, GraduationCap, UserCircle, Trophy } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { escolasService } from '../../services/escolasService'
 import { usersService } from '../../services/usersService'
@@ -149,6 +149,49 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
                 <span className="text-xl font-bold text-[#042f2e]">{dados.total_equipes ?? 0}</span>
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-[#64748b]" />
+              <h3 className="text-sm font-semibold text-[#042f2e] m-0">
+                Modalidades inscritas ({dados.modalidades?.length ?? 0})
+              </h3>
+            </div>
+            {dados.modalidades?.length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(
+                  dados.modalidades.reduce((acc, m) => {
+                    if (!acc[m.esporte]) acc[m.esporte] = []
+                    acc[m.esporte].push(m)
+                    return acc
+                  }, {})
+                ).map(([esporte, variantes]) => (
+                  <div
+                    key={esporte}
+                    className="px-3 py-2.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                  >
+                    <span className="text-[0.875rem] font-semibold text-[#042f2e] block mb-2">
+                      {esporte}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {variantes.map((v) => (
+                        <span
+                          key={v.variante_id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]"
+                        >
+                          {v.categoria}
+                          <span className="text-[#7dd3fc]">·</span>
+                          {v.naipe === 'MASCULINO' ? 'Masc.' : v.naipe === 'FEMININO' ? 'Fem.' : v.naipe}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#64748b] m-0">Nenhuma modalidade inscrita.</p>
+            )}
           </div>
 
           <div className="space-y-2 border-t border-[#e2e8f0] pt-4">

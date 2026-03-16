@@ -309,12 +309,55 @@ async def get_escola_detalhes(
         )
         total_equipes = (await cur.fetchone())["total"] or 0
 
+    # Busca modalidades (variantes) em que a escola está inscrita
+    modalidades = []
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        row_mod = await cur.fetchone()
+    if row_mod and row_mod.get("modalidades_adesao"):
+        variante_ids = row_mod["modalidades_adesao"].get("variante_ids", [])
+        if variante_ids:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT
+                        ev.id::text AS variante_id,
+                        esp.nome AS esporte,
+                        cat.nome AS categoria,
+                        n.nome AS naipe,
+                        tm.nome AS tipo
+                    FROM esporte_variantes ev
+                    JOIN esportes esp ON esp.id = ev.esporte_id
+                    JOIN categorias cat ON cat.id = ev.categoria_id
+                    JOIN naipes n ON n.id = ev.naipe_id
+                    JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+                    WHERE ev.id = ANY(%s::uuid[])
+                    ORDER BY esp.nome, cat.nome, n.nome
+                    """,
+                    (variante_ids,),
+                )
+                mod_rows = await cur.fetchall()
+            modalidades = [
+                {
+                    "variante_id": r["variante_id"],
+                    "esporte": r["esporte"],
+                    "categoria": r["categoria"],
+                    "naipe": r["naipe"],
+                    "tipo": r["tipo"],
+                }
+                for r in mod_rows
+            ]
+
     return {
         "escola": escola,
         "diretor": diretor,
         "total_estudantes": total_estudantes,
         "total_equipes": total_equipes,
         "usuarios": usuarios,
+        "modalidades": modalidades,
     }
 
 

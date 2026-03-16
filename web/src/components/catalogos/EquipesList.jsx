@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Trophy, Pencil, Trash2, FileText } from 'lucide-react'
-import { Input, Button, Popconfirm, Select } from 'antd'
+import { Input, Button, Popconfirm, Select, Pagination } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EquipesList({
@@ -17,6 +17,8 @@ export default function EquipesList({
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [escolaFilterId, setEscolaFilterId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const filteredByEscola = escolaFilterId != null && escolaFilterId !== ''
     ? lista.filter((item) => Number(item.escola_id) === Number(escolaFilterId))
@@ -38,6 +40,15 @@ export default function EquipesList({
       (showInstituicao && instituicao.includes(term))
     )
   })
+
+  const paginatedLista = filteredLista.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, escolaFilterId])
 
   const getEsporteNome = (item) => item.esporte_nome || '-'
   const getEsporteIcone = (item) => item.esporte_icone || 'Zap'
@@ -142,7 +153,10 @@ export default function EquipesList({
                       Esporte
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Categoria / Naipe / Tipo
+                      Categoria
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Naipe
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Técnico
@@ -163,7 +177,7 @@ export default function EquipesList({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLista.map((item) => (
+                  {paginatedLista.map((item) => (
                     <tr
                       key={item.id}
                       className={`hover:bg-[#f8fafc] ${onViewEquipe ? 'cursor-pointer' : ''}`}
@@ -181,7 +195,10 @@ export default function EquipesList({
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getCategoriaNome(item)} • {getNaipeNome(item)} • {item.tipo_modalidade_nome || '-'}
+                        {getCategoriaNome(item)}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                        {getNaipeNome(item)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getTecnicoNome(item)}
@@ -249,6 +266,23 @@ export default function EquipesList({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {filteredLista.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={filteredLista.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total} equipes`}
+              />
             </div>
           )}
         </>
