@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, Plus, Trophy, Pencil, Trash2, FileText } from 'lucide-react'
+import { Users, Plus, Trophy, Pencil, Trash2, FileText } from 'lucide-react'
 import { Input, Button, Popconfirm, Select, Pagination } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
@@ -15,7 +15,10 @@ export default function EquipesList({
   showInstituicao = false,
   escolas = [],
 }) {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [esporteFilter, setEsporteFilter] = useState(null)
+  const [categoriaFilter, setCategoriaFilter] = useState(null)
+  const [naipeFilter, setNaipeFilter] = useState(null)
+  const [tecnicoFilter, setTecnicoFilter] = useState(null)
   const [escolaFilterId, setEscolaFilterId] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -25,21 +28,30 @@ export default function EquipesList({
     : lista
 
   const filteredLista = filteredByEscola.filter((item) => {
-    if (!searchTerm) return true
-    const term = searchTerm.toLowerCase()
-    const esporte = (item.esporte_nome || '').toLowerCase()
-    const categoria = (item.categoria_nome || '').toLowerCase()
-    const naipe = (item.naipe_nome || '').toLowerCase()
-    const tecnico = (item.professor_tecnico_nome || item.professor_tecnico?.nome || '').toLowerCase()
-    const instituicao = (item.escola_nome || '').toLowerCase()
-    return (
-      esporte.includes(term) ||
-      categoria.includes(term) ||
-      naipe.includes(term) ||
-      tecnico.includes(term) ||
-      (showInstituicao && instituicao.includes(term))
-    )
+    if (esporteFilter && item.esporte_nome !== esporteFilter) return false
+    if (categoriaFilter && item.categoria_nome !== categoriaFilter) return false
+    if (naipeFilter && item.naipe_nome !== naipeFilter) return false
+    
+    if (tecnicoFilter) {
+      const tecnicoNome = item.professor_tecnico_nome || item.professor_tecnico?.nome
+      if (tecnicoNome !== tecnicoFilter) return false
+    }
+    
+    return true
   })
+
+  // Opções para os filtros baseadas na lista original
+  const esporteOptions = [...new Set(lista.map(item => item.esporte_nome))]
+    .filter(Boolean).sort().map(v => ({ value: v, label: v }))
+  
+  const categoriaOptions = [...new Set(lista.map(item => item.categoria_nome))]
+    .filter(Boolean).sort().map(v => ({ value: v, label: v }))
+  
+  const naipeOptions = [...new Set(lista.map(item => item.naipe_nome))]
+    .filter(Boolean).sort().map(v => ({ value: v, label: v }))
+  
+  const tecnicoOptions = [...new Set(lista.map(item => item.professor_tecnico_nome || item.professor_tecnico?.nome))]
+    .filter(Boolean).sort().map(v => ({ value: v, label: v }))
 
   const paginatedLista = filteredLista.slice(
     (currentPage - 1) * pageSize,
@@ -48,7 +60,7 @@ export default function EquipesList({
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, escolaFilterId])
+  }, [esporteFilter, categoriaFilter, naipeFilter, tecnicoFilter, escolaFilterId])
 
   const getEsporteNome = (item) => item.esporte_nome || '-'
   const getEsporteIcone = (item) => item.esporte_icone || 'Zap'
@@ -93,12 +105,42 @@ export default function EquipesList({
             className="min-w-[220px]"
           />
         )}
-        <div className="flex-1 min-w-[200px]">
-          <Input
-            placeholder="Buscar por esporte, categoria, naipe ou técnico..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            prefix={<Search size={18} className="text-[#64748b]" />}
+        <div className="flex flex-wrap flex-1 gap-3">
+          <Select
+            placeholder="Esporte"
+            allowClear
+            value={esporteFilter}
+            onChange={setEsporteFilter}
+            options={esporteOptions}
+            className="min-w-[160px] flex-1 md:flex-initial"
+          />
+          <Select
+            placeholder="Categoria"
+            allowClear
+            value={categoriaFilter}
+            onChange={setCategoriaFilter}
+            options={categoriaOptions}
+            className="min-w-[140px] flex-1 md:flex-initial"
+          />
+          <Select
+            placeholder="Naipe"
+            allowClear
+            value={naipeFilter}
+            onChange={setNaipeFilter}
+            options={naipeOptions}
+            className="min-w-[120px] flex-1 md:flex-initial"
+          />
+          <Select
+            showSearch
+            placeholder="Técnico"
+            allowClear
+            value={tecnicoFilter}
+            onChange={setTecnicoFilter}
+            options={tecnicoOptions}
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            className="min-w-[200px] flex-[2]"
           />
         </div>
         {onNewEquipe && (
@@ -129,8 +171,8 @@ export default function EquipesList({
                 Nenhuma equipe encontrada
               </p>
               <p className="text-[0.9375rem] text-[#64748b] m-0 mb-5">
-                {searchTerm
-                  ? 'Tente ajustar o termo de busca'
+                {esporteFilter || categoriaFilter || naipeFilter || tecnicoFilter
+                  ? 'Tente ajustar os filtros selecionados'
                   : 'Monte sua primeira equipe selecionando variante, alunos e técnico'}
               </p>
               {onNewEquipe && (
@@ -204,7 +246,7 @@ export default function EquipesList({
                         {getTecnicoNome(item)}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getQtdAlunos(item)} aluno(s)
+                        {getQtdAlunos(item)}/{item.esporte_limite_atletas || '-'} membros
                       </td>
                       {onFichaColetiva && (
                         <td

@@ -232,11 +232,13 @@ async def seed_equipes_jels():
                                 await cur.execute(
                                     """INSERT INTO equipe_estudantes (equipe_id, estudante_id)
                                        VALUES (%s, %s)
-                                       ON CONFLICT (equipe_id, estudante_id) DO NOTHING""",
+                                       ON CONFLICT (equipe_id, estudante_id) DO NOTHING
+                                       RETURNING estudante_id""",
                                     (equipe_id, est["id"])
                                 )
+                                row = await cur.fetchone()
                                 await cur.execute(f"RELEASE SAVEPOINT {sp}")
-                                if cur.rowcount and cur.rowcount > 0:
+                                if row:
                                     estudante_tipos.setdefault(est["id"], set()).add(tipo)
                                     vinculos_equipe += 1
                                     vinculos_total += 1

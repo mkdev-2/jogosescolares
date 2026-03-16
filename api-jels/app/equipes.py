@@ -54,6 +54,7 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
         esporte_variante_id=str(row["esporte_variante_id"]),
         esporte_nome=row.get("esporte_nome"),
         esporte_icone=row.get("esporte_icone"),
+        esporte_limite_atletas=row.get("esporte_limite_atletas"),
         categoria_nome=row.get("categoria_nome"),
         naipe_nome=row.get("naipe_nome"),
         tipo_modalidade_codigo=row.get("tipo_modalidade_codigo"),
@@ -71,6 +72,7 @@ def _get_equipes_sql(where_clause: str = "") -> str:
         SELECT e.id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id,
                e.created_at, e.updated_at,
                esp.nome AS esporte_nome, esp.icone AS esporte_icone,
+               esp.limite_atletas AS esporte_limite_atletas,
                c.nome AS categoria_nome, n.nome AS naipe_nome,
                tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
                p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome

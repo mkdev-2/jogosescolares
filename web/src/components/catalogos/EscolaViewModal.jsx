@@ -159,7 +159,7 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
               </h3>
             </div>
             {dados.modalidades?.length > 0 ? (
-              <div className="space-y-2">
+              <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
                 {Object.entries(
                   dados.modalidades.reduce((acc, m) => {
                     if (!acc[m.esporte]) acc[m.esporte] = []
@@ -169,20 +169,26 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
                 ).map(([esporte, variantes]) => (
                   <div
                     key={esporte}
-                    className="px-3 py-2.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                    className="min-w-[260px] flex-shrink-0 px-4 py-3.5 rounded-xl bg-white border border-[#e2e8f0] shadow-sm hover:border-[#0f766e]/30 transition-colors"
                   >
-                    <span className="text-[0.875rem] font-semibold text-[#042f2e] block mb-2">
-                      {esporte}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#f0fdfa] flex items-center justify-center">
+                        <Trophy size={16} className="text-[#0f766e]" />
+                      </div>
+                      <span className="text-sm font-bold text-[#042f2e]">
+                        {esporte}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
                       {variantes.map((v) => (
                         <span
                           key={v.variante_id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]"
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#f1f5f9] text-[#475569] border border-[#e2e8f0] hover:bg-[#e2e8f0] transition-colors"
                         >
-                          {v.categoria}
-                          <span className="text-[#7dd3fc]">·</span>
-                          {v.naipe === 'MASCULINO' ? 'Masc.' : v.naipe === 'FEMININO' ? 'Fem.' : v.naipe}
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#0f766e]" />
+                          <span className="flex-1">{v.categoria}</span>
+                          <span className="text-[#cbd5e1] font-normal">|</span>
+                          <span className="text-[#64748b]">{v.naipe === 'MASCULINO' ? 'Masculino' : v.naipe === 'FEMININO' ? 'Feminino' : v.naipe}</span>
                         </span>
                       ))}
                     </div>
