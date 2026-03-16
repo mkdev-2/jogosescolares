@@ -22,7 +22,7 @@ const InfoRow = ({ label, value }) => (
   </div>
 )
 
-export default function EstudanteViewModal({ open, onClose, estudante, onEdit, onGerarCredencial }) {
+export default function EstudanteViewModal({ open, onClose, estudante, onEdit }) {
 
   if (!estudante) return null
 
@@ -56,15 +56,6 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
             >
               <Pencil size={16} />
               Editar
-            </button>
-          )}
-          {onGerarCredencial && (
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d6961]"
-              onClick={() => { onGerarCredencial(estudante); onClose?.() }}
-            >
-              Gerar credencial
             </button>
           )}
           <button

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { Alert } from 'antd'
-import { Users, GraduationCap, UsersRound, Building2 } from 'lucide-react'
+import { Users, GraduationCap, UsersRound, Building2, Medal } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
@@ -23,6 +24,8 @@ import FichaColetivaPrint from '../components/catalogos/FichaColetivaPrint'
 import CredencialCrachaPrint from '../components/catalogos/CredencialCrachaPrint'
 import Modal from '../components/ui/Modal'
 import { equipesService } from '../services/equipesService'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 const CADASTRO_ROLES = ['DIRETOR', 'COORDENADOR']
@@ -55,7 +58,10 @@ export default function Gestao() {
   const [fichaColetivaOpen, setFichaColetivaOpen] = useState(false)
   const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
   const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
-  const [estudanteParaCredencial, setEstudanteParaCredencial] = useState(null)
+  const [escolaParaCredenciais, setEscolaParaCredenciais] = useState(null)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
+  const [progressoPdf, setProgressoPdf] = useState({ atual: 0, total: 0 })
+  const credenciaisRefs = useRef([])
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
@@ -70,6 +76,86 @@ export default function Gestao() {
   const temEscola = !!user?.escola_id
   const { variantes } = useEsporteVariantes(null, { minhaEscola: temEscola })
   const { bloqueado: cadastroAlunosBloqueado, dataLimite: prazoCadastroAlunos } = usePrazoCadastroAlunos()
+
+  const handleGerarPdfCredenciaisEscola = async () => {
+    if (!escolaParaCredenciais) return
+
+    const estudantesDaEscola = listaEstudantes.filter(
+      (e) => escolaParaCredenciais && Number(e.escola_id) === Number(escolaParaCredenciais.id),
+    )
+
+    if (!estudantesDaEscola.length) {
+      alert('Nenhum estudante encontrado para esta escola.')
+      return
+    }
+
+    setGerandoPdf(true)
+    setProgressoPdf({ atual: 0, total: estudantesDaEscola.length })
+
+    // Aguarda um pouco para os componentes montarem e as imagens (logos/fotos) carregarem
+    await new Promise((r) => setTimeout(r, 2000))
+
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const cardWidth = 90
+      const cardHeight = 120
+      const marginX = (pageWidth - cardWidth) / 2
+      const firstY = 15
+      const gapY = 15
+
+      let capturadas = 0
+      for (let i = 0; i < estudantesDaEscola.length; i++) {
+        const refEl = credenciaisRefs.current[i]
+        if (!refEl) {
+          console.warn(`Ref não encontrada para credencial ${i}`)
+          continue
+        }
+
+        const cardEl = refEl.querySelector?.('.cracha-card') || refEl
+        cardEl.scrollIntoView({ behavior: 'instant', block: 'center' })
+        await new Promise((r) => setTimeout(r, 150))
+
+        const canvas = await html2canvas(cardEl, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          onclone: (_clonedDoc, clonedEl) => {
+            if (clonedEl) {
+              clonedEl.style.overflow = 'visible'
+              const textArea = clonedEl.querySelector('[data-credencial-texto]')
+              if (textArea) textArea.style.overflow = 'visible'
+            }
+          },
+        })
+        const imgData = canvas.toDataURL('image/png')
+
+        const indexInPage = i % 2
+        if (i > 0 && indexInPage === 0) {
+          doc.addPage()
+        }
+
+        const y = indexInPage === 0 ? firstY : firstY + cardHeight + gapY
+        doc.addImage(imgData, 'PNG', marginX, y, cardWidth, cardHeight)
+        capturadas++
+        setProgressoPdf({ atual: capturadas, total: estudantesDaEscola.length })
+      }
+
+      if (capturadas === 0) {
+        alert('Não foi possível capturar as credenciais. Tente novamente.')
+        return
+      }
+
+      const nomeArquivo = `credenciais-${(escolaParaCredenciais.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_àáâãéêíóôõúç\s]/gi, '_')}.pdf`
+      doc.save(nomeArquivo)
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar PDF das credenciais. Tente novamente.')
+    } finally {
+      setGerandoPdf(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,11 +181,10 @@ export default function Gestao() {
                   setActiveTab(tab.id)
                   setSearchParams(tab.id === 'alunos' ? {} : { tab: tab.id })
                 }}
-                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-[#f1f5f9] text-[#0f766e]'
-                    : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${isActive
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+                  }`}
               >
                 <Icon size={20} className={isActive ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
                 <span>{tab.label}</span>
@@ -137,7 +222,6 @@ export default function Gestao() {
                 onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
                 onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
                 onViewAluno={(item) => setEstudanteParaVer(item)}
-                onGerarCredencial={(item) => setEstudanteParaCredencial(item)}
                 showInstituicao={isAdmin}
                 escolas={isAdmin ? listaEscolas : []}
               />
@@ -146,25 +230,7 @@ export default function Gestao() {
                 onClose={() => setEstudanteParaVer(null)}
                 estudante={estudanteParaVer}
                 onEdit={(item) => { setEstudanteParaVer(null); setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
-                onGerarCredencial={(item) => { setEstudanteParaVer(null); setEstudanteParaCredencial(item) }}
               />
-              <Modal
-                isOpen={!!estudanteParaCredencial}
-                onClose={() => setEstudanteParaCredencial(null)}
-                title="Credencial / Crachá"
-                subtitle={estudanteParaCredencial?.nome}
-                size="md"
-                footer={null}
-              >
-                <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
-                  {estudanteParaCredencial && (
-                    <CredencialCrachaPrint
-                      estudante={estudanteParaCredencial}
-                      onClose={() => setEstudanteParaCredencial(null)}
-                    />
-                  )}
-                </div>
-              </Modal>
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
                 onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null) }}
@@ -277,14 +343,91 @@ export default function Gestao() {
             </>
           )}
           {activeTab === 'escolas' && isAdmin && (
-            <EscolasList
-              lista={listaEscolas}
-              loading={loadingEscolas}
-              error={errorEscolas}
-            />
+            <>
+              <EscolasList
+                lista={listaEscolas}
+                loading={loadingEscolas}
+                error={errorEscolas}
+                onGerarCredenciais={(escola) => setEscolaParaCredenciais(escola)}
+              />
+              <Modal
+                isOpen={!!escolaParaCredenciais}
+                onClose={() => setEscolaParaCredenciais(null)}
+                title="Credenciais da escola"
+                subtitle={escolaParaCredenciais?.nome_escola}
+                size="md"
+                footer={null}
+              >
+                <div className="px-6 py-8 space-y-6 text-center">
+                  <Medal className="w-16 h-16 text-[#0f766e] mx-auto opacity-90" />
+                  <div>
+                    <h3 className="text-xl font-bold text-[#042f2e] mb-2">Pronto para gerar credenciais</h3>
+                    <p className="text-[0.9375rem] text-[#64748b] m-0">
+                      Foram encontrados <strong>{listaEstudantes.filter((e) => escolaParaCredenciais && Number(e.escola_id) === Number(escolaParaCredenciais.id)).length} estudantes</strong> vinculados a esta escola.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="w-full px-4 py-3 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-medium text-[1rem] shadow-sm flex items-center justify-center gap-2"
+                    onClick={handleGerarPdfCredenciaisEscola}
+                    disabled={gerandoPdf}
+                  >
+                    {gerandoPdf ? 'Processando...' : 'Gerar PDF de Credenciais'}
+                  </button>
+                </div>
+
+                {/* Contêiner "escondido" que renderiza as credenciais silenciosamente para o html2canvas ler */}
+                <div
+                  className="fixed top-0 left-0 w-0 h-0 opacity-[0.01] pointer-events-none -z-[50] overflow-visible"
+                  data-bulk-root
+                >
+                  {listaEstudantes
+                    .filter((e) => escolaParaCredenciais && Number(e.escola_id) === Number(escolaParaCredenciais.id))
+                    .map((estudante, index) => (
+                      <CredencialCrachaPrint
+                        key={estudante.id}
+                        ref={(el) => {
+                          if (el) credenciaisRefs.current[index] = el
+                        }}
+                        estudante={estudante}
+                        showToolbar={false}
+                        layoutMode="single"
+                        disablePrintStyles
+                      />
+                    ))}
+                </div>
+              </Modal>
+            </>
           )}
         </div>
       </div>
+
+      {gerandoPdf &&
+        createPortal(
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/90 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl px-12 py-10 flex flex-col items-center gap-6 shadow-2xl border border-[#f1f5f9] max-w-sm w-full text-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-14 h-14 border-[4px] border-[#e2e8f0] border-t-[#0f766e] border-r-[#0f766e] rounded-full animate-spin shadow-sm" />
+              </div>
+              <div className="w-full space-y-2">
+                <h3 className="text-[1.25rem] font-bold text-[#0f766e] m-0">Gerando PDF</h3>
+                <p className="text-[0.9375rem] text-[#64748b] m-0">
+                  Processando {progressoPdf.atual} de {progressoPdf.total} credenciais...
+                </p>
+                <div className="w-full bg-[#f1f5f9] h-2.5 rounded-full overflow-hidden mt-4 shadow-inner">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#0f766e] to-[#0d9488] transition-all duration-300 ease-out"
+                    style={{ width: `${Math.max(2, (progressoPdf.atual / (progressoPdf.total || 1)) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[0.8125rem] text-[#94a3b8] m-0 mt-4 px-2 tracking-wide font-medium">
+                  Por favor, aguarde.
+                </p>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

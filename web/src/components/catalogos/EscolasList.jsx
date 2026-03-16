@@ -13,7 +13,7 @@ function formatDate(str) {
   }
 }
 
-export default function EscolasList({ lista = [], loading, error }) {
+export default function EscolasList({ lista = [], loading, error, onGerarCredenciais }) {
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredLista = lista.filter((item) => {
@@ -113,6 +113,11 @@ export default function EscolasList({ lista = [], loading, error }) {
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Cadastrado em
                     </th>
+                    {onGerarCredenciais && (
+                      <th className="w-[140px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Ações
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -139,6 +144,17 @@ export default function EscolasList({ lista = [], loading, error }) {
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {formatDate(item.created_at)}
                       </td>
+                      {onGerarCredenciais && (
+                        <td className="px-5 py-4 text-right border-b border-[#f1f5f9]">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-[8px] text-[0.8125rem] font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] border-0 cursor-pointer"
+                            onClick={() => onGerarCredenciais(item)}
+                          >
+                            Gerar credenciais
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
