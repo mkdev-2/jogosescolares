@@ -24,6 +24,7 @@ CHAVES_CONHECIDAS = {
     "diretor_editar_modalidades_data_limite",
     "logo_secretaria",
     "logo_jels",
+    "bg_credencial",
 }
 
 
@@ -74,8 +75,8 @@ async def get_configuracoes_logos(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Retorna apenas as URLs das logos (mídias) para exibição no crachá e em outros lugares do app."""
-    chaves = ("logo_secretaria", "logo_jels")
+    """Retorna apenas as logos e o bg_credencial publicamente."""
+    chaves = ("logo_secretaria", "logo_jels", "bg_credencial")
     result = {k: None for k in chaves}
     async with conn.cursor() as cur:
         await cur.execute(
@@ -176,7 +177,7 @@ async def update_configuracoes_logos(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Atualiza apenas as logos (logo_secretaria, logo_jels). Apenas SUPER_ADMIN/ADMIN."""
+    """Atualiza apenas as mídias (logo_secretaria, logo_jels, bg_credencial). Apenas SUPER_ADMIN/ADMIN."""
     require_admin(current_user)
 
     updates = {}
@@ -184,6 +185,8 @@ async def update_configuracoes_logos(
         updates["logo_secretaria"] = str(payload.logo_secretaria).strip() or None
     if payload.logo_jels is not None:
         updates["logo_jels"] = str(payload.logo_jels).strip() or None
+    if payload.bg_credencial is not None:
+        updates["bg_credencial"] = str(payload.bg_credencial).strip() or None
 
     if not updates:
         async with conn.cursor() as cur:

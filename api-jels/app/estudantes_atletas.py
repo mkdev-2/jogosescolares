@@ -8,7 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import psycopg
 from psycopg import errors as pg_errors
 
-from app.schemas import EstudanteAtletaCreate, EstudanteAtletaUpdate, EstudanteAtletaResponse
+from app.schemas import (
+    EstudanteAtletaCreate,
+    EstudanteAtletaUpdate,
+    EstudanteAtletaResponse,
+    EstudanteCredencialResponse,
+    ModalidadeSimples,
+)
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db
 
@@ -171,6 +177,74 @@ def _check_estudante_visible(current_user: dict, escola_id: int | None) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso negado a este registro.",
         )
+
+
+@router.get("/escola/{escola_id}/credenciais", response_model=list[EstudanteCredencialResponse])
+async def list_escola_credenciais(
+    escola_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Lista estudantes de uma escola com suas modalidades pré-carregadas.
+    Otimizado para geração de credenciais (crachás).
+    """
+    _check_estudante_visible(current_user, escola_id)
+
+    query = """
+        WITH student_modalities AS (
+            SELECT
+                ee.estudante_id,
+                jsonb_agg(
+                    jsonb_build_object(
+                        'esporte_nome', esp.nome,
+                        'esporte_icone', esp.icone,
+                        'categoria_nome', c.nome,
+                        'naipe_nome', n.nome
+                    ) ORDER BY esp.nome, c.idade_min, n.codigo
+                ) as modalidades
+            FROM equipe_estudantes ee
+            JOIN equipes eq ON eq.id = ee.equipe_id
+            JOIN esporte_variantes ev ON ev.id = eq.esporte_variante_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
+            JOIN categorias c ON c.id = ev.categoria_id
+            JOIN naipes n ON n.id = ev.naipe_id
+            WHERE eq.escola_id = %s
+            GROUP BY ee.estudante_id
+        )
+        SELECT
+            e.id,
+            e.nome,
+            e.cpf,
+            e.data_nascimento,
+            e.foto_url,
+            s.nome_escola as escola_nome,
+            COALESCE(sm.modalidades, '[]'::jsonb) as modalidades
+        FROM estudantes_atletas e
+        JOIN escolas s ON s.id = e.escola_id
+        LEFT JOIN student_modalities sm ON sm.estudante_id = e.id
+        WHERE e.escola_id = %s
+        ORDER BY e.nome
+    """
+
+    async with conn.cursor() as cur:
+        await cur.execute(query, (escola_id, escola_id))
+        rows = await cur.fetchall()
+
+    result = []
+    for r in rows:
+        result.append(
+            EstudanteCredencialResponse(
+                id=r["id"],
+                nome=r["nome"],
+                cpf=r["cpf"],
+                data_nascimento=r["data_nascimento"].isoformat() if r.get("data_nascimento") else None,
+                escola_nome=r["escola_nome"],
+                foto_url=r["foto_url"],
+                modalidades=[ModalidadeSimples(**m) for m in r["modalidades"]],
+            )
+        )
+    return result
 
 
 @router.get("/{estudante_id}", response_model=EstudanteAtletaResponse)
