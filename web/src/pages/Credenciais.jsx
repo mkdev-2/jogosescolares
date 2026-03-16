@@ -1,27 +1,52 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag } from 'antd'
 import { Download, IdCard, Building2, User } from 'lucide-react'
-import { createPortal } from 'react-dom'
-import useEstudantes from '../hooks/useEstudantes'
+import { estudantesService } from '../services/estudantesService'
 import useEscolas from '../hooks/useEscolas'
-import CredencialCrachaPrint from '../components/catalogos/CredencialCrachaPrint'
-import html2canvas from 'html2canvas'
+import { configuracoesService } from '../services/configuracoesService'
+import { getStorageUrl } from '../services/storageService'
 import jsPDF from 'jspdf'
 
 export default function Credenciais() {
     const [form] = Form.useForm()
-    const { lista: listaEstudantes, loading: loadingEstudantes } = useEstudantes()
     const { lista: listaEscolas, loading: loadingEscolas } = useEscolas()
     const [escolaSelecionada, setEscolaSelecionada] = useState(null)
+    const [loadingEstudantes, setLoadingEstudantes] = useState(false)
+    const [estudantesDaEscola, setEstudantesDaEscola] = useState([])
     const [gerandoPdf, setGerandoPdf] = useState(false)
     const [progressoPdf, setProgressoPdf] = useState({ atual: 0, total: 0 })
-    const credenciaisRefs = useRef([])
-
-    const estudantesDaEscola = listaEstudantes.filter(
-        (e) => escolaSelecionada && Number(e.escola_id) === Number(escolaSelecionada)
-    )
+    const [escolasExportadas, setEscolasExportadas] = useState(() => {
+        try {
+            const raw = localStorage.getItem('credenciais_exportadas')
+            return raw ? JSON.parse(raw) : {}
+        } catch (e) {
+            return {}
+        }
+    })
 
     const escolaObj = listaEscolas.find((e) => Number(e.id) === Number(escolaSelecionada))
+
+    const fetchEstudantes = useCallback(async () => {
+        if (!escolaSelecionada) {
+            setEstudantesDaEscola([])
+            return
+        }
+        setLoadingEstudantes(true)
+        try {
+            const data = await estudantesService.listarParaCredenciais(escolaSelecionada)
+            setEstudantesDaEscola(data || [])
+        } catch (err) {
+            console.error(err)
+            setEstudantesDaEscola([])
+        } finally {
+            setLoadingEstudantes(false)
+        }
+    }, [escolaSelecionada])
+
+    useEffect(() => {
+        fetchEstudantes()
+    }, [fetchEstudantes])
 
     const handleGerarPdf = async () => {
         if (!escolaSelecionada || estudantesDaEscola.length === 0) {
@@ -32,66 +57,269 @@ export default function Credenciais() {
         setGerandoPdf(true)
         setProgressoPdf({ atual: 0, total: estudantesDaEscola.length })
 
-        // Aguarda um pouco para os componentes montarem e as imagens (logos/fotos) carregarem
-        await new Promise((r) => setTimeout(r, 2000))
-
         try {
+            // 1. Carregar mídias (logos e fundo)
+            const midias = await configuracoesService.getLogos()
+            const bgUrl = midias?.bg_credencial ? getStorageUrl(midias.bg_credencial) : null
+            const logoSecUrl = midias?.logo_secretaria ? getStorageUrl(midias.logo_secretaria) : null
+            const logoJelsUrl = midias?.logo_jels ? getStorageUrl(midias.logo_jels) : null
+
+            // Cores originais dos badges
+            const BADGE_COLORS = ['#0f766e', '#b45309', '#0369a1', '#0d9488']
+
+            // Helper para carregar imagem e retornar dados (Preserva transparência e dimensões)
+            const loadImg = (url, rounded = false) => new Promise((resolve) => {
+                if (!url) { resolve(null); return; }
+                const img = new Image()
+                img.crossOrigin = 'Anonymous'
+                img.onload = () => {
+                    const canvas = document.createElement('canvas')
+                    const ratio = img.width / img.height
+                    const size = rounded ? Math.min(img.width, img.height) : null
+                    canvas.width = rounded ? size : img.width
+                    canvas.height = rounded ? size : img.height
+                    const ctx = canvas.getContext('2d')
+
+                    if (rounded) {
+                        ctx.beginPath()
+                        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                        ctx.clip()
+                        const xOffset = (img.width - size) / 2
+                        const yOffset = (img.height - size) / 2
+                        ctx.drawImage(img, xOffset, yOffset, size, size, 0, 0, size, size)
+                    } else {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height)
+                        ctx.drawImage(img, 0, 0)
+                    }
+                    resolve({
+                        data: canvas.toDataURL('image/png'),
+                        ratio: ratio,
+                        w: img.width,
+                        h: img.height
+                    })
+                }
+                img.onerror = () => resolve(null)
+                img.src = url
+            })
+
+            const bgBase64 = bgUrl ? await loadImg(bgUrl) : null
+            const logoSec = await loadImg(logoSecUrl)
+            const logoJels = await loadImg(logoJelsUrl)
+
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+            const mainFont = 'helvetica'; // Revertendo para helvetica para evitar erros de cmap/unicode
+
             const pageWidth = doc.internal.pageSize.getWidth()
-            const cardWidth = 90
-            const cardHeight = 120
-            const marginX = (pageWidth - cardWidth) / 2
-            const firstY = 15
+            const cardW = 90
+            const cardH = 120
+            const marginX = (pageWidth - cardW) / 2
+            const topMargin = 15
             const gapY = 15
 
-            let capturadas = 0
             for (let i = 0; i < estudantesDaEscola.length; i++) {
-                const refEl = credenciaisRefs.current[i]
-                if (!refEl) {
-                    console.warn(`Ref não encontrada para credencial ${i}`)
-                    continue
-                }
-
-                const cardEl = refEl.querySelector?.('.cracha-card') || refEl
-                cardEl.scrollIntoView({ behavior: 'instant', block: 'center' })
-                await new Promise((r) => setTimeout(r, 150))
-
-                const canvas = await html2canvas(cardEl, {
-                    scale: 3,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff',
-                    onclone: (_clonedDoc, clonedEl) => {
-                        if (clonedEl) {
-                            clonedEl.style.overflow = 'visible'
-                            const textArea = clonedEl.querySelector('[data-credencial-texto]')
-                            if (textArea) textArea.style.overflow = 'visible'
-                        }
-                    },
-                })
-                const imgData = canvas.toDataURL('image/png')
-
+                const aluno = estudantesDaEscola[i]
                 const indexInPage = i % 2
-                if (i > 0 && indexInPage === 0) {
-                    doc.addPage()
+                if (i > 0 && indexInPage === 0) doc.addPage()
+
+                const yOffset = indexInPage === 0 ? topMargin : topMargin + cardH + gapY
+                const x = marginX
+
+                // == 2. FUNDO ==
+                if (bgBase64) {
+                    doc.addImage(bgBase64.data, 'PNG', x, yOffset, cardW, cardH)
+                } else {
+                    doc.setDrawColor(15, 118, 110)
+                    doc.setLineWidth(0.5)
+                    doc.roundedRect(x, yOffset, cardW, cardH, 3, 3, 'S')
+                    doc.setFillColor(15, 118, 110)
+                    doc.rect(x, yOffset, cardW, 12, 'F')
+                    doc.rect(x, yOffset + cardH - 2, cardW, 2, 'F')
                 }
 
-                const y = indexInPage === 0 ? firstY : firstY + cardHeight + gapY
-                doc.addImage(imgData, 'PNG', marginX, y, cardWidth, cardHeight)
-                capturadas++
-                setProgressoPdf({ atual: capturadas, total: estudantesDaEscola.length })
+                // == 3. FOTO REDONDA (TAMANHO AJUSTADO) ==
+                if (aluno.foto_url) {
+                    const fotoRes = await loadImg(getStorageUrl(aluno.foto_url), true)
+                    if (fotoRes) {
+                        // Anel Externo
+                        doc.setDrawColor(226, 232, 240)
+                        doc.setLineWidth(0.6)
+                        doc.circle(x + 25, yOffset + 42, 19.5, 'S')
+
+                        // Borda principal (Verde JELS)
+                        doc.setDrawColor(15, 118, 110)
+                        doc.setLineWidth(1)
+                        doc.setFillColor(241, 245, 249)
+                        doc.circle(x + 25, yOffset + 42, 18, 'FD')
+                        doc.addImage(fotoRes.data, 'PNG', x + 7, yOffset + 24, 36, 36)
+                    }
+                } else {
+                    // Placeholder estilizado
+                    doc.setDrawColor(226, 232, 240)
+                    doc.setLineWidth(0.5)
+                    doc.circle(x + 25, yOffset + 42, 19.5, 'S')
+
+                    doc.setDrawColor(203, 213, 225)
+                    doc.setFillColor(241, 245, 249)
+                    doc.circle(x + 25, yOffset + 42, 18, 'FD')
+                }
+                // == 4. TEXTOS (COLUNA DIREITA COM SOMBRA) ==
+                doc.setTextColor(0, 0, 0)
+                let currentItemY = yOffset + 28;
+
+                // Nome do Aluno - Efeito Sombra (Drop Shadow)
+                doc.setFont(mainFont, 'bold')
+                doc.setFontSize(15)
+                const splitNome = doc.splitTextToSize(aluno.nome.toUpperCase(), 32)
+                
+                // Camada de Sombra
+                doc.setTextColor(226, 232, 240)
+                doc.text(splitNome, x + 48.3, currentItemY + 0.3)
+                
+                // Camada Principal
+                doc.setTextColor(0, 0, 0)
+                doc.text(splitNome, x + 48, currentItemY)
+
+                // Calcula altura do nome para empurrar o próximo item (Mínimo 2 linhas)
+                const nomeLineHeight = 6.2;
+                const totalLineCount = Math.max(splitNome.length, 2);
+                currentItemY += (totalLineCount * nomeLineHeight);
+
+                // Escola
+                doc.setFont(mainFont, 'normal')
+                doc.setFontSize(12)
+                doc.setTextColor(0, 0, 0)
+                const splitEscola = doc.splitTextToSize(aluno.escola_nome, 36)
+                doc.text(splitEscola, x + 48, currentItemY)
+
+                // Empurra para a área do CPF
+                const escolaLineHeight = 4.5;
+                currentItemY += (splitEscola.length * escolaLineHeight) + 4;
+
+                // Divisória mais visível
+                doc.setDrawColor(203, 213, 225)
+                doc.setLineWidth(0.4)
+                doc.line(x + 48, currentItemY - 2, x + 82, currentItemY - 2)
+
+                // CPF (Mesmo estilo e tamanho da escola agora)
+                doc.setFont(mainFont, 'normal')
+                doc.setFontSize(10)
+                doc.setTextColor(0, 0, 0)
+                doc.text(`CPF: ${estudantesService.formatCpf(aluno.cpf)}`, x + 48, currentItemY + 3)
+
+                currentItemY += 8; // Ajuste para as tags não ficarem coladas
+
+                // == MODALIDADES EM TAGS (AINDA MAIORES) ==
+                if (aluno.modalidades && aluno.modalidades.length > 0) {
+                    const tagGap = 2.5;
+                    const tagH = 10; // Aumentado de 6.5 para 8mm
+                    const maxAreaW = 82;
+
+                    // 1. Agrupar em linhas
+                    let lines = [[]];
+                    let currentLineIdx = 0;
+                    let currentLineWidth = 0;
+
+                    aluno.modalidades.forEach((m, idx) => {
+                        const label = `${m.esporte_nome} (${m.categoria_nome})`.toUpperCase();
+                        doc.setFont(mainFont, 'bold');
+                        doc.setFontSize(10); // Aumentado de 8 para 9pt
+                        const tagW = doc.getTextWidth(label) + 8; // Mais largura interna
+
+                        if (currentLineWidth + tagW > maxAreaW && lines[currentLineIdx].length > 0) {
+                            currentLineIdx++;
+                            lines[currentLineIdx] = [];
+                            currentLineWidth = 0;
+                        }
+
+                        lines[currentLineIdx].push({ label, tagW, colorIdx: idx });
+                        currentLineWidth += tagW + tagGap;
+                    });
+
+                    // 2. Desenhar as linhas centralizadas
+                    let startY = yOffset + 76;
+                    lines.forEach(line => {
+                        const totalLineW = line.reduce((sum, item) => sum + item.tagW, 0) + (line.length - 1) * tagGap;
+                        let lineX = x + (cardW - totalLineW) / 2;
+                        
+                        line.forEach(item => {
+                            const color = BADGE_COLORS[item.colorIdx % BADGE_COLORS.length];
+                            const rgb = color.match(/[A-Za-z0-9]{2}/g).map(h => parseInt(h, 16));
+                            
+                            // 1. Tag Principal (Fundo)
+                            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+                            doc.roundedRect(lineX, startY, item.tagW, tagH, tagH/2, tagH/2, 'F');
+                            
+                            // 2. Borda externa sutil (mais escura)
+                            doc.setDrawColor(Math.max(0, rgb[0]-40), Math.max(0, rgb[1]-40), Math.max(0, rgb[2]-40));
+                            doc.setLineWidth(0.15);
+                            doc.roundedRect(lineX, startY, item.tagW, tagH, tagH/2, tagH/2, 'S');
+
+                            // 3. Efeito de brilho/reflexo interno (topo)
+                            doc.setDrawColor(255, 255, 255, 0.4);
+                            doc.setLineWidth(0.1);
+                            doc.line(lineX + tagH/2, startY + 0.5, lineX + item.tagW - tagH/2, startY + 0.5);
+
+                            // 4. Texto centralizado
+                            doc.setTextColor(255, 255, 255);
+                            doc.text(item.label, lineX + 4, startY + 6.2);
+                            lineX += item.tagW + tagGap;
+                        });
+                        startY += tagH + 3;
+                    });
+                }
+
+                // Divisória do Rodapé mais visível
+                const footerY = yOffset + 96
+                doc.setDrawColor(148, 163, 184)
+                doc.setLineWidth(0.5)
+                doc.line(x + 5, footerY, x + cardW - 5, footerY)
+
+                doc.setFont(mainFont, 'bold')
+                doc.setFontSize(7)
+                doc.setTextColor(148, 163, 184)
+                doc.text('REALIZAÇÃO', x + cardW / 2, footerY + 5, { align: 'center' })
+
+                const maxLogoW = 33
+                const maxLogoH = 15
+                const gapLogos = 8
+
+                const getDims = (imgRes) => {
+                    if (!imgRes) return null
+                    let finalW = maxLogoW
+                    let finalH = maxLogoW / imgRes.ratio
+                    if (finalH > maxLogoH) {
+                        finalH = maxLogoH
+                        finalW = maxLogoH * imgRes.ratio
+                    }
+                    return { w: finalW, h: finalH }
+                }
+
+                const dSec = getDims(logoSec)
+                const dJels = getDims(logoJels)
+                const totalW = (dSec ? dSec.w : 0) + (dJels ? dJels.w : 0) + (dSec && dJels ? gapLogos : 0)
+                let currentX = x + (cardW - totalW) / 2
+
+                if (logoSec && dSec) {
+                    doc.addImage(logoSec.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dSec.h) / 2, dSec.w, dSec.h)
+                    currentX += dSec.w + gapLogos
+                }
+                if (logoJels && dJels) {
+                    doc.addImage(logoJels.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dJels.h) / 2, dJels.w, dJels.h)
+                }
+
+                setProgressoPdf({ atual: i + 1, total: estudantesDaEscola.length })
             }
 
-            if (capturadas === 0) {
-                alert('Não foi possível capturar as credenciais. Tente novamente.')
-                return
-            }
-
-            const nomeArquivo = `credenciais-${(escolaObj?.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_àáâãéêíóôõúç\s]/gi, '_')}.pdf`
+            const nomeArquivo = `credenciais-${(escolaObj?.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`
             doc.save(nomeArquivo)
+
+            const novoExportadas = { ...escolasExportadas, [escolaSelecionada]: new Date().toISOString() }
+            setEscolasExportadas(novoExportadas)
+            localStorage.setItem('credenciais_exportadas', JSON.stringify(novoExportadas))
+
         } catch (err) {
             console.error(err)
-            alert('Erro ao gerar PDF das credenciais. Tente novamente.')
+            alert('Erro ao gerar PDF. Verifique se as imagens estão acessíveis.')
         } finally {
             setGerandoPdf(false)
         }
@@ -109,7 +337,7 @@ export default function Credenciais() {
                             </Space>
                         </Typography.Title>
                         <Typography.Text type="secondary">
-                            Gere as credenciais dos estudantes vinculados a uma escola específica em formato otimizado para impressão (PDF A4).
+                            Gere centenas de credenciais em segundos usando o novo motor de exportação direta em PDF.
                         </Typography.Text>
                     </Space>
 
@@ -124,10 +352,7 @@ export default function Credenciais() {
                                     <Select
                                         placeholder="Selecione uma escola..."
                                         value={escolaSelecionada}
-                                        onChange={(val) => {
-                                            setEscolaSelecionada(val)
-                                            credenciaisRefs.current = [] // Limpar refs ao mudar
-                                        }}
+                                        onChange={setEscolaSelecionada}
                                         style={{ width: '100%' }}
                                         showSearch
                                         filterOption={(input, option) =>
@@ -137,7 +362,6 @@ export default function Credenciais() {
                                             label: escola.nome_escola,
                                             value: escola.id,
                                         }))}
-                                        notFoundContent={loadingEscolas ? <Spin size="small" /> : 'Nenhuma escola encontrada'}
                                     />
                                 </Form.Item>
                             </Col>
@@ -147,12 +371,8 @@ export default function Credenciais() {
                             <Alert
                                 message={
                                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                                        <div>
-                                            <strong>Escola:</strong> {escolaObj?.nome_escola}
-                                        </div>
-                                        <div>
-                                            <strong>Total de Estudantes:</strong> {estudantesDaEscola.length}
-                                        </div>
+                                        <div><strong>Escola:</strong> {escolaObj?.nome_escola}</div>
+                                        <div><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
                                     </Space>
                                 }
                                 type="info"
@@ -162,104 +382,67 @@ export default function Credenciais() {
                             />
                         )}
 
+                        {escolasExportadas[escolaSelecionada] && (
+                            <Alert
+                                message={
+                                    <span>
+                                        Exportado em: <strong>{new Date(escolasExportadas[escolaSelecionada]).toLocaleString('pt-BR')}</strong>
+                                    </span>
+                                }
+                                type="success"
+                                showIcon
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
+
                         {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                            <Space direction="vertical" size="small" style={{ marginTop: 16, width: '100%' }}>
-                                <Typography.Text strong>Ações</Typography.Text>
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-medium shadow-sm transition-all"
-                                        onClick={handleGerarPdf}
-                                        disabled={gerandoPdf}
-                                    >
-                                        {gerandoPdf ? (
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <Download size={20} />
-                                        )}
-                                        {gerandoPdf ? 'Processando...' : 'Gerar PDF de Credenciais'}
-                                    </button>
-                                </div>
-                            </Space>
+                            <div style={{ marginTop: 16 }}>
+                                <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all"
+                                    onClick={handleGerarPdf}
+                                    disabled={gerandoPdf}
+                                >
+                                    {gerandoPdf ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Download size={20} />
+                                    )}
+                                    {gerandoPdf ? 'Processando...' : 'GERAR PDF (MOLDE TIMBRADO)'}
+                                </button>
+                            </div>
                         )}
                     </Form>
 
-                    {/* Tabela de Pré-visualização */}
                     {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                        <Card size="small" style={{ marginTop: 16 }}>
-                            <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
-                                <Typography.Text strong>
-                                    Pré-visualização dos {estudantesDaEscola.length} aluno{estudantesDaEscola.length !== 1 ? 's' : ''} encontrado{estudantesDaEscola.length !== 1 ? 's' : ''}
-                                </Typography.Text>
-                            </Space>
+                        <Card size="small" title={`Estudantes Encontrados (${estudantesDaEscola.length})`}>
                             <Table
                                 dataSource={estudantesDaEscola}
                                 rowKey="id"
-                                pagination={{ pageSize: 10 }}
+                                pagination={{ pageSize: 15 }}
                                 size="small"
                                 columns={[
                                     {
                                         title: 'Nome',
                                         dataIndex: 'nome',
-                                        key: 'nome',
-                                        sorter: (a, b) => (a.nome || '').localeCompare(b.nome || ''),
-                                        render: (nome) => (
-                                            <Space>
-                                                <User size={16} className="text-[#64748b]" />
-                                                <Typography.Text strong>{nome || 'Sem nome'}</Typography.Text>
-                                            </Space>
-                                        )
-                                    },
-                                    {
-                                        title: 'Data de Nascimento',
-                                        dataIndex: 'data_nascimento',
-                                        key: 'data_nascimento',
-                                        width: 150,
-                                        render: (data) => data ? new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-',
-                                        sorter: (a, b) => {
-                                            const dataA = a.data_nascimento ? new Date(a.data_nascimento) : new Date(0);
-                                            const dataB = b.data_nascimento ? new Date(b.data_nascimento) : new Date(0);
-                                            return dataA - dataB;
-                                        }
-                                    },
-                                    {
-                                        title: 'Sexo',
-                                        dataIndex: 'sexo',
-                                        key: 'sexo',
-                                        width: 120,
-                                        render: (sexo) => {
-                                            const valor = sexo || '';
-                                            if (!valor) return '-';
-                                            const valorUpper = valor.toString().toUpperCase().trim();
-                                            if (valorUpper === 'M' || valorUpper === 'MASCULINO' || valorUpper === 'MASC') {
-                                                return <Tag color="blue">Masculino</Tag>;
-                                            }
-                                            if (valorUpper === 'F' || valorUpper === 'FEMININO' || valorUpper === 'FEM') {
-                                                return <Tag color="pink">Feminino</Tag>;
-                                            }
-                                            return <Tag>{valor}</Tag>;
-                                        },
-                                        filters: [
-                                            { text: 'Masculino', value: 'M' },
-                                            { text: 'Feminino', value: 'F' },
-                                        ],
-                                        onFilter: (value, record) => {
-                                            const sexo = (record.sexo || '').toString().toUpperCase().trim();
-                                            if (value === 'M') {
-                                                return sexo === 'M' || sexo === 'MASCULINO' || sexo === 'MASC';
-                                            }
-                                            if (value === 'F') {
-                                                return sexo === 'F' || sexo === 'FEMININO' || sexo === 'FEM';
-                                            }
-                                            return false;
-                                        }
+                                        render: (n) => <Typography.Text strong>{n}</Typography.Text>
                                     },
                                     {
                                         title: 'CPF',
                                         dataIndex: 'cpf',
-                                        key: 'cpf',
-                                        width: 160,
-                                        render: (cpf) => <Typography.Text copyable>{cpf || '-'}</Typography.Text>
+                                        render: (c) => estudantesService.formatCpf(c)
+                                    },
+                                    {
+                                        title: 'Modalidades',
+                                        dataIndex: 'modalidades',
+                                        render: (mods) => (
+                                            <Space wrap>
+                                                {mods.map((m, idx) => (
+                                                    <Tag key={idx} color="blue">{m.esporte_nome}</Tag>
+                                                ))}
+                                                {mods.length === 0 && <span className="text-gray-400 italic">Nenhuma</span>}
+                                            </Space>
+                                        )
                                     }
                                 ]}
                             />
@@ -268,53 +451,35 @@ export default function Credenciais() {
                 </Space>
             </Spin>
 
-            {/* Contêiner "escondido" que renderiza as credenciais silenciosamente para o html2canvas ler */}
-            {escolaSelecionada && (
-                <div
-                    className="fixed top-0 left-0 w-0 h-0 opacity-[0.01] pointer-events-none -z-[50] overflow-visible"
-                    data-bulk-root
-                >
-                    {estudantesDaEscola.map((estudante, index) => (
-                        <CredencialCrachaPrint
-                            key={estudante.id}
-                            ref={(el) => {
-                                if (el) credenciaisRefs.current[index] = el
-                            }}
-                            estudante={estudante}
-                            showToolbar={false}
-                            layoutMode="single"
-                            disablePrintStyles
-                        />
-                    ))}
-                </div>
-            )}
-
-            {gerandoPdf &&
-                createPortal(
-                    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/90 backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl px-12 py-10 flex flex-col items-center gap-6 shadow-2xl border border-[#f1f5f9] max-w-sm w-full text-center">
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="w-14 h-14 border-[4px] border-[#e2e8f0] border-t-[#0f766e] border-r-[#0f766e] rounded-full animate-spin shadow-sm" />
-                            </div>
-                            <div className="w-full space-y-2">
-                                <h3 className="text-[1.25rem] font-bold text-[#0f766e] m-0">Gerando PDF</h3>
-                                <p className="text-[0.9375rem] text-[#64748b] m-0">
-                                    Processando {progressoPdf.atual} de {progressoPdf.total} credenciais...
-                                </p>
-                                <div className="w-full bg-[#f1f5f9] h-2.5 rounded-full overflow-hidden mt-4 shadow-inner">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-[#0f766e] to-[#0d9488] transition-all duration-300 ease-out"
-                                        style={{ width: `${Math.max(2, (progressoPdf.atual / (progressoPdf.total || 1)) * 100)}%` }}
-                                    />
-                                </div>
-                                <p className="text-[0.8125rem] text-[#94a3b8] m-0 mt-4 px-2 tracking-wide font-medium">
-                                    Por favor, aguarde.
-                                </p>
+            {gerandoPdf && createPortal(
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/80 backdrop-blur-md">
+                    <div className="bg-white rounded-3xl p-12 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-[#f1f5f9] max-w-sm w-full text-center">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-[5px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <IdCard size={24} className="text-[#0f766e] opacity-40" />
                             </div>
                         </div>
-                    </div>,
-                    document.body
-                )}
+                        <div className="space-y-2">
+                            <h3 className="m-0 text-xl font-bold text-[#042f2e]">Gerando Credenciais</h3>
+                            <p className="m-0 text-[#64748b] font-medium">
+                                {progressoPdf.total > 0 ? Math.round((progressoPdf.atual / progressoPdf.total) * 100) : 0}% concluído
+                            </p>
+                            <p className="text-sm text-[#94a3b8] m-0">
+                                {progressoPdf.atual} de {progressoPdf.total} processadas
+                            </p>
+                        </div>
+                        <div className="w-full bg-[#f1f5f9] h-3 rounded-full overflow-hidden shadow-inner">
+                            <div
+                                className="h-full bg-gradient-to-r from-[#0f766e] to-[#2dd4bf] transition-all duration-300 ease-out shadow-[0_0_10px_rgba(15,118,110,0.3)]"
+                                style={{ width: `${(progressoPdf.atual / (progressoPdf.total || 1)) * 100}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-[#94a3b8] italic">Por favor, não feche esta aba durante o processo.</p>
+                    </div>
+                </div>,
+                document.body
+            )}
         </Card>
     )
 }

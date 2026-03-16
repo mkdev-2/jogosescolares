@@ -369,7 +369,8 @@ class ConfiguracoesUpdate(BaseModel):
 class ConfiguracoesLogosUpdate(BaseModel):
     """Schema para atualização apenas das logos (mídias)."""
     logo_secretaria: Optional[str] = Field(None, description="Path do storage da logo da secretaria")
-    logo_jels: Optional[str] = Field(None, description="Path do storage da logo JELS")
+    logo_jels: Optional[str] = Field(None, description="Path do storage da logo principal JELS")
+    bg_credencial: Optional[str] = Field(None, description="Path do storage da arte de fundo da credencial / papel timbrado")
 
 
 # ========== ESTUDANTES ATLETAS ==========
@@ -554,3 +555,26 @@ class FichaColetivaResponse(BaseModel):
     naipe: Optional[str] = None
     estudantes: list[FichaColetivaEstudanteItem] = Field(default_factory=list)
     professores_tecnicos: list[FichaColetivaProfessorItem] = Field(default_factory=list)
+
+
+# ========== CREDENCIAIS (optimized) ==========
+
+class ModalidadeSimples(BaseModel):
+    """Schema simplificado de modalidade para o crachá."""
+
+    esporte_nome: str
+    esporte_icone: Optional[str] = "Zap"
+    categoria_nome: str
+    naipe_nome: str
+
+
+class EstudanteCredencialResponse(BaseModel):
+    """Schema otimizado para geração de credenciais em lote."""
+
+    id: int
+    nome: str
+    cpf: str
+    data_nascimento: Optional[str] = None
+    escola_nome: Optional[str] = None
+    foto_url: Optional[str] = None
+    modalidades: list[ModalidadeSimples] = []

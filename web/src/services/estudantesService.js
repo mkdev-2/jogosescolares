@@ -24,6 +24,18 @@ export const estudantesService = {
     return res.json().catch(() => [])
   },
 
+  /**
+   * Lista estudantes de uma escola com suas modalidades pré-carregadas para crachás.
+   */
+  async listarParaCredenciais(escolaId) {
+    const res = await apiFetch(`/estudantes-atletas/escola/${escolaId}/credenciais`)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => [])
+  },
+
   formatCpf,
 
   /**

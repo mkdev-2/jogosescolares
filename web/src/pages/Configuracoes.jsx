@@ -3,6 +3,7 @@ import { Calendar } from 'lucide-react'
 import { DatePicker, Button } from 'antd'
 import dayjs from 'dayjs'
 import { configuracoesService } from '../services/configuracoesService'
+import Midias from './noticias/Midias'
 
 const labelClass = 'block text-lg font-medium text-gray-800 mb-2'
 
@@ -224,6 +225,10 @@ function Configuracoes({ embedded }) {
             </Button>
           </form>
         )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <Midias embedded />
       </div>
     </div>
   )

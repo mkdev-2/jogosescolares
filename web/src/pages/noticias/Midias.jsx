@@ -6,13 +6,15 @@ import { uploadLogoMidias, getStorageUrl } from '../../services/storageService'
 const ACCEPT_IMAGES = 'image/png,image/jpeg,image/jpg,image/webp'
 
 export default function Midias({ embedded }) {
-  const [config, setConfig] = useState({ logo_secretaria: null, logo_jels: null })
+  const [config, setConfig] = useState({ logo_secretaria: null, logo_jels: null, bg_credencial: null })
   const [loading, setLoading] = useState(true)
   const [uploadingSecretaria, setUploadingSecretaria] = useState(false)
   const [uploadingJels, setUploadingJels] = useState(false)
+  const [uploadingBgCredencial, setUploadingBgCredencial] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const inputSecretariaRef = useRef(null)
   const inputJelsRef = useRef(null)
+  const inputBgCredencialRef = useRef(null)
 
   const loadConfig = async () => {
     setLoading(true)
@@ -22,6 +24,7 @@ export default function Midias({ embedded }) {
       setConfig({
         logo_secretaria: data?.logo_secretaria ?? null,
         logo_jels: data?.logo_jels ?? null,
+        bg_credencial: data?.bg_credencial ?? null,
       })
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Erro ao carregar configurações.' })
@@ -39,14 +42,20 @@ export default function Midias({ embedded }) {
       setMessage({ type: 'error', text: 'Selecione um arquivo de imagem (PNG, JPG ou WebP).' })
       return
     }
-    const setUploading = tipo === 'logo_secretaria' ? setUploadingSecretaria : setUploadingJels
+    let setUploading = setUploadingSecretaria
+    if (tipo === 'logo_jels') setUploading = setUploadingJels
+    if (tipo === 'bg_credencial') setUploading = setUploadingBgCredencial
+
     setUploading(true)
     setMessage({ type: '', text: '' })
     try {
       const path = await uploadLogoMidias(file, tipo)
       await configuracoesService.updateLogos({ [tipo]: path })
       setConfig((prev) => ({ ...prev, [tipo]: path }))
-      setMessage({ type: 'success', text: tipo === 'logo_secretaria' ? 'Logo Secretaria atualizada.' : 'Logo JELS atualizada.' })
+      let msg = 'Arte de fundo atualizada.'
+      if (tipo === 'logo_secretaria') msg = 'Logo Secretaria atualizada.'
+      if (tipo === 'logo_jels') msg = 'Logo JELS atualizada.'
+      setMessage({ type: 'success', text: msg })
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Erro ao fazer upload.' })
     } finally {
@@ -80,9 +89,8 @@ export default function Midias({ embedded }) {
 
       {message.text && (
         <div
-          className={`mb-4 px-4 py-3 rounded-lg ${
-            message.type === 'error' ? 'bg-[#fef2f2] text-[#b91c1c]' : 'bg-[#f0fdf4] text-[#166534]'
-          }`}
+          className={`mb-4 px-4 py-3 rounded-lg ${message.type === 'error' ? 'bg-[#fef2f2] text-[#b91c1c]' : 'bg-[#f0fdf4] text-[#166534]'
+            }`}
         >
           {message.text}
         </div>
@@ -161,6 +169,45 @@ export default function Midias({ embedded }) {
               className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d6961] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {uploadingJels ? 'Enviando...' : config.logo_jels ? 'Alterar logo' : 'Enviar logo'}
+            </button>
+          </div>
+        </div>
+
+        {/* Fundo da Credencial */}
+        <div className="bg-white rounded-xl border border-[#e2e8f0] p-6 shadow-sm sm:col-span-1 md:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Image className="w-5 h-5 text-[#0f766e]" />
+            <h3 className="text-base font-semibold text-[#042f2e] m-0">Fundo da Credencial</h3>
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            {config.bg_credencial ? (
+              <div className="w-full max-w-[300px] aspect-[3/4] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] flex items-center justify-center overflow-hidden">
+                <img
+                  src={getStorageUrl(config.bg_credencial)}
+                  alt="Fundo Credencial"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-full max-w-[300px] aspect-[3/4] bg-[#f8fafc] rounded-lg border border-dashed border-[#cbd5e1] flex flex-col items-center justify-center gap-2 text-[#94a3b8] p-4 text-center">
+                <ImagePlus className="w-10 h-10" />
+                <span className="text-sm">Envie a arte da credencial em branco (Orientação Retrato Aprox: 9x12cm)</span>
+              </div>
+            )}
+            <input
+              ref={inputBgCredencialRef}
+              type="file"
+              accept={ACCEPT_IMAGES}
+              className="hidden"
+              onChange={(e) => handleFileChange('bg_credencial', e)}
+            />
+            <button
+              type="button"
+              disabled={uploadingBgCredencial}
+              onClick={() => inputBgCredencialRef.current?.click()}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#0f766e] text-white hover:bg-[#0d6961] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {uploadingBgCredencial ? 'Enviando...' : config.bg_credencial ? 'Alterar arte' : 'Enviar arte'}
             </button>
           </div>
         </div>
