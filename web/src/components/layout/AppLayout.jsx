@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -44,6 +44,7 @@ const menuGroups = [
     items: [
       { label: 'Usuários', path: '/app/administrativo', icon: Users, tab: 'usuarios' },
       { label: 'Solicitações de Adesão', path: '/app/administrativo', icon: ClipboardList, tab: 'usuarios-pendentes', adminOnly: true },
+      { label: 'Credenciais', path: '/app/administrativo', icon: IdCard, tab: 'credenciais', adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
     ],
   },
@@ -83,9 +84,8 @@ export default function AppLayout({ children }) {
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-screen w-[288px] z-50 flex flex-col bg-white/95 backdrop-blur-[24px] border-r border-[rgba(15,118,110,0.2)] shadow-[4px_0_24px_rgba(15,118,110,0.08)] transform transition-transform duration-300 ease-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed top-0 left-0 h-screen w-[288px] z-50 flex flex-col bg-white/95 backdrop-blur-[24px] border-r border-[rgba(15,118,110,0.2)] shadow-[4px_0_24px_rgba(15,118,110,0.08)] transform transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
       >
         <div className="flex items-center justify-between px-6 py-4 min-h-[72px] border-b border-[rgba(15,118,110,0.15)]">
           <Link
@@ -119,11 +119,10 @@ export default function AppLayout({ children }) {
                   <Link
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${
-                      active
+                    className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${active
                         ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
                         : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
-                    }`}
+                      }`}
                   >
                     <Icon size={20} className="shrink-0" />
                     <span>{item.label}</span>
@@ -143,11 +142,10 @@ export default function AppLayout({ children }) {
                   <button
                     type="button"
                     onClick={() => setGroupExpanded((prev) => ({ ...prev, [group.label]: !prev[group.label] }))}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-[12px] border-0 bg-transparent text-left text-[0.9375rem] font-medium transition-colors cursor-pointer ${
-                      hasActiveChild
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-[12px] border-0 bg-transparent text-left text-[0.9375rem] font-medium transition-colors cursor-pointer ${hasActiveChild
                         ? 'text-[#0f766e]'
                         : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
-                    }`}
+                      }`}
                   >
                     <GroupIcon size={20} className="shrink-0" />
                     <span className="flex-1">{group.label}</span>
@@ -172,11 +170,10 @@ export default function AppLayout({ children }) {
                             <Link
                               to={to}
                               onClick={() => setSidebarOpen(false)}
-                              className={`flex items-center gap-3 px-3 py-2 rounded-[8px] no-underline text-[0.875rem] font-medium transition-colors ${
-                                active
+                              className={`flex items-center gap-3 px-3 py-2 rounded-[8px] no-underline text-[0.875rem] font-medium transition-colors ${active
                                   ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_2px_8px_rgba(15,118,110,0.3)]'
                                   : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
-                              }`}
+                                }`}
                             >
                               <ItemIcon size={18} className="shrink-0" />
                               <span>{item.label}</span>
@@ -193,11 +190,10 @@ export default function AppLayout({ children }) {
               <Link
                 to={menuFooterItem.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${
-                  location.pathname === menuFooterItem.path
+                className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${location.pathname === menuFooterItem.path
                     ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
                     : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
-                }`}
+                  }`}
               >
                 <UserCircle size={20} className="shrink-0" />
                 <span>{menuFooterItem.label}</span>

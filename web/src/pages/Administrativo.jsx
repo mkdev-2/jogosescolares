@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, Settings, ClipboardList } from 'lucide-react'
+import { Users, Settings, ClipboardList, IdCard } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
 import UsuariosPendentes from './UsuariosPendentes'
+import Credenciais from './Credenciais'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'usuarios-pendentes', label: 'Solicitações de Adesão', icon: ClipboardList, adminOnly: true },
+  { id: 'credenciais', label: 'Credenciais', icon: IdCard, adminOnly: true },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
 ]
 
@@ -51,11 +53,10 @@ export default function Administrativo() {
                   setActiveTab(tab.id)
                   setSearchParams(tab.id === 'usuarios' ? {} : { tab: tab.id })
                 }}
-                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${
-                  isActive
+                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${isActive
                     ? 'bg-[#f1f5f9] text-[#0f766e]'
                     : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
-                }`}
+                  }`}
               >
                 <Icon size={20} className={isActive ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
                 <span>{tab.label}</span>
@@ -67,6 +68,7 @@ export default function Administrativo() {
         <div className="p-6">
           {activeTab === 'usuarios' && <Usuarios embedded />}
           {activeTab === 'usuarios-pendentes' && <UsuariosPendentes embedded />}
+          {activeTab === 'credenciais' && <Credenciais embedded />}
           {activeTab === 'configuracoes' && <Configuracoes embedded />}
         </div>
       </div>
