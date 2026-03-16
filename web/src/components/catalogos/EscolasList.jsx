@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Building2, Search } from 'lucide-react'
-import { Input } from 'antd'
+import { Input, Pagination } from 'antd'
 import { escolasService } from '../../services/escolasService'
 
 function formatDate(str) {
@@ -13,8 +13,10 @@ function formatDate(str) {
   }
 }
 
-export default function EscolasList({ lista = [], loading, error, onGerarCredenciais }) {
+export default function EscolasList({ lista = [], loading, error, onGerarCredenciais, onViewEscola }) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const filteredLista = lista.filter((item) => {
     if (!searchTerm) return true
@@ -33,6 +35,15 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
       (searchDigits && cnpj.includes(searchDigits))
     )
   })
+
+  const paginatedLista = filteredLista.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,9 +113,6 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       CNPJ
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Cidade / UF
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       E-mail
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -121,8 +129,20 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLista.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#f8fafc]">
+                  {paginatedLista.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={`hover:bg-[#f8fafc] ${onViewEscola ? 'cursor-pointer' : ''}`}
+                      onClick={() => onViewEscola?.(item)}
+                      role={onViewEscola ? 'button' : undefined}
+                      tabIndex={onViewEscola ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (onViewEscola && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault()
+                          onViewEscola(item)
+                        }
+                      }}
+                    >
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {item.nome_escola || '-'}
                       </td>
@@ -131,9 +151,6 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {escolasService.formatCnpj(item.cnpj)}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {[item.cidade, item.uf].filter(Boolean).join(' / ') || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {item.email || '-'}
@@ -159,6 +176,23 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {filteredLista.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={filteredLista.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total} escolas`}
+              />
             </div>
           )}
         </>

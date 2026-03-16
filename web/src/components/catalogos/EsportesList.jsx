@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Trophy, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Popconfirm, Input, Button, Select, Switch } from 'antd'
+import { Popconfirm, Input, Button, Select, Switch, Pagination } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EsportesList({
@@ -20,6 +20,8 @@ export default function EsportesList({
   const [filtroNaipe, setFiltroNaipe] = useState(null)
   const [filtroTipo, setFiltroTipo] = useState(null)
   const [exibirUnicos, setExibirUnicos] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const opcoesCategoria = useMemo(() => {
     const map = new Map()
@@ -72,6 +74,15 @@ export default function EsportesList({
       return true
     })
   }, [filteredVariantes, exibirUnicos])
+
+  const paginatedVariantes = variantesParaExibir.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filtroCategoria, filtroNaipe, filtroTipo, exibirUnicos])
 
   const handleDelete = async (v, isEsporteUnico = false) => {
     try {
@@ -248,7 +259,7 @@ export default function EsportesList({
                   </tr>
                 </thead>
                 <tbody>
-                  {variantesParaExibir.map((v) => {
+                  {paginatedVariantes.map((v) => {
                     const catBadge = getCategoriaBadge(v.categoria_nome)
                     const naipeBadge = getNaipeBadge(v.naipe_nome)
                     const isEsporteUnico = exibirUnicos
@@ -336,6 +347,23 @@ export default function EsportesList({
                   )})}
                 </tbody>
               </table>
+            </div>
+          )}
+          {variantesParaExibir.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={variantesParaExibir.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total}`}
+              />
             </div>
           )}
         </>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { User, UserCircle, School, Camera, TriangleAlert, FileSignature } from 'lucide-react'
-import { DatePicker, Input, Select, Button, Steps, Checkbox } from 'antd'
+import { DatePicker, Input, Select, Button, Steps, Checkbox, Upload } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
@@ -122,17 +123,17 @@ const STEP_ITEMS = [
   { title: 'Assinaturas e documentação' },
 ]
 
-export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudante = null }) {
+export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudante = null, initialStep = 0 }) {
   const { user } = useAuth()
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
   const fileInputRef = useRef(null)
-  const docInputRef = useRef(null)
 
   const nomeInstituicao = user?.escola_nome ?? ''
   const inepInstituicao = user?.inep ?? user?.escola_inep ?? ''
@@ -185,7 +186,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             fichaAssinada: Boolean(full.ficha_assinada),
             documentacaoAssinadaUrl: full.documentacao_assinada_url || '',
           })
-          setCurrentStep(0)
+          setCurrentStep(initialStep)
         })
         .catch(() => { })
         .finally(() => setLoadingEstudante(false))
@@ -193,9 +194,9 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
       setLoadingEstudante(false)
       setInstituicaoCarregada({ nome: '', inep: '' })
       setForm(INITIAL_FORM)
-      setCurrentStep(0)
+      setCurrentStep(initialStep)
     }
-  }, [open, estudante?.id])
+  }, [open, estudante?.id, initialStep])
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -250,31 +251,43 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
 
   const ACCEPT_DOC = '.pdf,.jpg,.jpeg,.png'
   const MAX_DOC_MB = 10
-  const handleDocumentacaoChange = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const docFileList = [
+    ...(form.documentacaoAssinadaUrl
+      ? [{ uid: 'doc', name: 'Documento assinado', status: 'done', url: getStorageUrl(form.documentacaoAssinadaUrl) }]
+      : []),
+    ...(uploadingFileInfo ? [{ uid: uploadingFileInfo.uid, name: uploadingFileInfo.name, status: 'uploading' }] : []),
+  ]
+  const handleDocCustomRequest = async ({ file, onSuccess, onError }) => {
     const isPdf = file.type === 'application/pdf'
-    const isImage = file.type.startsWith('image/')
+    const isImage = file.type?.startsWith('image/')
     if (!isPdf && !isImage) {
       setSubmitError('Envie um arquivo PDF ou imagem (JPG, PNG).')
-      if (docInputRef.current) docInputRef.current.value = ''
+      onError(new Error('Tipo de arquivo inválido'))
+      setUploadingFileInfo(null)
       return
     }
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
       setSubmitError(`O arquivo excede o limite de ${MAX_DOC_MB}MB.`)
-      if (docInputRef.current) docInputRef.current.value = ''
+      onError(new Error('Arquivo muito grande'))
+      setUploadingFileInfo(null)
       return
     }
     setUploadingDoc(true)
+    setUploadingFileInfo({ uid: file.uid, name: file.name })
     try {
       const url = await uploadDocumentacaoAssinada(file)
       updateField('documentacaoAssinadaUrl', url)
+      onSuccess(url)
     } catch (err) {
       setSubmitError(err.message || 'Erro ao enviar documentação')
+      onError(err)
     } finally {
       setUploadingDoc(false)
-      if (docInputRef.current) docInputRef.current.value = ''
+      setUploadingFileInfo(null)
     }
+  }
+  const handleDocChange = ({ fileList }) => {
+    if (fileList.length === 0) updateField('documentacaoAssinadaUrl', '')
   }
 
   const handleSubmit = async (e) => {
@@ -544,54 +557,52 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                     </h3>
                   </div>
                   <div className="space-y-3">
+                    <p className="text-sm text-[#64748b] mb-1 m-0">
+                    A Ficha de Inscrição Individual deve ser assinada pelo Aluno, Responsável, Médico e Escola.
+                    </p>
                     <Checkbox
                       checked={form.fichaAssinada}
-                      onChange={(e) => updateField('fichaAssinada', e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        updateField('fichaAssinada', checked)
+                        if (!checked) updateField('documentacaoAssinadaUrl', '')
+                      }}
                     >
-                      Assinaturas de Médico, Aluno, Responsável e Escola coletadas
+                      Todas as assinaturas foram coletadas.
                     </Checkbox>
                   </div>
 
-                  <div className="border-t border-[#e2e8f0] pt-6 mt-6">
+                  <div className={`border-t border-[#e2e8f0] pt-6 mt-6 ${!form.fichaAssinada ? 'opacity-60 pointer-events-none' : ''}`}>
                     <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
-                    <p className="text-sm text-[#64748b] mb-3 m-0">
-                      Envie o documento (ficha, termo ou atestado) com as assinaturas. PDF ou imagem (JPG, PNG), até {MAX_DOC_MB}MB.
+                    <p className="text-sm text-[#64748b] mb-4 m-0">
+                      {form.fichaAssinada
+                        ? `PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`
+                        : 'Marque a opção acima para habilitar o anexo.'}
                     </p>
-                    <input
-                      ref={docInputRef}
-                      type="file"
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
                       accept={ACCEPT_DOC}
-                      onChange={handleDocumentacaoChange}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => docInputRef.current?.click()}
-                      disabled={uploadingDoc}
-                      className="px-4 py-2 rounded-lg text-sm font-medium border border-[#e2e8f0] bg-[#f8fafc] text-[#334155] hover:bg-[#f0fdfa] hover:border-[#0f766e] transition-colors disabled:opacity-60"
+                      fileList={docFileList}
+                      customRequest={handleDocCustomRequest}
+                      onChange={handleDocChange}
+                      disabled={!form.fichaAssinada}
+                      onPreview={(file) => {
+                        if (file.url) window.open(file.url, '_blank')
+                        else if (file.originFileObj) {
+                          const url = URL.createObjectURL(file.originFileObj)
+                          window.open(url, '_blank')
+                        }
+                      }}
+                      showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
                     >
-                      {uploadingDoc ? 'Enviando...' : form.documentacaoAssinadaUrl ? 'Alterar anexo' : 'Selecionar arquivo'}
-                    </button>
-                    {form.documentacaoAssinadaUrl && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm text-[#0f766e]">Documento anexado.</span>
-                        <a
-                          href={getStorageUrl(form.documentacaoAssinadaUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-[#0f766e] hover:underline"
-                        >
-                          Abrir
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => updateField('documentacaoAssinadaUrl', '')}
-                          className="text-sm text-[#dc2626] hover:underline"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    )}
+                      {docFileList.length >= 1 ? null : (
+                        <div className="flex flex-col items-center justify-center gap-1 py-2">
+                          <PlusOutlined className="text-2xl text-[#94a3b8]" />
+                          <span className="text-xs text-[#64748b]">Selecionar arquivo</span>
+                        </div>
+                      )}
+                    </Upload> 
                   </div>
                 </div>
               )}

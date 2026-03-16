@@ -78,6 +78,29 @@ def _cartesian_product(categoria_ids: list[str], naipe_ids: list[str], tipo_moda
     return result
 
 
+async def _tem_tipo_individual(conn, tipo_modalidade_ids: list[str]) -> bool:
+    """Verifica se algum dos tipos de modalidade é INDIVIDUAIS."""
+    if not tipo_modalidade_ids:
+        return False
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT 1 FROM tipos_modalidade WHERE id = ANY(%s) AND codigo = 'INDIVIDUAIS' LIMIT 1",
+            (tipo_modalidade_ids,),
+        )
+        return await cur.fetchone() is not None
+
+
+async def _get_tipos_das_variantes(conn, esporte_id: str) -> list[str]:
+    """Retorna os tipo_modalidade_id das variantes existentes do esporte."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s",
+            (esporte_id,),
+        )
+        rows = await cur.fetchall()
+    return [str(r["tipo_modalidade_id"]) for r in rows]
+
+
 @router.post("", response_model=EsporteResponse, status_code=status.HTTP_201_CREATED)
 async def create_esporte(
     data: EsporteCreate,
@@ -85,11 +108,20 @@ async def create_esporte(
     current_user: dict = Depends(get_current_user),
 ):
     """Cria novo esporte e variantes em lote (requer autenticação)."""
-    limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
+    tipo_modalidade_ids = data.tipo_modalidade_ids or []
+    tem_individual = await _tem_tipo_individual(conn, tipo_modalidade_ids)
+    if tem_individual:
+        limite_atletas = 1
+    else:
+        limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
+    if tem_individual and data.limite_atletas is not None and data.limite_atletas != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
+        )
     icone = (data.icone or "Zap").strip() or "Zap"
     categoria_ids = data.categoria_ids or []
     naipe_ids = data.naipe_ids or []
-    tipo_modalidade_ids = data.tipo_modalidade_ids or []
 
     async with conn.cursor() as cur:
         await cur.execute(
@@ -169,6 +201,13 @@ async def update_esporte(
         updates.append("requisitos = %s")
         values.append(data.requisitos.strip())
     if data.limite_atletas is not None:
+        tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id)
+        tem_individual = await _tem_tipo_individual(conn, tipos_para_check)
+        if tem_individual and data.limite_atletas != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
+            )
         updates.append("limite_atletas = %s")
         values.append(data.limite_atletas)
     if data.ativa is not None:
@@ -192,6 +231,20 @@ async def update_esporte(
     naipe_ids = data.naipe_ids
     tipo_modalidade_ids = data.tipo_modalidade_ids
     if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
+        tem_individual_novas = await _tem_tipo_individual(conn, tipo_modalidade_ids)
+        if tem_individual_novas:
+            if data.limite_atletas is not None and data.limite_atletas != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
+                )
+            limite_ja_atualizado = any("limite_atletas" in u for u in updates)
+            if data.limite_atletas is None and not limite_ja_atualizado and existing.get("limite_atletas") != 1:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        "UPDATE esportes SET limite_atletas = 1, updated_at = NOW() WHERE id = %s",
+                        (esporte_id,),
+                    )
         combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)
         async with conn.cursor() as cur:
             await cur.execute(
@@ -267,20 +320,7 @@ async def delete_esporte(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Remove esporte (requer autenticação)."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "SELECT COUNT(*) AS cnt FROM esporte_variantes WHERE esporte_id = %s",
-            (esporte_id,),
-        )
-        row = await cur.fetchone()
-        count = row["cnt"] if row else 0
-    if count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Não é possível excluir: existem {count} variante(s) vinculada(s) a este esporte",
-        )
-
+    """Remove esporte e suas variantes em cascata (requer autenticação)."""
     async with conn.cursor() as cur:
         await cur.execute("DELETE FROM esportes WHERE id = %s RETURNING id", (esporte_id,))
         if not await cur.fetchone():

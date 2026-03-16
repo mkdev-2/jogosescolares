@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Input, Button, Popconfirm, Select } from 'antd'
+import { Input, Button, Popconfirm, Pagination } from 'antd'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
+import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
 
 export default function ProfessoresTecnicosList({
   lista = [],
@@ -16,6 +17,8 @@ export default function ProfessoresTecnicosList({
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [escolaFilterId, setEscolaFilterId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const filteredByEscola = escolaFilterId != null && escolaFilterId !== ''
     ? lista.filter((item) => Number(item.escola_id) === Number(escolaFilterId))
@@ -37,6 +40,15 @@ export default function ProfessoresTecnicosList({
     )
   })
 
+  const paginatedLista = filteredLista.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, escolaFilterId])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
@@ -55,16 +67,11 @@ export default function ProfessoresTecnicosList({
 
       <div className="flex flex-wrap items-center gap-4">
         {showInstituicao && escolas?.length > 0 && (
-          <Select
-            placeholder="Filtrar por escola"
-            allowClear
-            value={escolaFilterId ?? undefined}
-            onChange={(v) => setEscolaFilterId(v ?? null)}
-            options={[
-              { value: '', label: 'Todas as escolas' },
-              ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
-            ]}
-            className="min-w-[220px]"
+          <EscolaFilterAutoComplete
+            escolas={escolas}
+            value={escolaFilterId}
+            onChange={setEscolaFilterId}
+            className="min-w-[280px]"
           />
         )}
         <div className="flex-1 min-w-[200px]">
@@ -144,7 +151,7 @@ export default function ProfessoresTecnicosList({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLista.map((item) => (
+                  {paginatedLista.map((item) => (
                     <tr
                       key={item.id ?? item.cpf ?? item.nome}
                       className={`hover:bg-[#f8fafc] ${onViewProfessor ? 'cursor-pointer' : ''}`}
@@ -205,6 +212,23 @@ export default function ProfessoresTecnicosList({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {filteredLista.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={filteredLista.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total} professores`}
+              />
             </div>
           )}
         </>
