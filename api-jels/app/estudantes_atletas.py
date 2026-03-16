@@ -135,7 +135,7 @@ async def get_estudante_modalidades(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome, tm.nome AS tipo_nome
+            SELECT esp.nome AS esporte_nome, esp.icone AS esporte_icone, c.nome AS categoria_nome, n.nome AS naipe_nome, tm.nome AS tipo_nome
             FROM equipe_estudantes ee
             JOIN equipes eq ON eq.id = ee.equipe_id
             JOIN esporte_variantes ev ON ev.id = eq.esporte_variante_id
@@ -152,6 +152,7 @@ async def get_estudante_modalidades(
     return [
         {
             "esporte_nome": r["esporte_nome"],
+            "esporte_icone": r.get("esporte_icone") or "Zap",
             "categoria_nome": r["categoria_nome"],
             "naipe_nome": r["naipe_nome"],
             "tipo_nome": r["tipo_nome"],
