@@ -95,6 +95,6 @@ export async function uploadImagemNoticia(file, subPath = 'destaque') {
  */
 export async function uploadLogoMidias(file, tipo) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'png').replace(/[^a-z0-9]/g, '')
-  const path = `${MIDIAS_PATH}/${tipo}.${ext}`
+  const path = `${MIDIAS_PATH}/${tipo}-${Date.now()}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }

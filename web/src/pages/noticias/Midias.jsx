@@ -177,7 +177,7 @@ export default function Midias({ embedded }) {
         <div className="bg-white rounded-xl border border-[#e2e8f0] p-6 shadow-sm sm:col-span-1 md:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <Image className="w-5 h-5 text-[#0f766e]" />
-            <h3 className="text-base font-semibold text-[#042f2e] m-0">Fundo da Credencial (Papel Timbrado)</h3>
+            <h3 className="text-base font-semibold text-[#042f2e] m-0">Fundo da Credencial</h3>
           </div>
           <div className="flex flex-col items-center gap-4">
             {config.bg_credencial ? (
