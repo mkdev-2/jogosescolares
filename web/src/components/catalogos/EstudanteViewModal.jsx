@@ -1,9 +1,42 @@
-import { User, UserCircle, School, FileSignature, Check, X, Pencil } from 'lucide-react'
+import { useState } from 'react'
+import { User, UserCircle, School, FileSignature, Check, X, Pencil, Paperclip, FileText } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { estudantesService } from '../../services/estudantesService'
 import { getStorageUrl } from '../../services/storageService'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
+
+function DocPreviewCard({ url }) {
+  const [imgError, setImgError] = useState(false)
+  const isPdf = /\.pdf$/i.test(url || '')
+  const fullUrl = getStorageUrl(url)
+  const showImg = !isPdf && !imgError
+
+  return (
+    <a
+      href={fullUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex flex-col items-center gap-2 no-underline group"
+    >
+      <div className="w-[104px] h-[104px] rounded-lg border-2 border-[#e2e8f0] overflow-hidden bg-[#f8fafc] flex items-center justify-center hover:border-[#0f766e] transition-colors relative">
+        {showImg ? (
+          <img
+            src={fullUrl}
+            alt="Documento assinado"
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <FileText size={40} className="text-[#94a3b8] group-hover:text-[#0f766e]" />
+        )}
+      </div>
+      <span className="text-xs font-medium text-[#0f766e] group-hover:underline text-center max-w-[104px] truncate">
+        Documento assinado
+      </span>
+    </a>
+  )
+}
 
 function formatDate(str) {
   if (!str) return '-'
@@ -123,32 +156,45 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
           </div>
         </div>
 
-        {(estudante.ficha_assinada || estudante.documentacao_assinada_url) && (
-          <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
+        <div className="space-y-3 border-t border-[#e2e8f0] pt-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <FileSignature className="w-4 h-4 text-[#64748b]" />
-              <h3 className="text-sm font-semibold text-[#042f2e] m-0">Assinaturas e documentação</h3>
+              <h3 className="text-sm font-semibold text-[#042f2e] m-0">Ficha de Inscrição Individual</h3>
             </div>
+            {estudante.documentacao_assinada_url ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                <Check className="w-3.5 h-3.5" />
+                Ficha anexada
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                <X className="w-3.5 h-3.5" />
+                Ficha não anexada
+              </span>
+            )}
+          </div>
+          {(estudante.ficha_assinada || estudante.documentacao_assinada_url) && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-[#334155]">
                 {estudante.ficha_assinada ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
                 <span>Assinaturas de Médico, Aluno, Responsável e Escola coletadas</span>
               </div>
             </div>
-            {estudante.documentacao_assinada_url && (
-              <div className="pt-2">
-                <a
-                  href={getStorageUrl(estudante.documentacao_assinada_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-[#0f766e] hover:underline"
-                >
-                  Abrir documentação assinada (anexo)
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+          {estudante.documentacao_assinada_url ? (
+            <DocPreviewCard url={estudante.documentacao_assinada_url} />
+          ) : onEdit && (
+            <button
+              type="button"
+              onClick={() => { onClose(); onEdit(estudante, { openAtStep: 2 }) }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0fdfa] text-[#0f766e] border border-[#0f766e]/30 hover:bg-[#ccfbf1] transition-colors"
+            >
+              <Paperclip size={14} />
+              Anexar Ficha
+            </button>
+          )}
+        </div>
       </div>
     </Modal>
   )

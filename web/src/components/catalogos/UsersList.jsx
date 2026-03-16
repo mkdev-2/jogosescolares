@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Popconfirm, Input, Button } from 'antd'
+import { Popconfirm, Input, Button, Pagination } from 'antd'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
 import { escolasService } from '../../services/escolasService'
+import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
 
 const ROLE_LABELS = {
   SUPER_ADMIN: 'Super Admin',
@@ -16,24 +17,44 @@ const ROLE_LABELS = {
 export default function UsersList({ currentUser, onNewUser, onEditUser }) {
   const { users, loading, error, fetchUsers, deleteUser } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
+  const [escolaFilterId, setEscolaFilterId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [escolasMap, setEscolasMap] = useState({})
+  const [escolas, setEscolas] = useState([])
 
   useEffect(() => {
     escolasService.list().then((list) => {
       const map = {}
       list.forEach((e) => { map[e.id] = e.nome_escola })
       setEscolasMap(map)
-    }).catch(() => setEscolasMap({}))
+      setEscolas(list)
+    }).catch(() => {
+      setEscolasMap({})
+      setEscolas([])
+    })
   }, [])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, escolaFilterId])
+
   const filteredUsers = users.filter((u) => {
+    const matchEscola =
+      escolaFilterId == null || escolaFilterId === '' ||
+      Number(u.escola_id) === Number(escolaFilterId)
     const matchSearch =
       !searchTerm ||
       u.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.cpf && u.cpf.includes(searchTerm.replace(/\D/g, '')))
-    return matchSearch
+    return matchEscola && matchSearch
   })
+
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
 
   const handleDelete = async (user) => {
     try {
@@ -73,12 +94,18 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Buscar por nome, e-mail ou CPF..."
+            placeholder="Buscar por nome ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
           />
         </div>
+        <EscolaFilterAutoComplete
+          escolas={escolas}
+          value={escolaFilterId}
+          onChange={setEscolaFilterId}
+          className="min-w-[280px]"
+        />
         {canCreate && onNewUser && (
           <Button type="primary" onClick={onNewUser} icon={<Plus size={16} />}>
             Novo Usuário
@@ -133,9 +160,6 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
                       CPF
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      E-mail
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Perfil
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -150,28 +174,25 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u) => (
+                  {paginatedUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-[#f8fafc]">
-                      <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
+                      <td className="px-5 py-4 text-[0.8125rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         {u.nome}
                       </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
+                      <td className="px-5 py-4 text-[0.8125rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {usersService.formatCpf(u.cpf)}
                       </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {u.email || '-'}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        <span className="inline-block px-2 py-1 rounded-[6px] text-[0.8125rem] font-medium bg-[#e2e8f0] text-[#475569]">
+                      <td className="px-5 py-4 text-[0.8125rem] text-[#334155] border-b border-[#f1f5f9]">
+                        <span className="inline-block px-2 py-1 rounded-[6px] text-[0.75rem] font-medium bg-[#e2e8f0] text-[#475569]">
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                      <td className="px-5 py-4 text-[0.8125rem] text-[#334155] border-b border-[#f1f5f9]">
                         {u.escola_id ? (escolasMap[u.escola_id] || `ID ${u.escola_id}`) : '-'}
                       </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                      <td className="px-5 py-4 text-[0.8125rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span
-                          className={`inline-block px-2 py-1 rounded-[6px] text-[0.8125rem] font-medium ${
+                          className={`inline-block px-2 py-1 rounded-[6px] text-[0.75rem] font-medium ${
                             u.status === 'ATIVO'
                               ? 'bg-[#ccfbf1] text-[#0f766e]'
                               : 'bg-[#f1f5f9] text-[#64748b]'
@@ -214,6 +235,23 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {filteredUsers.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={filteredUsers.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total} usuários`}
+              />
             </div>
           )}
         </>

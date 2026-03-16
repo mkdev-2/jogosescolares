@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { School, Search, CheckCircle, Loader2, XCircle, Building2, User, Users, Trophy, CheckCircle2, XOctagon, Eye } from 'lucide-react'
-import { Popconfirm, Input } from 'antd'
+import { Popconfirm, Input, Pagination } from 'antd'
 import { escolasService } from '../services/escolasService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import Modal from '../components/ui/Modal'
@@ -58,6 +58,8 @@ export default function UsuariosPendentes({ embedded }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPageEncerradas, setCurrentPageEncerradas] = useState(1)
+  const [pageSizeEncerradas, setPageSizeEncerradas] = useState(10)
   const [modalSolicitacao, setModalSolicitacao] = useState(null)
   const [aprovandoId, setAprovandoId] = useState(null)
   const [negandoId, setNegandoId] = useState(null)
@@ -86,6 +88,10 @@ export default function UsuariosPendentes({ embedded }) {
   useEffect(() => {
     esporteVariantesService.list().then(setVariantes).catch(() => setVariantes([]))
   }, [])
+
+  useEffect(() => {
+    setCurrentPageEncerradas(1)
+  }, [searchTerm])
 
   const handleNegar = async (solicitacaoId) => {
     setNegandoId(solicitacaoId)
@@ -135,6 +141,15 @@ export default function UsuariosPendentes({ embedded }) {
     ...filterBySearch(solicitacoesAprovadas).map((a) => ({ ...a, _status: 'APROVADA' })),
     ...filterBySearch(solicitacoesNegadas).map((a) => ({ ...a, _status: 'REJEITADA' })),
   ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+
+  const paginatedEncerradas = filteredEncerradas.slice(
+    (currentPageEncerradas - 1) * pageSizeEncerradas,
+    currentPageEncerradas * pageSizeEncerradas
+  )
+
+  useEffect(() => {
+    setCurrentPageEncerradas(1)
+  }, [searchTerm])
 
   return (
     <div className="flex flex-col gap-6">
@@ -282,7 +297,7 @@ export default function UsuariosPendentes({ embedded }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredEncerradas.map((a) => (
+                    {paginatedEncerradas.map((a) => (
                       <tr key={`${a._status}-${a.id}`} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]/50">
                         <td className="py-3 px-4">
                           <span
@@ -316,6 +331,23 @@ export default function UsuariosPendentes({ embedded }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {filteredEncerradas.length > pageSizeEncerradas && (
+              <div className="mt-4 flex justify-end">
+                <Pagination
+                  size="small"
+                  current={currentPageEncerradas}
+                  total={filteredEncerradas.length}
+                  pageSize={pageSizeEncerradas}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                  showSizeChanger
+                  onChange={(page, size) => {
+                    setCurrentPageEncerradas(page)
+                    setPageSizeEncerradas(size)
+                  }}
+                  showTotal={(total) => `Total: ${total} solicitações`}
+                />
               </div>
             )}
           </div>

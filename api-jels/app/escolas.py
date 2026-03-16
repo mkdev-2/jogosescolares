@@ -252,6 +252,72 @@ async def update_escola_modalidades(
     return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
 
 
+@router.get("/{escola_id}/detalhes")
+async def get_escola_detalhes(
+    escola_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Obtém escola por ID com dados do diretor, contagens e usuários vinculados."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at "
+            "FROM escolas WHERE id = %s",
+            (escola_id,),
+        )
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+
+    escola = _row_to_response(row)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """SELECT id, cpf, email, nome, role, escola_id, status, created_at
+               FROM users WHERE escola_id = %s ORDER BY role, nome""",
+            (escola_id,),
+        )
+        users_rows = await cur.fetchall()
+
+    diretor = None
+    usuarios = []
+    for u in users_rows:
+        u_resp = {
+            "id": u["id"],
+            "cpf": u.get("cpf"),
+            "email": u.get("email"),
+            "nome": u["nome"],
+            "role": u["role"],
+            "status": u.get("status", "ATIVO"),
+            "created_at": u["created_at"].isoformat() if u.get("created_at") else None,
+        }
+        if u["role"] == "DIRETOR":
+            diretor = u_resp
+        usuarios.append(u_resp)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) AS total FROM estudantes_atletas WHERE escola_id = %s",
+            (escola_id,),
+        )
+        total_estudantes = (await cur.fetchone())["total"] or 0
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT COUNT(*) AS total FROM equipes WHERE escola_id = %s",
+            (escola_id,),
+        )
+        total_equipes = (await cur.fetchone())["total"] or 0
+
+    return {
+        "escola": escola,
+        "diretor": diretor,
+        "total_estudantes": total_estudantes,
+        "total_equipes": total_equipes,
+        "usuarios": usuarios,
+    }
+
+
 @router.get("/{escola_id}", response_model=EscolaResponse)
 async def get_escola(
     escola_id: int,

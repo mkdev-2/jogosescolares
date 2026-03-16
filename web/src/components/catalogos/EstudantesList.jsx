@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical, IdCard } from 'lucide-react'
-import { Input, Button, Popconfirm, Popover, Select } from 'antd'
+import { Input, Button, Popconfirm, Popover, Pagination } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
+import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
 import { getStorageUrl } from '../../services/storageService'
 
 function SexoBadge({ sexo }) {
@@ -11,6 +12,14 @@ function SexoBadge({ sexo }) {
   if (isF) return <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">F</span>
   if (isM) return <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">M</span>
   return <span>{sexo}</span>
+}
+
+function FichaInscricaoBadge({ item }) {
+  const temAnexo = !!(item?.documentacao_assinada_url?.trim())
+  const assinado = !!item?.ficha_assinada
+  if (temAnexo) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap">Ficha Anexada</span>
+  if (assinado) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 whitespace-nowrap">Assinado</span>
+  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">Não Assinou</span>
 }
 
 function formatDate(str) {
@@ -37,6 +46,8 @@ export default function EstudantesList({
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [escolaFilterId, setEscolaFilterId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const filteredByEscola = escolaFilterId != null && escolaFilterId !== ''
     ? lista.filter((item) => Number(item.escola_id) === Number(escolaFilterId))
@@ -60,6 +71,15 @@ export default function EstudantesList({
     )
   })
 
+  const paginatedLista = filteredLista.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, escolaFilterId])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
@@ -78,16 +98,11 @@ export default function EstudantesList({
 
       <div className="flex flex-wrap items-center gap-4">
         {showInstituicao && escolas?.length > 0 && (
-          <Select
-            placeholder="Filtrar por escola"
-            allowClear
-            value={escolaFilterId ?? undefined}
-            onChange={(v) => setEscolaFilterId(v ?? null)}
-            options={[
-              { value: '', label: 'Todas as escolas' },
-              ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
-            ]}
-            className="min-w-[220px]"
+          <EscolaFilterAutoComplete
+            escolas={escolas}
+            value={escolaFilterId}
+            onChange={setEscolaFilterId}
+            className="min-w-[280px]"
           />
         )}
         <div className="flex-1 min-w-[200px]">
@@ -145,14 +160,14 @@ export default function EstudantesList({
               <table className="w-full border-collapse min-w-[800px]">
                 <thead>
                   <tr>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Nome
+                    </th>
                     {showInstituicao && (
                       <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Instituição
                       </th>
                     )}
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Nome
-                    </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       CPF
                     </th>
@@ -163,7 +178,7 @@ export default function EstudantesList({
                       Sexo
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Responsável
+                      Ficha de inscrição
                     </th>
                     {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -173,17 +188,12 @@ export default function EstudantesList({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLista.map((item) => (
+                  {paginatedLista.map((item) => (
                     <tr
                       key={item.id ?? item.cpf ?? item.nome}
                       className={`hover:bg-[#f8fafc] ${onViewAluno ? 'cursor-pointer' : ''}`}
                       onClick={() => onViewAluno?.(item)}
                     >
-                      {showInstituicao && (
-                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                          {item.escola_nome || '-'}
-                        </td>
-                      )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full overflow-hidden bg-[#e2e8f0] flex items-center justify-center shrink-0">
@@ -196,6 +206,11 @@ export default function EstudantesList({
                           <span>{item.nome}</span>
                         </div>
                       </td>
+                      {showInstituicao && (
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                          {item.escola_nome || '-'}
+                        </td>
+                      )}
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {estudantesService.formatCpf(item.cpf)}
                       </td>
@@ -206,7 +221,7 @@ export default function EstudantesList({
                         <SexoBadge sexo={item.sexo} />
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {item.responsavel_nome || '-'}
+                        <FichaInscricaoBadge item={item} />
                       </td>
                       {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
                         <td
@@ -277,6 +292,23 @@ export default function EstudantesList({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {filteredLista.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination
+                size="small"
+                current={currentPage}
+                total={filteredLista.length}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                showSizeChanger
+                onChange={(page, size) => {
+                  setCurrentPage(page)
+                  setPageSize(size)
+                }}
+                showTotal={(total) => `Total: ${total} alunos`}
+              />
             </div>
           )}
         </>

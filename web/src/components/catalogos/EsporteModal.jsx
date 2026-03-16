@@ -41,12 +41,14 @@ export default function EsporteModal({
       const catIds = [...new Set(variantesForEdit.map((v) => v.categoria_id).filter(Boolean))]
       const naipeIds = [...new Set(variantesForEdit.map((v) => v.naipe_id).filter(Boolean))]
       const tipoIds = [...new Set(variantesForEdit.map((v) => v.tipo_modalidade_id).filter(Boolean))]
+      const tipoIndividual = tipos.find((t) => t.id === tipoIds[0] && (t.codigo === 'INDIVIDUAIS' || t.nome?.toUpperCase().includes('INDIVIDUAL')))
+      const limiteAtletas = tipoIndividual ? 1 : (esporte.limite_atletas ?? 3)
       setFormData({
         nome: esporte.nome || '',
         descricao: esporte.descricao || '',
         icone: esporte.icone ?? 'Zap',
         requisitos: esporte.requisitos || '',
-        limite_atletas: esporte.limite_atletas ?? 3,
+        limite_atletas: limiteAtletas,
         ativa: esporte.ativa !== undefined ? esporte.ativa : true,
         categoria_ids: catIds,
         naipe_ids: naipeIds,
@@ -68,7 +70,7 @@ export default function EsporteModal({
       })
     }
     setErrors({})
-  }, [esporte, variantesForEdit, isOpen, categorias, naipes])
+  }, [esporte, variantesForEdit, isOpen, categorias, naipes, tipos])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -80,8 +82,15 @@ export default function EsporteModal({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [iconeDropdownOpen])
 
+  const isTipoIndividual = (() => {
+    const tipoId = formData.tipo_modalidade_ids?.[0]
+    const t = tipos.find((x) => x.id === tipoId)
+    return t?.codigo === 'INDIVIDUAIS' || t?.nome?.toUpperCase().includes('INDIVIDUAL')
+  })()
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    if (name === 'limite_atletas' && isTipoIndividual) return
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -121,11 +130,12 @@ export default function EsporteModal({
     if (!validateForm()) return
 
     try {
+      const limiteFinal = isTipoIndividual ? 1 : (Number(formData.limite_atletas) || 3)
       const dataToSubmit = {
         ...formData,
         icone: formData.icone || 'Zap',
         requisitos: formData.requisitos?.trim() || '',
-        limite_atletas: Number(formData.limite_atletas) || 3,
+        limite_atletas: limiteFinal,
         categoria_ids: formData.categoria_ids || [],
         naipe_ids: formData.naipe_ids || [],
         tipo_modalidade_ids: formData.tipo_modalidade_ids || [],
@@ -261,25 +271,6 @@ export default function EsporteModal({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
-              Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
-            </label>
-            <Input
-              id="limite_atletas"
-              type="number"
-              min={1}
-              value={formData.limite_atletas}
-              onChange={(e) => handleChange({ target: { name: 'limite_atletas', value: e.target.value, type: 'text' } })}
-              placeholder="Ex: 3"
-              status={errors.limite_atletas ? 'error' : undefined}
-            />
-            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe neste esporte</span>
-            {errors.limite_atletas && (
-              <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="tipo_modalidade">
               Tipo de modalidade <span className="text-[#dc2626]">*</span>
             </label>
@@ -287,13 +278,41 @@ export default function EsporteModal({
               id="tipo_modalidade"
               placeholder="Selecione"
               value={formData.tipo_modalidade_ids?.[0] || undefined}
-              onChange={(v) => setFormData((p) => ({ ...p, tipo_modalidade_ids: v ? [v] : [] }))}
+              onChange={(v) => {
+                const tipoSelecionado = tipos.find((t) => t.id === v)
+                const isIndividual = tipoSelecionado?.codigo === 'INDIVIDUAIS' || tipoSelecionado?.nome?.toUpperCase().includes('INDIVIDUAL')
+                setFormData((p) => ({
+                  ...p,
+                  tipo_modalidade_ids: v ? [v] : [],
+                  limite_atletas: isIndividual ? 1 : (p.limite_atletas === 1 ? 3 : p.limite_atletas),
+                }))
+              }}
               options={tipos.map((t) => ({ value: t.id, label: t.nome }))}
               className="w-full"
               status={errors.tipo_modalidade_ids ? 'error' : undefined}
             />
             {errors.tipo_modalidade_ids && (
               <span className="text-[0.8rem] text-[#dc2626] block mt-1">{errors.tipo_modalidade_ids}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="limite_atletas">
+              Máx. atletas por equipe <span className="text-[#dc2626]">*</span>
+            </label>
+            <Input
+              id="limite_atletas"
+              type="number"
+              min={1}
+              value={isTipoIndividual ? 1 : formData.limite_atletas}
+              onChange={(e) => handleChange({ target: { name: 'limite_atletas', value: e.target.value, type: 'text' } })}
+              placeholder="Ex: 3"
+              status={errors.limite_atletas ? 'error' : undefined}
+              disabled={isTipoIndividual}
+            />
+            <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe neste esporte</span>
+            {errors.limite_atletas && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.limite_atletas}</span>
             )}
           </div>
 

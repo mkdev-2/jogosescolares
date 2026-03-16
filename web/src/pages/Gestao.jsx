@@ -13,6 +13,7 @@ import EstudantesList from '../components/catalogos/EstudantesList'
 import ProfessoresTecnicosList from '../components/catalogos/ProfessoresTecnicosList'
 import EquipesList from '../components/catalogos/EquipesList'
 import EscolasList from '../components/catalogos/EscolasList'
+import EscolaViewModal from '../components/catalogos/EscolaViewModal'
 import EstudanteAtletaModal from '../components/catalogos/EstudanteAtletaModal'
 import ProfessorTecnicoModal from '../components/catalogos/ProfessorTecnicoModal'
 import EquipeModal from '../components/catalogos/EquipeModal'
@@ -56,6 +57,8 @@ export default function Gestao() {
   const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
   const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
   const [estudanteParaCredencial, setEstudanteParaCredencial] = useState(null)
+  const [estudanteModalInitialStep, setEstudanteModalInitialStep] = useState(0)
+  const [escolaParaVer, setEscolaParaVer] = useState(null)
 
   useEffect(() => {
     const t = searchParams.get('tab') || 'alunos'
@@ -133,9 +136,9 @@ export default function Gestao() {
                 lista={listaEstudantes}
                 loading={loadingEstudantes}
                 error={errorEstudantes}
-                onNewAluno={canCreateEntities && !cadastroAlunosBloqueado ? () => { setEstudanteParaEditar(null); setModalEstudanteOpen(true) } : undefined}
-                onEditAluno={(item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
-                onDeleteAluno={async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } }}
+                onNewAluno={canCreateEntities && !cadastroAlunosBloqueado ? () => { setEstudanteParaEditar(null); setModalEstudanteOpen(true); setEstudanteModalInitialStep(0) } : undefined}
+                onEditAluno={!isAdmin ? (item) => { setEstudanteParaEditar(item); setModalEstudanteOpen(true); setEstudanteModalInitialStep(0) } : undefined}
+                onDeleteAluno={!isAdmin ? async (item) => { try { await deleteEstudante(item.id) } catch (e) { alert(e.message) } } : undefined}
                 onViewAluno={(item) => setEstudanteParaVer(item)}
                 onGerarCredencial={(item) => setEstudanteParaCredencial(item)}
                 showInstituicao={isAdmin}
@@ -145,7 +148,12 @@ export default function Gestao() {
                 open={!!estudanteParaVer}
                 onClose={() => setEstudanteParaVer(null)}
                 estudante={estudanteParaVer}
-                onEdit={(item) => { setEstudanteParaVer(null); setEstudanteParaEditar(item); setModalEstudanteOpen(true) }}
+                onEdit={!isAdmin ? (item, opts) => {
+                  setEstudanteParaVer(null)
+                  setEstudanteParaEditar(item)
+                  setModalEstudanteOpen(true)
+                  setEstudanteModalInitialStep(opts?.openAtStep ?? 0)
+                } : undefined}
                 onGerarCredencial={(item) => { setEstudanteParaVer(null); setEstudanteParaCredencial(item) }}
               />
               <Modal
@@ -167,13 +175,15 @@ export default function Gestao() {
               </Modal>
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
-                onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null) }}
+                onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null); setEstudanteModalInitialStep(0) }}
                 onSuccess={() => {
                   setModalEstudanteOpen(false)
                   setEstudanteParaEditar(null)
+                  setEstudanteModalInitialStep(0)
                   fetchEstudantes()
                 }}
                 estudante={estudanteParaEditar}
+                initialStep={estudanteModalInitialStep}
               />
             </>
           )}
@@ -184,8 +194,8 @@ export default function Gestao() {
                 loading={loadingProfessores}
                 error={errorProfessores}
                 onNewProfessor={canCreateEntities ? () => { setProfessorParaEditar(null); setModalProfessorOpen(true) } : undefined}
-                onEditProfessor={(item) => { setProfessorParaEditar(item); setModalProfessorOpen(true) }}
-                onDeleteProfessor={async (item) => { try { await deleteProfessor(item.id) } catch (e) { alert(e.message) } }}
+                onEditProfessor={!isAdmin ? (item) => { setProfessorParaEditar(item); setModalProfessorOpen(true) } : undefined}
+                onDeleteProfessor={!isAdmin ? async (item) => { try { await deleteProfessor(item.id) } catch (e) { alert(e.message) } } : undefined}
                 onViewProfessor={(item) => setProfessorParaVer(item)}
                 showInstituicao={isAdmin}
                 escolas={isAdmin ? listaEscolas : []}
@@ -214,8 +224,8 @@ export default function Gestao() {
                 loading={loadingEquipes}
                 error={errorEquipes}
                 onNewEquipe={canCreateEntities ? () => { setEquipeParaEditar(null); setModalEquipeOpen(true) } : undefined}
-                onEditEquipe={(item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) }}
-                onDeleteEquipe={async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } }}
+                onEditEquipe={!isAdmin ? (item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) } : undefined}
+                onDeleteEquipe={!isAdmin ? async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } } : undefined}
                 onViewEquipe={(item) => setEquipeParaVer(item)}
                 showInstituicao={isAdmin}
                 escolas={isAdmin ? listaEscolas : []}
@@ -277,11 +287,19 @@ export default function Gestao() {
             </>
           )}
           {activeTab === 'escolas' && isAdmin && (
-            <EscolasList
-              lista={listaEscolas}
-              loading={loadingEscolas}
-              error={errorEscolas}
-            />
+            <>
+              <EscolasList
+                lista={listaEscolas}
+                loading={loadingEscolas}
+                error={errorEscolas}
+                onViewEscola={(item) => setEscolaParaVer(item)}
+              />
+              <EscolaViewModal
+                open={!!escolaParaVer}
+                onClose={() => setEscolaParaVer(null)}
+                escolaId={escolaParaVer?.id}
+              />
+            </>
           )}
         </div>
       </div>

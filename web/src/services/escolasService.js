@@ -48,6 +48,12 @@ export const escolasService = {
     return handleResponse(res, 'Erro ao buscar escola')
   },
 
+  async getDetalhes(id) {
+    const res = await apiFetch(`${BASE}/${id}/detalhes`)
+    if (res.status === 404) return null
+    return handleResponse(res, 'Erro ao buscar detalhes da escola')
+  },
+
   async create(data) {
     const inep = (data.inep || '').replace(/\D/g, '')
     const cnpj = (data.cnpj || '').replace(/\D/g, '')
