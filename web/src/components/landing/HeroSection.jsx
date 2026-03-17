@@ -7,14 +7,25 @@ import { getStorageUrl } from "../../services/storageService";
 const FALLBACK_SLIDES = ["/BANNER.jpeg"];
 
 const slideVariants = {
-  enter: { opacity: 0 },
-  center: { opacity: 1, transition: { duration: 0.8 } },
-  exit: { opacity: 0, transition: { duration: 0.8 } },
+  enter: (direction) => ({
+    x: direction > 0 ? "100%" : "-100%",
+    opacity: 0
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: { x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }
+  },
+  exit: (direction) => ({
+    x: direction < 0 ? "100%" : "-100%",
+    opacity: 0,
+    transition: { x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }
+  })
 };
 
 export default function HeroSection() {
   const [slides, setSlides] = useState(FALLBACK_SLIDES);
-  const [current, setCurrent] = useState(0);
+  const [[page, direction], setPage] = useState([0, 0]);
 
   const loadBanners = async () => {
     try {
@@ -34,42 +45,39 @@ export default function HeroSection() {
     loadBanners();
   }, []);
 
-  const next = useCallback(() => setSlides(prevSlides => {
-    setCurrent(c => (c + 1) % prevSlides.length);
-    return prevSlides;
-  }), []);
-
-  const prev = useCallback(() => setSlides(prevSlides => {
-    setCurrent(c => (c - 1 + prevSlides.length) % prevSlides.length);
-    return prevSlides;
-  }), []);
+  const paginate = useCallback((newDirection) => {
+    setPage(([prevPage]) => [
+      (prevPage + newDirection + slides.length) % slides.length,
+      newDirection
+    ]);
+  }, [slides.length]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-       if (slides.length > 1) next();
+       if (slides.length > 1) paginate(1);
     }, 6000);
     return () => clearInterval(timer);
-  }, [next, slides.length]);
+  }, [paginate, slides.length]);
 
   if (!slides || slides.length === 0) return null;
 
+  const current = page;
+
   return (
-    <div className="relative w-full overflow-hidden group" style={{ aspectRatio: '1900/460' }}>
-      <AnimatePresence mode="wait">
+    <div className="relative w-full overflow-hidden group" style={{ aspectRatio: '1900/450' }}>
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
-          key={`${current}-${slides[current]}`}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          className="absolute inset-0"
+           key={page}
+           custom={direction}
+           variants={slideVariants}
+           initial="enter"
+           animate="center"
+           exit="exit"
+           className="absolute inset-0"
         >
-          <motion.img
+          <img
             src={slides[current]}
             alt=""
-            initial={{ scale: 1.08 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 8, ease: "linear" }}
             className="w-full h-full object-cover"
           />
         </motion.div>
@@ -79,14 +87,14 @@ export default function HeroSection() {
       {slides.length > 1 && (
         <>
           <button
-            onClick={prev}
+            onClick={() => paginate(-1)}
             className="hero-arrow absolute left-3 md:left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
             aria-label="Previous"
           >
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <button
-            onClick={next}
+            onClick={() => paginate(1)}
             className="hero-arrow absolute right-3 md:right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
             aria-label="Next"
           >
@@ -101,7 +109,10 @@ export default function HeroSection() {
           {slides.map((_, i) => (
             <button
               key={i}
-              onClick={() => setCurrent(i)}
+              onClick={() => {
+                const newDirection = i > page ? 1 : -1;
+                setPage([i, newDirection]);
+              }}
               className={`hero-indicator ${i === current ? "hero-indicator-active" : "hero-indicator-inactive"}`}
               aria-label={`Slide ${i + 1}`}
             />

@@ -26,6 +26,13 @@ CHAVES_CONHECIDAS = {
     "logo_jels",
     "bg_credencial",
     "banners_hero",
+    "footer_descricao",
+    "social_facebook",
+    "social_instagram",
+    "social_youtube",
+    "prefeito_nome",
+    "prefeito_foto",
+    "prefeito_descricao",
 }
 
 
@@ -147,6 +154,12 @@ async def update_configuracoes(
         "diretor_editar_modalidades_data_limite": _normalize_data_limite(
             payload.diretor_editar_modalidades_data_limite
         ),
+        "footer_descricao": payload.footer_descricao,
+        "social_facebook": payload.social_facebook,
+        "social_instagram": payload.social_instagram,
+        "social_youtube": payload.social_youtube,
+        "prefeito_nome": payload.prefeito_nome,
+        "prefeito_descricao": payload.prefeito_descricao,
     }
 
     async with conn.cursor() as cur:
@@ -190,6 +203,8 @@ async def update_configuracoes_logos(
         updates["bg_credencial"] = str(payload.bg_credencial).strip() or None
     if payload.banners_hero is not None:
         updates["banners_hero"] = str(payload.banners_hero).strip() or None
+    if payload.prefeito_foto is not None:
+        updates["prefeito_foto"] = str(payload.prefeito_foto).strip() or None
 
     if not updates:
         async with conn.cursor() as cur:

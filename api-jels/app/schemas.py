@@ -365,6 +365,12 @@ class ConfiguracoesUpdate(BaseModel):
     diretor_cadastro_alunos_data_limite: Optional[str] = Field(None, description="Data limite para diretor/coordenador cadastrar alunos (YYYY-MM-DD) ou null para sem limite")
     diretor_editar_modalidades_data_limite: Optional[str] = Field(None, description="Data limite para diretor editar modalidades da escola (YYYY-MM-DD) ou null para sem limite")
     banners_hero: Optional[str] = Field(None, description="Strings de paths dos banners separados por vírgula")
+    footer_descricao: Optional[str] = None
+    social_facebook: Optional[str] = None
+    social_instagram: Optional[str] = None
+    social_youtube: Optional[str] = None
+    prefeito_nome: Optional[str] = None
+    prefeito_descricao: Optional[str] = None
 
 
 class ConfiguracoesLogosUpdate(BaseModel):
@@ -373,6 +379,7 @@ class ConfiguracoesLogosUpdate(BaseModel):
     logo_jels: Optional[str] = Field(None, description="Path do storage da logo principal JELS")
     bg_credencial: Optional[str] = Field(None, description="Path do storage da arte de fundo da credencial / papel timbrado")
     banners_hero: Optional[str] = Field(None, description="Strings de paths dos banners separados por vírgula")
+    prefeito_foto: Optional[str] = Field(None, description="Path da foto do prefeito")
 
 
 # ========== ESTUDANTES ATLETAS ==========
