@@ -1,237 +1,254 @@
-import { useState, useEffect, useRef } from 'react'
-import { Calendar } from 'lucide-react'
-import { DatePicker, Button } from 'antd'
+import { useState, useEffect } from 'react'
+import { Calendar, Image as ImageIcon, UserCheck, Users, Trophy, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { DatePicker, Button, Tabs, Form, notification, Typography, Badge, Alert, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import { configuracoesService } from '../services/configuracoesService'
 import Midias from './noticias/Midias'
 
-const labelClass = 'block text-lg font-medium text-gray-800 mb-2'
-
-/** Normaliza valor vindo da API para string YYYY-MM-DD ou '' (para estado do DatePicker). */
-function toDateStr(val) {
-  if (val == null || val === '') return ''
-  if (typeof val === 'string') return val.trim().slice(0, 10) || ''
-  if (typeof val === 'object' && val instanceof Date) return val.toISOString().slice(0, 10)
-  try {
-    const d = dayjs(val)
-    return d.isValid() ? d.format('YYYY-MM-DD') : ''
-  } catch {
-    return ''
-  }
-}
+const { Title, Text, Paragraph } = Typography
 
 function Configuracoes({ embedded }) {
-  const [cadastroDataLimite, setCadastroDataLimite] = useState('')
-  const [diretorCadastroAlunosDataLimite, setDiretorCadastroAlunosDataLimite] = useState('')
-  const [diretorEditarModalidadesDataLimite, setDiretorEditarModalidadesDataLimite] = useState('')
+  const [form] = Form.useForm()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState({ type: '', text: '' })
-  const refCadastro = useRef('')
-  const refDiretor = useRef('')
-  const refEditarModalidades = useRef('')
+  const [deadlines, setDeadlines] = useState({})
 
-  useEffect(() => {
-    refCadastro.current = cadastroDataLimite
-  }, [cadastroDataLimite])
-  useEffect(() => {
-    refDiretor.current = diretorCadastroAlunosDataLimite
-  }, [diretorCadastroAlunosDataLimite])
-  useEffect(() => {
-    refEditarModalidades.current = diretorEditarModalidadesDataLimite
-  }, [diretorEditarModalidadesDataLimite])
-
-  useEffect(() => {
-    let cancelled = false
+  const loadSettings = async () => {
     setLoading(true)
-    setMessage({ type: '', text: '' })
-    configuracoesService
-      .get()
-      .then((data) => {
-        if (!cancelled && data) {
-          const v1 = toDateStr(data.cadastro_data_limite)
-          const v2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
-          const v3 = toDateStr(data.diretor_editar_modalidades_data_limite)
-          setCadastroDataLimite(v1)
-          setDiretorCadastroAlunosDataLimite(v2)
-          setDiretorEditarModalidadesDataLimite(v3)
-          refCadastro.current = v1
-          refDiretor.current = v2
-          refEditarModalidades.current = v3
-        }
+    try {
+      const data = await configuracoesService.get()
+      if (data) {
+        setDeadlines(data)
+        form.setFieldsValue({
+          cadastro_data_limite: data.cadastro_data_limite ? dayjs(data.cadastro_data_limite) : null,
+          diretor_cadastro_alunos_data_limite: data.diretor_cadastro_alunos_data_limite ? dayjs(data.diretor_cadastro_alunos_data_limite) : null,
+          diretor_editar_modalidades_data_limite: data.diretor_editar_modalidades_data_limite ? dayjs(data.diretor_editar_modalidades_data_limite) : null,
+        })
+      }
+    } catch (err) {
+      notification.error({
+        message: 'Erro ao carregar configurações',
+        description: err.message || 'Tente novamente mais tarde.',
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setMessage({ type: 'error', text: err.message || 'Erro ao carregar configurações.' })
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setMessage({ type: '', text: '' })
-    setSaving(true)
-    // Usar refs para ter o valor mais recente no momento do clique (estado pode estar um tick atrás)
-    const v1 = (refCadastro.current || '').trim() || null
-    const v2 = (refDiretor.current || '').trim() || null
-    const v3 = (refEditarModalidades.current || '').trim() || null
-    const payload = {
-      cadastro_data_limite: v1,
-      diretor_cadastro_alunos_data_limite: v2,
-      diretor_editar_modalidades_data_limite: v3,
+    } finally {
+      setLoading(false)
     }
-    configuracoesService
-      .update(payload)
-      .then((data) => {
-        setMessage({ type: 'success', text: 'Configurações salvas com sucesso.' })
-        if (data) {
-          const d1 = toDateStr(data.cadastro_data_limite)
-          const d2 = toDateStr(data.diretor_cadastro_alunos_data_limite)
-          const d3 = toDateStr(data.diretor_editar_modalidades_data_limite)
-          setCadastroDataLimite(d1)
-          setDiretorCadastroAlunosDataLimite(d2)
-          setDiretorEditarModalidadesDataLimite(d3)
-          refCadastro.current = d1
-          refDiretor.current = d2
-          refEditarModalidades.current = d3
-        }
-        configuracoesService.getNoCache().then((fresh) => {
-          if (fresh) {
-            setCadastroDataLimite(toDateStr(fresh.cadastro_data_limite))
-            setDiretorCadastroAlunosDataLimite(toDateStr(fresh.diretor_cadastro_alunos_data_limite))
-            setDiretorEditarModalidadesDataLimite(toDateStr(fresh.diretor_editar_modalidades_data_limite))
-            refCadastro.current = toDateStr(fresh.cadastro_data_limite)
-            refDiretor.current = toDateStr(fresh.diretor_cadastro_alunos_data_limite)
-            refEditarModalidades.current = toDateStr(fresh.diretor_editar_modalidades_data_limite)
-          }
-        }).catch(() => {})
-      })
-      .catch((err) => {
-        setMessage({ type: 'error', text: err.message || 'Erro ao salvar.' })
-      })
-      .finally(() => {
-        setSaving(false)
-      })
   }
 
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const getStatus = (date) => {
+    if (!date) return { text: 'Sem limite', color: 'default', icon: <Clock size={14} /> }
+    const deadline = dayjs(date).endOf('day')
+    const now = dayjs()
+    if (now.isAfter(deadline)) return { text: 'Expirado', color: 'error', icon: <AlertCircle size={14} /> }
+    return { text: 'Ativo', color: 'success', icon: <CheckCircle2 size={14} /> }
+  }
+
+  const onFinish = async (values) => {
+    setSaving(true)
+    const payload = {
+      cadastro_data_limite: values.cadastro_data_limite ? values.cadastro_data_limite.format('YYYY-MM-DD') : null,
+      diretor_cadastro_alunos_data_limite: values.diretor_cadastro_alunos_data_limite ? values.diretor_cadastro_alunos_data_limite.format('YYYY-MM-DD') : null,
+      diretor_editar_modalidades_data_limite: values.diretor_editar_modalidades_data_limite ? values.diretor_editar_modalidades_data_limite.format('YYYY-MM-DD') : null,
+    }
+
+    try {
+      await configuracoesService.update(payload)
+      notification.success({
+        message: 'Configurações salvas',
+        description: 'As alterações de datas e prazos foram aplicadas com sucesso.',
+      })
+      loadSettings()
+    } catch (err) {
+      notification.error({
+        message: 'Erro ao salvar',
+        description: err.message || 'Não foi possível salvar as configurações.',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const renderDateField = (name, label, Icon, description) => {
+    const value = form.getFieldValue(name)
+    const status = getStatus(value)
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-[#0f766e]/30 transition-all group shadow-sm mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Icon and Info */}
+          <div className="flex flex-1 items-center gap-4 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+              <Icon className="w-5 h-5 text-[#0f766e]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-slate-800 text-[1.05rem] leading-tight">
+                {label}
+              </div>
+              <div className="text-[0.85rem] text-slate-500 truncate">{description}</div>
+            </div>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex sm:w-32 sm:justify-center items-center">
+            <Badge
+              status={status.color}
+              text={<span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-500">{status.text}</span>}
+            />
+          </div>
+
+          {/* DatePicker */}
+          <div className="w-full sm:w-48 shrink-0">
+            <Form.Item name={name} noStyle>
+              <DatePicker
+                format="DD/MM/YYYY"
+                placeholder="--/--/----"
+                className="w-full h-10 rounded-lg border-slate-200 font-bold text-[#1e293b] hover:border-[#0f766e]/40 transition-all text-center"
+                onChange={() => {
+                  // Force re-render to update status badge in UI
+                  setTimeout(() => setDeadlines({ ...form.getFieldsValue() }), 0)
+                }}
+              />
+            </Form.Item>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const tabItems = [
+    {
+      key: 'prazos',
+      label: (
+        <span className="flex items-center gap-2">
+          <Calendar size={16} />
+          Datas e Prazos
+        </span>
+      ),
+      children: (
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm mt-4 animate-in slide-in-from-bottom-2 duration-500">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-lg bg-[#0f766e]/10 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-[#0f766e]" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 m-0 leading-tight">Gestão de Datas e Prazos</h2>
+            </div>
+          </div>
+
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={onFinish}
+            disabled={loading}
+            className="w-full"
+          >
+            {renderDateField(
+              'cadastro_data_limite',
+              'Adesão das Escolas',
+              UserCheck,
+              'Define até quando novas escolas podem solicitar participação nos Jogos Escolares.'
+            )}
+
+            {renderDateField(
+              'diretor_cadastro_alunos_data_limite',
+              'Inscrição de Atletas',
+              Users,
+              'Prazo final para que diretores e coordenadores finalizem o cadastro dos seus alunos.'
+            )}
+
+            {renderDateField(
+              'diretor_editar_modalidades_data_limite',
+              'Seleção de Modalidades',
+              Trophy,
+              'Data limite para vincular ou desvincular modalidades esportivas à escola.'
+            )}
+
+            <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={saving}
+                size="large"
+                className="bg-[#0f766e] hover:bg-[#0d6961] shadow-lg shadow-emerald-900/10 px-10 rounded-xl font-bold text-base h-12"
+              >
+                Salvar Cronograma
+              </Button>
+            </div>
+          </Form>
+        </div>
+      ),
+    },
+    {
+      key: 'midias',
+      label: (
+        <span className="flex items-center gap-2">
+          <ImageIcon size={16} />
+          Identidade Visual
+        </span>
+      ),
+      children: (
+        <div className="mt-4">
+          <Midias embedded />
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       {!embedded && (
         <header className="flex flex-col gap-1">
           <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-            Configurações
+            Configurações do Sistema
           </h1>
           <p className="text-[0.9375rem] text-[#64748b] m-0">
-            Defina datas e prazos do sistema
+            Ajuste cronogramas, prazos e elementos visuais da plataforma.
           </p>
         </header>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-[#0f766e]/10 flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-[#0f766e]" />
-          </div>
-          <h2 className="font-display text-2xl font-bold text-gray-900">Datas e prazos</h2>
-        </div>
+      <Tabs
+        defaultActiveKey="prazos"
+        items={tabItems}
+        className="custom-tabs"
+        type="card"
+      />
 
-        {loading ? (
-          <p className="text-gray-500">Carregando...</p>
-        ) : (
-          <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-            <div>
-              <label htmlFor="cadastro_data_limite" className={labelClass}>
-                Data limite para envio do formulário de cadastro
-              </label>
-              <DatePicker
-                id="cadastro_data_limite"
-                value={cadastroDataLimite ? dayjs(cadastroDataLimite) : null}
-                onChange={(date) => {
-                  const val = date ? date.format('YYYY-MM-DD') : ''
-                  setCadastroDataLimite(val)
-                  refCadastro.current = val
-                }}
-                format={['DD/MM/YYYY', 'DDMMYYYY']}
-                placeholder="DD/MM/AAAA ou DDMMAAAA"
-                className="w-full"
-              />
-              <p className="text-base text-gray-600 mt-2">
-                Deixe em branco para não ter limite. Após esta data, o envio do formulário de /cadastro poderá ser bloqueado.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="diretor_cadastro_alunos_data_limite" className={labelClass}>
-                Data limite para diretor cadastrar alunos
-              </label>
-              <DatePicker
-                id="diretor_cadastro_alunos_data_limite"
-                value={diretorCadastroAlunosDataLimite ? dayjs(diretorCadastroAlunosDataLimite) : null}
-                onChange={(date) => {
-                  const val = date ? date.format('YYYY-MM-DD') : ''
-                  setDiretorCadastroAlunosDataLimite(val)
-                  refDiretor.current = val
-                }}
-                format={['DD/MM/YYYY', 'DDMMYYYY']}
-                placeholder="DD/MM/AAAA ou DDMMAAAA"
-                className="w-full"
-              />
-              <p className="text-base text-gray-600 mt-2">
-                Deixe em branco para não ter limite. Após esta data, diretor e coordenador não poderão cadastrar novos alunos.
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="diretor_editar_modalidades_data_limite" className={labelClass}>
-                Data limite para diretor editar modalidades da escola
-              </label>
-              <DatePicker
-                id="diretor_editar_modalidades_data_limite"
-                value={diretorEditarModalidadesDataLimite ? dayjs(diretorEditarModalidadesDataLimite) : null}
-                onChange={(date) => {
-                  const val = date ? date.format('YYYY-MM-DD') : ''
-                  setDiretorEditarModalidadesDataLimite(val)
-                  refEditarModalidades.current = val
-                }}
-                format={['DD/MM/YYYY', 'DDMMYYYY']}
-                placeholder="DD/MM/AAAA ou DDMMAAAA"
-                className="w-full"
-              />
-              <p className="text-base text-gray-600 mt-2">
-                Deixe em branco para não ter limite. Após esta data, o diretor não poderá alterar as modalidades em que a escola está vinculada (em Esportes).
-              </p>
-            </div>
-
-            {message.text && (
-              <p
-                className={`text-sm ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}
-                role="alert"
-              >
-                {message.text}
-              </p>
-            )}
-
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={saving}
-              disabled={saving}
-            >
-              {saving ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </form>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <Midias embedded />
-      </div>
+      <style>{`
+        .custom-tabs .ant-tabs-nav::before {
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .custom-tabs .ant-tabs-tab {
+          background: #f8fafc !important;
+          border: 1px solid #f1f5f9 !important;
+          border-bottom: none !important;
+          border-radius: 8px 8px 0 0 !important;
+          margin-right: 4px !important;
+          padding: 12px 20px !important;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .custom-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+          font-size: 1rem !important;
+          font-weight: 500 !important;
+          color: #64748b;
+        }
+        .custom-tabs .ant-tabs-tab-active {
+          background: white !important;
+          border-color: #f1f5f9 !important;
+        }
+        .custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+          color: #0f766e !important;
+          font-weight: 700 !important;
+        }
+        .custom-tabs .ant-tabs-tab:hover {
+          color: #0f766e !important;
+        }
+      `}</style>
     </div>
   )
 }
-
 export default Configuracoes
