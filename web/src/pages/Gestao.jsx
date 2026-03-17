@@ -146,6 +146,10 @@ export default function Gestao() {
                 open={!!estudanteParaVer}
                 onClose={() => setEstudanteParaVer(null)}
                 estudante={estudanteParaVer}
+                onUpdate={(atualizado) => {
+                  setEstudanteParaVer(atualizado)
+                  fetchEstudantes()
+                }}
                 onEdit={!isAdmin ? (item, opts) => {
                   setEstudanteParaVer(null)
                   setEstudanteParaEditar(item)

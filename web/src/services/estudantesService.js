@@ -110,4 +110,21 @@ export const estudantesService = {
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
     }
   },
+
+  /**
+   * Valida (ou revoga) os documentos de inscrição de um aluno.
+   * @param {number} id - ID do estudante
+   * @param {boolean} validado - true para aprovar, false para revogar
+   */
+  async validarDocumentos(id, validado) {
+    const res = await apiFetch(`/estudantes-atletas/${id}/validar-documentos`, {
+      method: 'PATCH',
+      body: JSON.stringify({ validado }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
 }

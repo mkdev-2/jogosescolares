@@ -7,7 +7,7 @@ import psycopg
 
 from app.schemas import ProfessorTecnicoCreate, ProfessorTecnicoUpdate, ProfessorTecnicoResponse
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
-from app.database import get_db
+from app.database import get_db, log_audit
 
 router = APIRouter(prefix="/professores-tecnicos", tags=["professores-tecnicos"])
 logger = logging.getLogger(__name__)
@@ -131,6 +131,16 @@ async def create_professor_tecnico(
 
     if not row:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao criar professor-técnico")
+
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="CREATE",
+        tipo_recurso="PROFESSOR",
+        recurso_id=row["id"],
+        detalhes_depois=dict(row),
+        mensagem=f"Usuário {current_user['nome']} adicionou o Professor {row['nome']}.",
+    )
     return _row_to_response(dict(row))
 
 
@@ -142,31 +152,27 @@ async def update_professor_tecnico(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Atualiza professor-técnico. Apenas da mesma escola."""
+    # Captura estado ANTES para auditoria
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM professores_tecnicos WHERE id = %s",
+            """
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+                   s.nome_escola AS escola_nome
+            FROM professores_tecnicos p
+            LEFT JOIN escolas s ON s.id = p.escola_id
+            WHERE p.id = %s
+            """,
             (professor_id,),
         )
         existing = await cur.fetchone()
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor-técnico não encontrado")
     _check_professor_visible(current_user, existing["escola_id"])
+    estado_antes = dict(existing)
 
     updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
     if not updates:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
-                       s.nome_escola AS escola_nome
-                FROM professores_tecnicos p
-                LEFT JOIN escolas s ON s.id = p.escola_id
-                WHERE p.id = %s
-                """,
-                (professor_id,),
-            )
-            row = await cur.fetchone()
-        return _row_to_response(dict(row))
+        return _row_to_response(estado_antes)
 
     if "cpf" in updates:
         cpf_clean = "".join(filter(str.isdigit, str(updates["cpf"])))
@@ -190,6 +196,7 @@ async def update_professor_tecnico(
             )
             await conn.commit()
 
+    # Captura estado DEPOIS para auditoria
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -202,7 +209,19 @@ async def update_professor_tecnico(
             (professor_id,),
         )
         row = await cur.fetchone()
-    return _row_to_response(dict(row))
+
+    estado_depois = dict(row)
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="PROFESSOR",
+        recurso_id=professor_id,
+        detalhes_antes=estado_antes,
+        detalhes_depois=estado_depois,
+        mensagem=f"Usuário {current_user['nome']} alterou dados do Professor {estado_depois['nome']}.",
+    )
+    return _row_to_response(estado_depois)
 
 
 @router.delete("/{professor_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -212,15 +231,23 @@ async def delete_professor_tecnico(
     current_user: dict = Depends(get_current_user),
 ):
     """Remove professor-técnico. Apenas da mesma escola."""
+    # Captura estado ANTES para auditoria
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM professores_tecnicos WHERE id = %s",
+            """
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref,
+                   s.nome_escola AS escola_nome
+            FROM professores_tecnicos p
+            LEFT JOIN escolas s ON s.id = p.escola_id
+            WHERE p.id = %s
+            """,
             (professor_id,),
         )
         existing = await cur.fetchone()
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor-técnico não encontrado")
     _check_professor_visible(current_user, existing["escola_id"])
+    estado_antes = dict(existing)
 
     async with conn.cursor() as cur:
         await cur.execute(
@@ -237,3 +264,13 @@ async def delete_professor_tecnico(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor-técnico não encontrado")
         await conn.commit()
+
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="DELETE",
+        tipo_recurso="PROFESSOR",
+        recurso_id=professor_id,
+        detalhes_antes=estado_antes,
+        mensagem=f"Usuário {current_user['nome']} excluiu o Professor {estado_antes['nome']}.",
+    )
