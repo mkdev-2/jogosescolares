@@ -10,10 +10,18 @@ from urllib.parse import unquote
 import psycopg
 from psycopg.rows import dict_row
 from pydantic_settings import BaseSettings
+from datetime import date, datetime
 import json
 from fastapi import Request
 
 logger = logging.getLogger(__name__)
+
+
+def _json_serializer(obj):
+    """Auxiliar para serializar datas e outros objetos no JSON."""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    return str(obj)
 
 
 async def log_audit(
@@ -28,6 +36,10 @@ async def log_audit(
 ):
     """Registra uma ação de auditoria no banco de dados."""
     try:
+        # Resolver problemas de serialização de data/datetime
+        d_antes = json.dumps(detalhes_antes, default=_json_serializer) if detalhes_antes else None
+        d_depois = json.dumps(detalhes_depois, default=_json_serializer) if detalhes_depois else None
+
         async with conn.cursor() as cur:
             await cur.execute(
                 """
@@ -36,16 +48,10 @@ async def log_audit(
                     detalhes_antes, detalhes_depois, mensagem
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
-                (
-                    user_id,
-                    acao,
-                    tipo_recurso,
-                    recurso_id,
-                    json.dumps(detalhes_antes) if detalhes_antes else None,
-                    json.dumps(detalhes_depois) if detalhes_depois else None,
-                    mensagem,
-                ),
+                (user_id, acao, tipo_recurso, recurso_id, d_antes, d_depois, mensagem),
             )
+            # Commit imediato para garantir que o log seja salvo mesmo se a transação principal tiver problemas depois
+            await conn.commit()
     except Exception as e:
         logger.error(f"Erro ao registrar auditoria: {e}")
 
