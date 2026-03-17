@@ -26,10 +26,7 @@ import Atividades from './pages/Atividades'
 import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 import Equipes from './pages/Equipes'
-import Comunicacao from './pages/Comunicacao'
 import MinhaConta from './pages/MinhaConta'
-import PublicNoticias from './pages/public/Noticias'
-import PublicNoticiaDetalhes from './pages/public/NoticiaDetalhes'
 
 function App() {
   return (
@@ -40,8 +37,6 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/cadastro" element={<CadastroEscola />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/noticias" element={<PublicNoticias />} />
-          <Route path="/noticias/:slug" element={<PublicNoticiaDetalhes />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
             <Route path="/app/minha-conta" element={<MinhaConta />} />
@@ -57,9 +52,6 @@ function App() {
             <Route path="/app/administrativo" element={<Administrativo />} />
             <Route path="/app/usuarios" element={<Usuarios />} />
             <Route path="/app/configuracoes" element={<Configuracoes />} />
-            <Route path="/app/comunicacao" element={<Comunicacao />} />
-            <Route path="/app/noticias" element={<Navigate to="/app/comunicacao" replace />} />
-            <Route path="/app/noticias/categorias" element={<Navigate to="/app/comunicacao?tab=categorias" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

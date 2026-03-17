@@ -64,8 +64,8 @@ export default function Credenciais() {
             const logoSecUrl = midias?.logo_secretaria ? getStorageUrl(midias.logo_secretaria) : null
             const logoJelsUrl = midias?.logo_jels ? getStorageUrl(midias.logo_jels) : null
 
-            // Cores originais dos badges
-            const BADGE_COLORS = ['#0f766e', '#b45309', '#0369a1', '#0d9488']
+            // Cores originais dos badges (Substituído Laranja por Roxo)
+            const BADGE_COLORS = ['#0f766e', '#6b21a8', '#0369a1', '#0d9488']
 
             // Helper para carregar imagem e retornar dados (Preserva transparência e dimensões)
             const loadImg = (url, rounded = false) => new Promise((resolve) => {
@@ -235,8 +235,8 @@ export default function Credenciais() {
                         currentLineWidth += tagW + tagGap;
                     });
 
-                    // 2. Desenhar as linhas centralizadas
-                    let startY = yOffset + 76;
+                    // 2. Desenhar as linhas centralizadas (Subindo a altura inicial para não pegar o rodapé)
+                    let startY = yOffset + 68;
                     lines.forEach(line => {
                         const totalLineW = line.reduce((sum, item) => sum + item.tagW, 0) + (line.length - 1) * tagGap;
                         let lineX = x + (cardW - totalLineW) / 2;

@@ -6,6 +6,8 @@ import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
 import UsuariosPendentes from './UsuariosPendentes'
 import Credenciais from './Credenciais'
+import Midias from './noticias/Midias'
+import { Image } from 'lucide-react'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },

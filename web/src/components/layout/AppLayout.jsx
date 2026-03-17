@@ -28,16 +28,6 @@ const menuGroups = [
     ],
   },
   {
-    label: 'Comunicação',
-    icon: Megaphone,
-    requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
-    items: [
-      { label: 'Notícias', path: '/app/comunicacao', icon: Newspaper, tab: 'noticias' },
-      { label: 'Categorias de Notícias', path: '/app/comunicacao', icon: Tag, tab: 'categorias', adminOnly: true },
-      { label: 'Mídias', path: '/app/comunicacao', icon: Image, tab: 'midias', adminOnly: true },
-    ],
-  },
-  {
     label: 'Administrativo',
     icon: Users,
     requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
@@ -52,7 +42,7 @@ const menuGroups = [
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Comunicação: true, Administrativo: true })
+  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Administrativo: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -63,7 +53,7 @@ export default function AppLayout({ children }) {
     navigate('/login')
   }
 
-  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios', '/app/comunicacao': 'noticias' }
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios' }
   const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
     if (item?.tab) {
