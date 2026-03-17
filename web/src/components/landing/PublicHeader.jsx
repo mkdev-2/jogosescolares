@@ -18,6 +18,7 @@ export default function PublicHeader() {
   const navLinks = [
     { path: '/', label: 'Início' },
     { href: '#informacoes', label: 'Informações' },
+    { path: '/resultados', label: 'Resultados' },
     { path: '/cadastro', label: 'Cadastro de Escola', external: true },
   ]
 
@@ -75,7 +76,7 @@ export default function PublicHeader() {
               <img
                 src="/Jels-2026-horizontal.png"
                 alt="JELS - Jogos Escolares Luminenses"
-                className="h-10 sm:h-12 md:h-14 w-auto max-w-[180px] sm:max-w-[220px] md:max-w-[260px] object-contain object-left"
+                className="h-12 sm:h-16 md:h-18 w-auto max-w-[220px] sm:max-w-[280px] md:max-w-[340px] object-contain object-left scale-110 origin-left transition-transform duration-300 group-hover:scale-115"
               />
             </Link>
 

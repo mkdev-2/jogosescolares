@@ -93,8 +93,24 @@ export async function uploadImagemNoticia(file, subPath = 'destaque') {
  * @param {'logo_secretaria'|'logo_jels'} tipo - Qual logo atualizar
  * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
  */
+/**
+ * Upload de banner para o carrossel da Home (Hero).
+ * @param {File} file - Arquivo de imagem
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
 export async function uploadLogoMidias(file, tipo) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'png').replace(/[^a-z0-9]/g, '')
   const path = `${MIDIAS_PATH}/${tipo}-${Date.now()}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload de banner para o carrossel da Home (Hero).
+ * @param {File} file - Arquivo de imagem
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadBannerHero(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '')
+  const path = `hero/banner-${Date.now()}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }

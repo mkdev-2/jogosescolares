@@ -187,7 +187,7 @@ function Configuracoes({ embedded }) {
       label: (
         <span className="flex items-center gap-2">
           <ImageIcon size={16} />
-          Identidade Visual
+          Central de Mídias
         </span>
       ),
       children: (

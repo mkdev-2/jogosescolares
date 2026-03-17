@@ -1,53 +1,113 @@
-import { Link } from 'react-router-dom'
-import { ArrowRight, ExternalLink } from 'lucide-react'
-import { handleAnchorClick } from '../../utils/smoothScroll'
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { configuracoesService } from "../../services/configuracoesService";
+import { getStorageUrl } from "../../services/storageService";
+
+const FALLBACK_SLIDES = ["/BANNER.jpeg"];
+
+const slideVariants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1, transition: { duration: 0.8 } },
+  exit: { opacity: 0, transition: { duration: 0.8 } },
+};
 
 export default function HeroSection() {
+  const [slides, setSlides] = useState(FALLBACK_SLIDES);
+  const [current, setCurrent] = useState(0);
+
+  const loadBanners = async () => {
+    try {
+      const data = await configuracoesService.get();
+      const bannersStr = data?.banners_hero || '';
+      const banners = bannersStr.split(',').filter(b => !!b.trim());
+      
+      if (banners.length > 0) {
+        setSlides(banners.map(b => getStorageUrl(b)));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar banners do Hero:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadBanners();
+  }, []);
+
+  const next = useCallback(() => setSlides(prevSlides => {
+    setCurrent(c => (c + 1) % prevSlides.length);
+    return prevSlides;
+  }), []);
+
+  const prev = useCallback(() => setSlides(prevSlides => {
+    setCurrent(c => (c - 1 + prevSlides.length) % prevSlides.length);
+    return prevSlides;
+  }), []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+       if (slides.length > 1) next();
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [next, slides.length]);
+
+  if (!slides || slides.length === 0) return null;
+
   return (
-    <section className="relative flex-1 flex items-center overflow-hidden min-h-[550px] md:min-h-[85vh]">
-      <img
-        src="/BANNER.jpeg"
-        alt="Jogos Escolares Municipais - Jovens atletas em ação"
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+    <div className="relative w-full overflow-hidden group" style={{ aspectRatio: '1900/460' }}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${current}-${slides[current]}`}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          className="absolute inset-0"
+        >
+          <motion.img
+            src={slides[current]}
+            alt=""
+            initial={{ scale: 1.08 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 8, ease: "linear" }}
+            className="w-full h-full object-cover"
+          />
+        </motion.div>
+      </AnimatePresence>
 
-      <div className="container-portal relative z-10 py-12 md:py-20 px-6 sm:px-8 animate-fade-in-up">
-        <div className="mb-6 md:mb-8 inline-flex items-center gap-2 rounded-full bg-primary/80 px-4 md:px-5 py-2 text-[10px] md:text-sm font-medium text-white backdrop-blur-sm uppercase tracking-widest">
-          <span className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-full bg-teal-300" />
-          Prefeitura Municipal
-        </div>
-
-        <h1 className="mb-6 max-w-2xl font-display text-4xl sm:text-5xl md:text-7xl font-black leading-tight text-white">
-          Jogos Escolares
-        </h1>
-        <h2 className="mb-6 max-w-2xl font-display text-3xl sm:text-4xl md:text-5xl font-bold leading-tight text-white">
-          Municipais 2026
-        </h2>
-
-        <p className="mb-10 max-w-xl text-base md:text-lg text-white/90 leading-relaxed">
-          Incentivando o esporte, a integração e o desenvolvimento dos nossos estudantes.
-          Inscreva sua escola e faça parte desta competição!
-        </p>
-
-        <div className="flex flex-wrap gap-4">
-          <a
-            href="#informacoes"
-            onClick={handleAnchorClick}
-            className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-base font-semibold bg-white/20 text-white border-2 border-white backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+      {/* Arrows (only show if more than 1 slide) */}
+      {slides.length > 1 && (
+        <>
+          <button
+            onClick={prev}
+            className="hero-arrow absolute left-3 md:left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
+            aria-label="Previous"
           >
-            Informações
-            <ArrowRight size={20} />
-          </a>
-          <Link
-            to="/cadastro"
-            className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-base font-semibold shadow-lg transition hover:shadow-xl hover:brightness-110 bg-primary text-white"
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+          <button
+            onClick={next}
+            className="hero-arrow absolute right-3 md:right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
+            aria-label="Next"
           >
-            Cadastre sua Escola
-            <ExternalLink size={18} className="opacity-90" />
-          </Link>
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+        </>
+      )}
+
+      {/* Indicators */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrent(i)}
+              className={`hero-indicator ${i === current ? "hero-indicator-active" : "hero-indicator-inactive"}`}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
         </div>
-      </div>
-    </section>
-  )
+      )}
+    </div>
+  );
 }

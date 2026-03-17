@@ -114,6 +114,40 @@
     padding-right: 1rem;
   }
 
+  /* Hero Carousel Styles */
+  .hero-arrow {
+    @apply flex h-10 w-10 items-center justify-center rounded-full bg-black/20 backdrop-blur-sm transition-all hover:bg-black/40;
+  }
+  
+  .hero-indicator {
+    @apply h-1.5 rounded-full transition-all duration-300;
+  }
+  
+  .hero-indicator-active {
+    @apply w-8 bg-white;
+  }
+  
+  .hero-indicator-inactive {
+    @apply w-2 bg-white/40;
+  }
+
+  /* Utility Classes */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .section-title {
+    @apply font-display text-2xl md:text-3xl font-black text-slate-800 tracking-tight relative;
+  }
+
+  .card-sport {
+    @apply bg-white border border-slate-100 rounded-2xl shadow-sm transition-all duration-300;
+  }
+
   @media (min-width: 640px) {
     .container-portal {
       padding-left: 1.5rem;
