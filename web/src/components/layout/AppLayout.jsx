@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard } from 'lucide-react'
+
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
@@ -28,16 +29,6 @@ const menuGroups = [
     ],
   },
   {
-    label: 'Comunicação',
-    icon: Megaphone,
-    requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
-    items: [
-      { label: 'Notícias', path: '/app/comunicacao', icon: Newspaper, tab: 'noticias' },
-      { label: 'Categorias de Notícias', path: '/app/comunicacao', icon: Tag, tab: 'categorias', adminOnly: true },
-      { label: 'Mídias', path: '/app/comunicacao', icon: Image, tab: 'midias', adminOnly: true },
-    ],
-  },
-  {
     label: 'Administrativo',
     icon: Users,
     requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'DIRETOR', 'COORDENADOR'],
@@ -53,7 +44,7 @@ const menuGroups = [
 
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Comunicação: true, Administrativo: true })
+  const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Administrativo: true })
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -64,7 +55,7 @@ export default function AppLayout({ children }) {
     navigate('/login')
   }
 
-  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios', '/app/comunicacao': 'noticias' }
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios' }
   const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
     if (item?.tab) {
@@ -121,8 +112,8 @@ export default function AppLayout({ children }) {
                     to={item.path}
                     onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${active
-                        ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
-                        : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                      ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
+                      : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
                       }`}
                   >
                     <Icon size={20} className="shrink-0" />
@@ -144,8 +135,8 @@ export default function AppLayout({ children }) {
                     type="button"
                     onClick={() => setGroupExpanded((prev) => ({ ...prev, [group.label]: !prev[group.label] }))}
                     className={`flex items-center gap-3 w-full px-4 py-3 rounded-[12px] border-0 bg-transparent text-left text-[0.9375rem] font-medium transition-colors cursor-pointer ${hasActiveChild
-                        ? 'text-[#0f766e]'
-                        : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                      ? 'text-[#0f766e]'
+                      : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
                       }`}
                   >
                     <GroupIcon size={20} className="shrink-0" />
@@ -172,8 +163,8 @@ export default function AppLayout({ children }) {
                               to={to}
                               onClick={() => setSidebarOpen(false)}
                               className={`flex items-center gap-3 px-3 py-2 rounded-[8px] no-underline text-[0.875rem] font-medium transition-colors ${active
-                                  ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_2px_8px_rgba(15,118,110,0.3)]'
-                                  : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                                ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_2px_8px_rgba(15,118,110,0.3)]'
+                                : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
                                 }`}
                             >
                               <ItemIcon size={18} className="shrink-0" />
@@ -192,8 +183,8 @@ export default function AppLayout({ children }) {
                 to={menuFooterItem.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${location.pathname === menuFooterItem.path
-                    ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
-                    : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+                  ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
+                  : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
                   }`}
               >
                 <UserCircle size={20} className="shrink-0" />
