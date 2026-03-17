@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Table, Collapse, DatePicker, Select, Tag, Card, Space, Typography, Tooltip } from 'antd'
+import { Table, Collapse, DatePicker, Select, Tag, Card, Space, Typography, Tooltip, Avatar } from 'antd'
 import { User, Filter, History, Search } from 'lucide-react'
 import dayjs from 'dayjs'
 import auditoriaService from '../services/auditoriaService'
@@ -39,6 +39,74 @@ export default function Auditoria({ embedded = false }) {
     fetchData()
   }, [filters])
 
+  const FIELD_LABELS = {
+    nome: 'Nome',
+    cpf: 'CPF',
+    rg: 'RG',
+    email: 'E-mail',
+    data_nascimento: 'Data de Nasc.',
+    sexo: 'Sexo',
+    endereco: 'Endereço',
+    cep: 'CEP',
+    responsavel_nome: 'Nome do Resp.',
+    responsavel_cpf: 'CPF do Resp.',
+    responsavel_rg: 'RG do Resp.',
+    responsavel_celular: 'Celular do Resp.',
+    responsavel_email: 'E-mail do Resp.',
+    escola_nome: 'Escola',
+    role: 'Perfil/Cargo',
+    status: 'Status',
+    esporte_nome: 'Esporte',
+    categoria_nome: 'Categoria',
+    naipe_nome: 'Naipe',
+    tipo_modalidade_nome: 'Tipo',
+    professor_tecnico_nome: 'Técnico',
+    ficha_assinada: 'Ficha Assinada',
+    documentacao_assinada_url: 'Doc. Assinado',
+    foto_url: 'Foto',
+    modalidades_adesao: 'Modalidades (IDs)'
+  }
+
+  const formatValue = (val) => {
+    if (val === true) return 'Sim'
+    if (val === false) return 'Não'
+    if (val === null || val === undefined || val === '') return 'vazio'
+    if (typeof val === 'object') return JSON.stringify(val)
+    return String(val)
+  }
+
+  const cleanMessage = (msg) => {
+    if (!msg) return ''
+    // Remove "Usuário [qualquer_coisa] " se a frase começar assim, pegando a partir da ação (verbo)
+    // Exemplos: "adicionou", "excluiu", "alterou", "aprovou", "negou"
+    const cleaned = msg.replace(/^Usuário .+? (adicionou|excluiu|alterou|aprovou|negou)/, '$1')
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1) // Capitaliza a primeira letra da ação
+  }
+
+  const getChanges = (antes, depois) => {
+    if (!antes || !depois) return []
+    const changes = []
+    const keys = new Set([...Object.keys(antes), ...Object.keys(depois)])
+    
+    keys.forEach(key => {
+      // Ignorar campos de sistema ou redundantes
+      if (['id', 'created_at', 'updated_at', 'escola_id', 'user_id', 'password_hash', 'escola_inep'].includes(key)) return
+      
+      const valAntes = antes[key]
+      const valDepois = depois[key]
+      
+      if (JSON.stringify(valAntes) !== JSON.stringify(valDepois)) {
+        changes.push({
+          key,
+          label: FIELD_LABELS[key] || key,
+          old: valAntes,
+          new: valDepois
+        })
+      }
+    })
+    return changes
+  }
+
   const columns = [
     {
       title: 'Momento',
@@ -48,48 +116,86 @@ export default function Auditoria({ embedded = false }) {
       width: 170,
     },
     {
+      title: 'Usuário',
+      dataIndex: 'usuario_nome',
+      key: 'usuario_nome',
+      width: 180,
+      render: (text) => (
+        <Space size="small">
+          <Avatar 
+            size={24} 
+            style={{ backgroundColor: text ? '#0f766e' : '#64748b', fontSize: '11px', fontWeight: 600 }}
+          >
+            {text ? text.charAt(0).toUpperCase() : 'S'}
+          </Avatar>
+          <Text style={{ fontSize: '13px', fontWeight: 500 }}>{text || 'Sistema'}</Text>
+        </Space>
+      )
+    },
+    {
       title: 'Mensagem',
       dataIndex: 'mensagem',
       key: 'mensagem',
       render: (text, record) => {
+        const displayMsg = cleanMessage(text)
         if (record.acao === 'UPDATE') {
+          const changes = getChanges(record.detalhes_antes, record.detalhes_depois)
+          
           return (
             <Collapse ghost expandIconPosition="end" className="audit-collapse">
               <Panel 
-                header={<Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{text}</Text>} 
+                header={<Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{displayMsg}</Text>} 
                 key="1"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  <div className="flex flex-col gap-2">
-                    <Text strong type="danger">Como ERA:</Text>
-                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 max-h-[300px] overflow-auto">
-                      <pre className="text-[11px] font-mono leading-tight whitespace-pre-wrap">
-                        {record.detalhes_antes ? JSON.stringify(record.detalhes_antes, null, 2) : 'N/A'}
-                      </pre>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Text strong type="success">Como PASSOU A SER:</Text>
-                    <div className="bg-green-50 p-3 rounded-lg border border-green-100 max-h-[300px] overflow-auto">
-                      <pre className="text-[11px] font-mono leading-tight whitespace-pre-wrap">
-                        {record.detalhes_depois ? JSON.stringify(record.detalhes_depois, null, 2) : 'N/A'}
-                      </pre>
-                    </div>
-                  </div>
+                <div className="flex flex-col gap-2 mt-2 ml-2 pl-4 border-l-2 border-gray-100">
+                  {changes.length > 0 ? changes.map((change, idx) => {
+                    const isFile = ['foto_url', 'documentacao_assinada_url'].includes(change.key)
+                    
+                    if (isFile) {
+                      let action = 'Alterou'
+                      if (!change.old) {
+                        action = change.key === 'foto_url' ? 'Adicionou' : 'Anexou'
+                      } else if (!change.new) {
+                        action = 'Removeu'
+                      }
+                      
+                      const objectLabel = change.key === 'foto_url' ? 'uma foto' : 'um documento'
+                      
+                      return (
+                        <div key={idx} className="flex flex-wrap items-center gap-x-2 text-[13px] text-gray-600">
+                          <span className="font-bold text-orange-600">
+                            {String(idx + 1).padStart(2, '0')} —
+                          </span>
+                          <span>{action} {objectLabel}.</span>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={idx} className="flex flex-wrap items-center gap-x-2 text-[13px] text-gray-600">
+                        <span className="font-bold text-orange-600">
+                          {String(idx + 1).padStart(2, '0')} —
+                        </span>
+                        <span>Mudou o <strong>{change.label}</strong> de</span>
+                        <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 strike-through line-through">
+                          {formatValue(change.old)}
+                        </span>
+                        <span>para</span>
+                        <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100">
+                          {formatValue(change.new)}
+                        </span>
+                      </div>
+                    )
+                  }) : (
+                    <Text type="secondary" italic>Nenhuma alteração detectada nos campos visíveis.</Text>
+                  )}
                 </div>
               </Panel>
             </Collapse>
           )
         }
-        return <Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{text}</Text>
+        return <Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{displayMsg}</Text>
       }
-    },
-    {
-      title: 'Usuário',
-      dataIndex: 'usuario_nome',
-      key: 'usuario_nome',
-      width: 150,
-      render: (text) => text || 'Sistema'
     },
     {
       title: 'Ação',
