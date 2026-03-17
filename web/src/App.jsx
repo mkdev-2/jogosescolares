@@ -21,6 +21,7 @@ import Dashboard from './pages/Dashboard'
 import Usuarios from './pages/Usuarios'
 import Configuracoes from './pages/Configuracoes'
 import Administrativo from './pages/Administrativo'
+import Auditoria from './pages/Auditoria'
 import Gestao from './pages/Gestao'
 import Atividades from './pages/Atividades'
 import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
@@ -58,6 +59,7 @@ function App() {
             <Route path="/app/usuarios" element={<Usuarios />} />
             <Route path="/app/configuracoes" element={<Configuracoes />} />
             <Route path="/app/comunicacao" element={<Comunicacao />} />
+            <Route path="/app/auditoria" element={<Auditoria />} />
             <Route path="/app/noticias" element={<Navigate to="/app/comunicacao" replace />} />
             <Route path="/app/noticias/categorias" element={<Navigate to="/app/comunicacao?tab=categorias" replace />} />
           </Route>

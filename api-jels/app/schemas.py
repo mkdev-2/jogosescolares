@@ -578,3 +578,22 @@ class EstudanteCredencialResponse(BaseModel):
     escola_nome: Optional[str] = None
     foto_url: Optional[str] = None
     modalidades: list[ModalidadeSimples] = []
+
+
+# ========== AUDITORIA ==========
+
+class AuditoriaResponse(BaseModel):
+    """Schema para resposta de log de auditoria."""
+    id: int
+    user_id: Optional[int] = None
+    usuario_nome: Optional[str] = None
+    acao: str
+    tipo_recurso: str
+    recurso_id: Optional[int] = None
+    detalhes_antes: Optional[dict] = None
+    detalhes_depois: Optional[dict] = None
+    mensagem: Optional[str] = None
+    created_at: str
+
+    class Config:
+        from_attributes = True

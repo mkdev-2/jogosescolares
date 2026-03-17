@@ -7,6 +7,7 @@ import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
 import { estudantesService } from '../../services/estudantesService'
 import { uploadFotoEstudante, uploadDocumentacaoAssinada, getStorageUrl } from '../../services/storageService'
+import FichaIndividualPrint from './FichaIndividualPrint'
 
 const SEXO_OPCOES = [
   { value: 'M', label: 'Masculino' },
@@ -133,6 +134,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
+  const [fichaPreviewOpen, setFichaPreviewOpen] = useState(false)
   const fileInputRef = useRef(null)
 
   const nomeInstituicao = user?.escola_nome ?? ''
@@ -556,10 +558,35 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       Assinaturas e documentação
                     </h3>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <p className="text-sm text-[#64748b] mb-1 m-0">
-                    A Ficha de Inscrição Individual deve ser assinada pelo Aluno, Responsável, Médico e Escola.
+                      A Ficha de Inscrição Individual deve ser assinada pelo Aluno, Responsável, Médico e Escola.
                     </p>
+
+                    {/* Botão de Gerar Ficha - Agora ACIMA da checkbox */}
+                    <div className={`p-4 bg-[#f0fdfa] border border-[#ccfbf1] rounded-lg transition-opacity ${form.fichaAssinada ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-[#0f766e] rounded-lg">
+                            <FileSignature className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h5 className="text-sm font-semibold text-[#042f2e] m-0">Ficha de Inscrição Individual</h5>
+                            <p className="text-xs text-[#0f766e] m-0">Gere o documento preenchido para coletar as assinaturas.</p>
+                          </div>
+                        </div>
+                        <Button 
+                          type="primary" 
+                          icon={<PlusOutlined />} 
+                          onClick={() => setFichaPreviewOpen(true)}
+                          disabled={form.fichaAssinada}
+                          className="bg-[#0f766e] hover:bg-[#0d6961] border-none"
+                        >
+                          Gerar Ficha de Inscrição
+                        </Button>
+                      </div>
+                    </div>
+
                     <Checkbox
                       checked={form.fichaAssinada}
                       onChange={(e) => {
@@ -579,6 +606,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                         ? `PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`
                         : 'Marque a opção acima para habilitar o anexo.'}
                     </p>
+
                     <Upload
                       listType="picture-card"
                       maxCount={1}
@@ -610,6 +638,36 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
           </>
         )}
       </div>
+
+      {/* Preview da Ficha Individual */}
+      <Modal
+        isOpen={fichaPreviewOpen}
+        onClose={() => setFichaPreviewOpen(false)}
+        title="Visualização da Ficha de Inscrição"
+        size="xl"
+        footer={null}
+      >
+        <div className="max-h-[80vh] overflow-y-auto">
+          <FichaIndividualPrint
+            onClose={() => setFichaPreviewOpen(false)}
+            dados={{
+              estudante: {
+                ...form,
+                escola_nome: nomeInstituicaoExibido,
+                escola_inep: inepInstituicaoExibido
+              },
+              responsavel: {
+                nome: form.responsavelNome,
+                cpf: form.responsavelCpf,
+                rg: form.responsavelRg,
+                celular: form.responsavelCelular,
+                email: form.responsavelEmail,
+                nis: form.responsavelNis
+              }
+            }}
+          />
+        </div>
+      </Modal>
     </Modal>
   )
 }

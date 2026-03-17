@@ -46,6 +46,7 @@ const menuGroups = [
       { label: 'Solicitações de Adesão', path: '/app/administrativo', icon: ClipboardList, tab: 'usuarios-pendentes', adminOnly: true },
       { label: 'Credenciais', path: '/app/administrativo', icon: IdCard, tab: 'credenciais', adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
+      { label: 'Auditoria', path: '/app/auditoria', icon: History, adminOnly: true },
     ],
   },
 ]

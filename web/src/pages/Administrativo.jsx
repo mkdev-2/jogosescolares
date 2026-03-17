@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, Settings, ClipboardList, IdCard } from 'lucide-react'
+import { Users, Settings, ClipboardList, IdCard, History } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
 import UsuariosPendentes from './UsuariosPendentes'
 import Credenciais from './Credenciais'
+import Auditoria from './Auditoria'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'usuarios-pendentes', label: 'Solicitações de Adesão', icon: ClipboardList, adminOnly: true },
   { id: 'credenciais', label: 'Credenciais', icon: IdCard, adminOnly: true },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
+  { id: 'auditoria', label: 'Auditoria', icon: History, adminOnly: true },
 ]
 
 export default function Administrativo() {
@@ -70,6 +72,7 @@ export default function Administrativo() {
           {activeTab === 'usuarios-pendentes' && <UsuariosPendentes embedded />}
           {activeTab === 'credenciais' && <Credenciais embedded />}
           {activeTab === 'configuracoes' && <Configuracoes embedded />}
+          {activeTab === 'auditoria' && <Auditoria embedded />}
         </div>
       </div>
     </div>

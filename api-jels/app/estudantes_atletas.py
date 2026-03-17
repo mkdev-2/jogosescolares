@@ -16,7 +16,7 @@ from app.schemas import (
     ModalidadeSimples,
 )
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
-from app.database import get_db
+from app.database import get_db, log_audit
 
 router = APIRouter(prefix="/estudantes-atletas", tags=["estudantes-atletas"])
 logger = logging.getLogger(__name__)
@@ -359,6 +359,17 @@ async def create_estudante_atleta(
             )
             row = await cur.fetchone()
             await conn.commit()
+
+            if row:
+                await log_audit(
+                    conn=conn,
+                    user_id=current_user["id"],
+                    acao="CREATE",
+                    tipo_recurso="ESTUDANTE",
+                    recurso_id=row["id"],
+                    detalhes_depois=dict(row),
+                    mensagem=f"Usuário {current_user['nome']} adicionou o Aluno {row['nome']}.",
+                )
     except pg_errors.UniqueViolation as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -380,7 +391,7 @@ async def update_estudante_atleta(
     """Atualiza estudante-atleta. Apenas da mesma escola."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM estudantes_atletas WHERE id = %s",
+            "SELECT * FROM estudantes_atletas WHERE id = %s",
             (estudante_id,),
         )
         existing = await cur.fetchone()
@@ -444,6 +455,23 @@ async def update_estudante_atleta(
             )
             await conn.commit()
 
+            # Auditoria: pegar estado após update
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT * FROM estudantes_atletas WHERE id = %s", (estudante_id,))
+                after = await cur.fetchone()
+
+            if after:
+                await log_audit(
+                    conn=conn,
+                    user_id=current_user["id"],
+                    acao="UPDATE",
+                    tipo_recurso="ESTUDANTE",
+                    recurso_id=estudante_id,
+                    detalhes_antes=dict(existing),
+                    detalhes_depois=dict(after),
+                    mensagem=f"Usuário {current_user['nome']} alterou dados do Aluno {after['nome']}.",
+                )
+
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -471,7 +499,7 @@ async def delete_estudante_atleta(
     """Remove estudante-atleta. Apenas da mesma escola."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM estudantes_atletas WHERE id = %s",
+            "SELECT * FROM estudantes_atletas WHERE id = %s",
             (estudante_id,),
         )
         existing = await cur.fetchone()
@@ -494,3 +522,13 @@ async def delete_estudante_atleta(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
         await conn.commit()
+
+        await log_audit(
+            conn=conn,
+            user_id=current_user["id"],
+            acao="DELETE",
+            tipo_recurso="ESTUDANTE",
+            recurso_id=estudante_id,
+            detalhes_antes=dict(existing),
+            mensagem=f"Usuário {current_user['nome']} excluiu o Aluno {existing['nome']}.",
+        )

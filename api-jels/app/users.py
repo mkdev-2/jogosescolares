@@ -14,7 +14,7 @@ import psycopg
 from app.schemas import UserCreate, UserUpdate, UserResponse
 from app.auth import get_current_user
 from app.security import get_password_hash
-from app.database import get_db
+from app.database import get_db, log_audit
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -190,6 +190,18 @@ async def create_user(
         row = await cur.fetchone()
         await conn.commit()
 
+        if row:
+            log_data = dict(row)
+            await log_audit(
+                conn=conn,
+                user_id=current_user["id"],
+                acao="CREATE",
+                tipo_recurso="USUARIO",
+                recurso_id=row["id"],
+                detalhes_depois={k: v for k, v in log_data.items() if k != 'password_hash'},
+                mensagem=f"Usuário {current_user['nome']} criou o Usuário {row['nome']} ({row['role']}).",
+            )
+
     return _row_to_response(row)
 
 
@@ -271,6 +283,18 @@ async def update_user(
         row = await cur.fetchone()
         await conn.commit()
 
+        if row:
+            await log_audit(
+                conn=conn,
+                user_id=current_user["id"],
+                acao="UPDATE",
+                tipo_recurso="USUARIO",
+                recurso_id=user_id,
+                detalhes_antes={k: v for k, v in dict(existing).items() if k != 'password_hash'},
+                detalhes_depois={k: v for k, v in dict(row).items() if k != 'password_hash'},
+                mensagem=f"Usuário {current_user['nome']} alterou dados do Usuário {row['nome']}.",
+            )
+
     return _row_to_response(row)
 
 
@@ -288,7 +312,7 @@ async def delete_user(
             detail="Não é possível excluir seu próprio usuário",
         )
     async with conn.cursor() as cur:
-        await cur.execute("SELECT escola_id FROM users WHERE id = %s", (user_id,))
+        await cur.execute("SELECT id, nome, role, escola_id FROM users WHERE id = %s", (user_id,))
         target = await cur.fetchone()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
@@ -299,3 +323,13 @@ async def delete_user(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
         await conn.commit()
+
+        await log_audit(
+            conn=conn,
+            user_id=current_user["id"],
+            acao="DELETE",
+            tipo_recurso="USUARIO",
+            recurso_id=user_id,
+            detalhes_antes=dict(target),
+            mensagem=f"Usuário {current_user['nome']} excluiu o Usuário {target['nome']} ({target['role']}).",
+        )
