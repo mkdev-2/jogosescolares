@@ -10,9 +10,44 @@ from urllib.parse import unquote
 import psycopg
 from psycopg.rows import dict_row
 from pydantic_settings import BaseSettings
+import json
 from fastapi import Request
 
 logger = logging.getLogger(__name__)
+
+
+async def log_audit(
+    conn: psycopg.AsyncConnection,
+    user_id: int | None,
+    acao: str,
+    tipo_recurso: str,
+    recurso_id: int | None = None,
+    detalhes_antes: dict | None = None,
+    detalhes_depois: dict | None = None,
+    mensagem: str | None = None,
+):
+    """Registra uma ação de auditoria no banco de dados."""
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO auditoria (
+                    user_id, acao, tipo_recurso, recurso_id,
+                    detalhes_antes, detalhes_depois, mensagem
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    user_id,
+                    acao,
+                    tipo_recurso,
+                    recurso_id,
+                    json.dumps(detalhes_antes) if detalhes_antes else None,
+                    json.dumps(detalhes_depois) if detalhes_depois else None,
+                    mensagem,
+                ),
+            )
+    except Exception as e:
+        logger.error(f"Erro ao registrar auditoria: {e}")
 
 
 class Settings(BaseSettings):

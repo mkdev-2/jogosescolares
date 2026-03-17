@@ -16,7 +16,7 @@ from app.schemas import (
     EscolaAdesaoResponse,
 )
 from app.auth import get_current_user
-from app.database import get_db
+from app.database import get_db, log_audit
 from app.security import get_password_hash
 
 router = APIRouter(prefix="/api/escolas", tags=["escolas"])
@@ -479,6 +479,17 @@ async def aprovar_adesao(
             (escola_id, solicitacao_id),
         )
         await conn.commit()
+
+        # Auditoria
+        await log_audit(
+            conn=conn,
+            user_id=current_user["id"],
+            acao="CREATE",
+            tipo_recurso="ESCOLA",
+            recurso_id=escola_id,
+            detalhes_depois={"nome_escola": row["nome_escola"], "inep": row["inep"]},
+            mensagem=f"Usuário {current_user['nome']} aprovou a adesão da Escola {row['nome_escola']}.",
+        )
     return {
         "message": "Solicitação aprovada. Escola e usuário diretor criados.",
         "user": {
@@ -501,7 +512,7 @@ async def negar_solicitacao(
     _require_admin(current_user)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, status FROM solicitacoes WHERE id = %s",
+            "SELECT id, status, nome_escola FROM solicitacoes WHERE id = %s",
             (solicitacao_id,),
         )
         row = await cur.fetchone()
@@ -518,6 +529,17 @@ async def negar_solicitacao(
             (solicitacao_id,),
         )
         await conn.commit()
+
+        # Auditoria
+        await log_audit(
+            conn=conn,
+            user_id=current_user["id"],
+            acao="DELETE",
+            tipo_recurso="SOLICITACAO",
+            recurso_id=solicitacao_id,
+            detalhes_antes=dict(row),
+            mensagem=f"Usuário {current_user['nome']} negou a adesão da Escola {row['nome_escola']}.",
+        )
     return {"message": "Solicitação negada."}
 
 

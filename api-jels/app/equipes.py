@@ -17,7 +17,7 @@ from app.schemas import (
     FichaColetivaProfessorItem,
 )
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
-from app.database import get_db
+from app.database import get_db, log_audit
 
 router = APIRouter(prefix="/equipes", tags=["equipes"])
 logger = logging.getLogger(__name__)
@@ -374,6 +374,19 @@ async def create_equipe(
             (equipe_id,),
         )
         row = await cur.fetchone()
+
+        # Auditoria
+        if row:
+            await log_audit(
+                conn=conn,
+                user_id=current_user["id"],
+                acao="CREATE",
+                tipo_recurso="EQUIPE",
+                recurso_id=equipe_id,
+                detalhes_depois=dict(row),
+                mensagem=f"Usuário {current_user['nome']} adicionou a Equipe {row['esporte_nome']} ({row['categoria_nome']} {row['naipe_nome']}).",
+            )
+
         await cur.execute(
             """
             SELECT est.id, est.nome, est.cpf
@@ -404,7 +417,7 @@ async def update_equipe(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM equipes WHERE id = %s",
+            _get_equipes_sql("WHERE e.id = %s"),
             (equipe_id,),
         )
         existing = await cur.fetchone()
@@ -486,6 +499,23 @@ async def update_equipe(
                 )
         await conn.commit()
 
+        # Auditoria: pegar estado após update
+        async with conn.cursor() as cur:
+            await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+            after = await cur.fetchone()
+
+        if after:
+            await log_audit(
+                conn=conn,
+                user_id=current_user["id"],
+                acao="UPDATE",
+                tipo_recurso="EQUIPE",
+                recurso_id=equipe_id,
+                detalhes_antes=dict(existing),
+                detalhes_depois=dict(after),
+                mensagem=f"Usuário {current_user['nome']} alterou dados da Equipe {after['esporte_nome']} ({after['categoria_nome']} {after['naipe_nome']}).",
+            )
+
     async with conn.cursor() as cur:
         await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
         row = await cur.fetchone()
@@ -513,7 +543,7 @@ async def delete_equipe(
     """Remove equipe. Apenas da mesma escola."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, escola_id FROM equipes WHERE id = %s",
+            _get_equipes_sql("WHERE e.id = %s"),
             (equipe_id,),
         )
         existing = await cur.fetchone()
@@ -527,3 +557,13 @@ async def delete_equipe(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipe não encontrada")
         await conn.commit()
+
+        await log_audit(
+            conn=conn,
+            user_id=current_user["id"],
+            acao="DELETE",
+            tipo_recurso="EQUIPE",
+            recurso_id=equipe_id,
+            detalhes_antes=dict(existing),
+            mensagem=f"Usuário {current_user['nome']} excluiu a Equipe {existing['esporte_nome']} ({existing['categoria_nome']} {existing['naipe_nome']}).",
+        )
