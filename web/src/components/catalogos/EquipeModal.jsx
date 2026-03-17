@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
-import { Input, Select, Checkbox, Button } from 'antd'
+import { Input, Select, Checkbox, Button, Tooltip } from 'antd'
 import Modal from '../ui/Modal'
 import ModalidadeIcon from './ModalidadeIcon'
 import { equipesService } from '../../services/equipesService'
@@ -11,6 +11,18 @@ const errorClass = 'text-[#dc2626] text-sm mt-1'
 
 function formatVarianteLabel(v) {
   return `${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome} • ${v.tipo_modalidade_nome}`
+}
+
+function calcularIdade(dataNasc) {
+  if (!dataNasc) return null
+  const hoje = new Date()
+  const nasc = new Date(dataNasc)
+  let idade = hoje.getFullYear() - nasc.getFullYear()
+  const m = hoje.getMonth() - nasc.getMonth()
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+    idade--
+  }
+  return idade
 }
 
 function VarianteOptionLabel({ variante }) {
@@ -30,10 +42,12 @@ export default function EquipeModal({
   estudantes = [],
   professoresTecnicos = [],
   equipe = null,
+  equipes = [],
 }) {
   const [varianteId, setVarianteId] = useState('')
   const [estudanteIds, setEstudanteIds] = useState([])
   const [professorTecnicoId, setProfessorTecnicoId] = useState('')
+  const formTopRef = useRef(null)
 
   useEffect(() => {
     if (open && equipe) {
@@ -102,13 +116,25 @@ export default function EquipeModal({
     if (limiteAtletas != null && estudanteIds.length > limiteAtletas) {
       err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta variante.`
     }
+
+    // Validação de duplicidade (mesma variante para a mesma escola)
+    const varianteExistente = equipes.find(
+      (e) => e.esporte_variante_id === varianteId && e.id !== equipe?.id
+    )
+    if (varianteExistente) {
+      err.esporte_variante_id = 'Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.'
+    }
+
     setErrors(err)
     return Object.keys(err).length === 0
   }
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
-    if (!validate()) return
+    if (!validate()) {
+      formTopRef.current?.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
     setSubmitError(null)
     setLoading(true)
     try {
@@ -126,6 +152,7 @@ export default function EquipeModal({
       onSuccess?.()
     } catch (err) {
       setSubmitError(err.message || 'Erro ao salvar equipe. Tente novamente.')
+      formTopRef.current?.scrollIntoView({ behavior: 'smooth' })
     } finally {
       setLoading(false)
     }
@@ -152,6 +179,7 @@ export default function EquipeModal({
       footer={footer}
     >
       <div className="p-0">
+        <div ref={formTopRef} />
         {submitError && (
           <div className="mb-4 px-4 py-3 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-lg text-sm">
             {submitError}
@@ -174,11 +202,23 @@ export default function EquipeModal({
               value={varianteId || undefined}
               onChange={(v) => { setVarianteId(v || ''); if (errors.esporte_variante_id) setErrors((x) => ({ ...x, esporte_variante_id: undefined })) }}
               placeholder="Selecione esporte, categoria, naipe e tipo"
-              options={variantes.map((v) => ({
-                value: v.id,
-                label: <VarianteOptionLabel variante={v} />,
-                searchText: formatVarianteLabel(v).toLowerCase(),
-              }))}
+              options={variantes.map((v) => {
+                const jaPossuiEquipe = equipes.some(e => e.esporte_variante_id === v.id && e.id !== equipe?.id)
+                return {
+                  value: v.id,
+                  label: jaPossuiEquipe ? (
+                    <Tooltip title="Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.">
+                      <div className="opacity-50 cursor-not-allowed w-full">
+                        <VarianteOptionLabel variante={v} />
+                      </div>
+                    </Tooltip>
+                  ) : (
+                    <VarianteOptionLabel variante={v} />
+                  ),
+                  searchText: formatVarianteLabel(v).toLowerCase(),
+                  disabled: jaPossuiEquipe,
+                }
+              })}
               className="w-full"
               status={errors.esporte_variante_id ? 'error' : undefined}
               showSearch
@@ -261,8 +301,16 @@ export default function EquipeModal({
                           onChange={() => toggleEstudante(est.id)}
                           disabled={desabilitado}
                         />
-                        <span className="text-sm text-[#334155]">{est.nome}</span>
-                        <span className="text-xs text-[#64748b] font-mono">{estudantesService.formatCpf(est.cpf)}</span>
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="text-sm font-medium text-[#334155] truncate">{est.nome}</span>
+                          <div className="flex items-center gap-2 text-[0.75rem] text-[#64748b]">
+                            <span className="font-mono">{estudantesService.formatCpf(est.cpf)}</span>
+                            <span>•</span>
+                            <span>{calcularIdade(est.data_nascimento)} anos</span>
+                            <span>•</span>
+                            <span>{est.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+                          </div>
+                        </div>
                       </label>
                     </li>
                   );

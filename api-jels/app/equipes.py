@@ -336,6 +336,17 @@ async def create_equipe(
                     detail="Todos os estudantes devem pertencer à sua escola",
                 )
 
+        # Validar se a escola já possui equipe nesta variante
+        await cur.execute(
+            "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s",
+            (escola_id, data.esporte_variante_id),
+        )
+        if await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.",
+            )
+
         # Inserir equipe
         await cur.execute(
             """
@@ -477,6 +488,17 @@ async def update_equipe(
                 (updates["professor_tecnico_id"], equipe_id),
             )
         if "esporte_variante_id" in updates:
+            # Validar se já existe outra equipe com esta variante
+            await cur.execute(
+                "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND id <> %s",
+                (escola_id, updates["esporte_variante_id"], equipe_id),
+            )
+            if await cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sua escola já possui outra equipe cadastrada para esta modalidade/categoria/naipe.",
+                )
+
             await cur.execute(
                 "UPDATE equipes SET esporte_variante_id = %s, updated_at = NOW() WHERE id = %s",
                 (updates["esporte_variante_id"], equipe_id),

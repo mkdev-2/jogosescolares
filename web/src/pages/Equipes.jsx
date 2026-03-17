@@ -80,6 +80,7 @@ export default function Equipes() {
         variantes={variantes}
         estudantes={estudantes}
         professoresTecnicos={professoresTecnicos}
+        equipes={lista}
       />
 
       <Modal
