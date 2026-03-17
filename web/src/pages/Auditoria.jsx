@@ -3,7 +3,7 @@ import { Table, Collapse, DatePicker, Select, Tag, Card, Space, Typography, Tool
 import { User, Filter, History, Search } from 'lucide-react'
 import dayjs from 'dayjs'
 import auditoriaService from '../services/auditoriaService'
-import usersService from '../services/usersService'
+import { usersService } from '../services/usersService'
 
 const { Panel } = Collapse
 const { RangePicker } = DatePicker
@@ -24,7 +24,7 @@ export default function Auditoria({ embedded = false }) {
     try {
       const [logsData, usersData] = await Promise.all([
         auditoriaService.getLogs(filters),
-        usersService.getUsers().catch(() => []) // Evitar que erro em usuários bloqueie logs
+        usersService.list().catch(() => []) // Evitar que erro em usuários bloqueie logs
       ])
       setLogs(logsData || [])
       setUsers(usersData || [])

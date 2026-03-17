@@ -25,12 +25,12 @@ async def list_auditoria(
             detail="Acesso restrito a administradores.",
         )
 
-    query = \"\"\"
+    query = """
         SELECT a.*, u.nome as usuario_nome
         FROM auditoria a
         LEFT JOIN users u ON u.id = a.user_id
         WHERE 1=1
-    \"\"\"
+    """
     params = []
 
     if user_id:
