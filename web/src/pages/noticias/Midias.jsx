@@ -66,7 +66,7 @@ export default function Midias({ embedded }) {
       try {
         const path = await uploadBannerHero(file)
         const newBanners = [...config.banners_hero, path]
-        await configuracoesService.update({ banners_hero: newBanners.join(',') })
+        await configuracoesService.updateLogos({ banners_hero: newBanners.join(',') })
         setConfig(prev => ({ ...prev, banners_hero: newBanners }))
         notification.success({ message: 'Banner adicionado com sucesso.' })
       } catch (err) {
@@ -115,7 +115,7 @@ export default function Midias({ embedded }) {
       onOk: async () => {
         try {
           const newBanners = config.banners_hero.filter(b => b !== path)
-          await configuracoesService.update({ banners_hero: newBanners.join(',') })
+          await configuracoesService.updateLogos({ banners_hero: newBanners.join(',') })
           setConfig(prev => ({ ...prev, banners_hero: newBanners }))
           notification.success({ message: 'Banner removido.' })
         } catch (err) {

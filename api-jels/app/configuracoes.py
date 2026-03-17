@@ -25,6 +25,7 @@ CHAVES_CONHECIDAS = {
     "logo_secretaria",
     "logo_jels",
     "bg_credencial",
+    "banners_hero",
 }
 
 
@@ -187,6 +188,8 @@ async def update_configuracoes_logos(
         updates["logo_jels"] = str(payload.logo_jels).strip() or None
     if payload.bg_credencial is not None:
         updates["bg_credencial"] = str(payload.bg_credencial).strip() or None
+    if payload.banners_hero is not None:
+        updates["banners_hero"] = str(payload.banners_hero).strip() or None
 
     if not updates:
         async with conn.cursor() as cur:
