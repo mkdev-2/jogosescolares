@@ -1,7 +1,25 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import { configuracoesService } from '../../services/configuracoesService'
+import { getStorageUrl } from '../../services/storageService'
 
 export default function FichaColetivaPrint({ dados, ano = new Date().getFullYear(), onClose }) {
   const printRef = useRef(null)
+  const [logos, setLogos] = useState({ logo_jels: null, logo_secretaria: null })
+
+  useEffect(() => {
+    const fetchLogos = async () => {
+      try {
+        const data = await configuracoesService.getLogos()
+        setLogos({
+          logo_jels: data?.logo_jels ? getStorageUrl(data.logo_jels) : '/Jels-2026-horizontal.png',
+          logo_secretaria: data?.logo_secretaria ? getStorageUrl(data.logo_secretaria) : '/logo-semcej.png'
+        })
+      } catch (err) {
+        console.error('Erro ao carregar logos para ficha coletiva:', err)
+      }
+    }
+    fetchLogos()
+  }, [])
 
   const handlePrint = () => {
     window.print()
@@ -44,8 +62,8 @@ export default function FichaColetivaPrint({ dados, ano = new Date().getFullYear
       <div ref={printRef} data-ficha-coletiva className="max-w-[210mm] mx-auto p-6 text-sm">
         {/* Cabeçalho */}
         <div className="flex flex-wrap items-center justify-center gap-6 mb-6 border-b border-[#e2e8f0] pb-4">
-          <img src="/Jels-2026-horizontal.png" alt="JELS" className="h-14 object-contain" />
-          <img src="/logo-semcej.png" alt="SEMCEJ" className="h-14 object-contain" />
+          <img src={logos.logo_jels} alt="JELS" className="h-14 object-contain" />
+          <img src={logos.logo_secretaria} alt="SECRETARIA" className="h-14 object-contain" />
         </div>
         <h1 className="text-center text-lg font-bold text-[#042f2e] mb-6">
           FICHA COLETIVA – JELS {ano}
