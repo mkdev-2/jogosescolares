@@ -54,7 +54,7 @@ export default function PublicHeader() {
               <Link to="/login">
                 <button
                   type="button"
-                  className="flex items-center gap-2 px-5 py-2 bg-white/10 text-white text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-full border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2 bg-white/10 text-white text-[11px] sm:text-xs font-black uppercase tracking-wider rounded-full border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all shadow-sm"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Área Logada</span>
@@ -76,7 +76,7 @@ export default function PublicHeader() {
               <img
                 src="/Jels-2026-horizontal.png"
                 alt="JELS - Jogos Escolares Luminenses"
-                className="h-12 sm:h-16 md:h-18 w-auto max-w-[220px] sm:max-w-[280px] md:max-w-[340px] object-contain object-left scale-110 origin-left transition-transform duration-300 group-hover:scale-115"
+                className="h-10 sm:h-16 md:h-18 w-auto max-w-[180px] sm:max-w-[280px] md:max-w-[340px] object-contain object-left md:scale-110 origin-left transition-transform duration-300 md:group-hover:scale-115"
               />
             </Link>
 

@@ -29,7 +29,7 @@ export default function HeroSection() {
 
   const loadBanners = async () => {
     try {
-      const data = await configuracoesService.get();
+      const data = await configuracoesService.getLogos();
       const bannersStr = data?.banners_hero || '';
       const banners = bannersStr.split(',').filter(b => !!b.trim());
       
@@ -64,7 +64,7 @@ export default function HeroSection() {
   const current = page;
 
   return (
-    <div className="relative w-full overflow-hidden group" style={{ aspectRatio: '1900/450' }}>
+    <div className="relative w-full overflow-hidden group aspect-[1900/450]">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
            key={page}
@@ -88,14 +88,14 @@ export default function HeroSection() {
         <>
           <button
             onClick={() => paginate(-1)}
-            className="hero-arrow absolute left-3 md:left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
+            className="hero-arrow absolute left-3 md:left-6 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover:opacity-100 z-10"
             aria-label="Previous"
           >
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <button
             onClick={() => paginate(1)}
-            className="hero-arrow absolute right-3 md:right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 z-10"
+            className="hero-arrow absolute right-3 md:right-6 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover:opacity-100 z-10"
             aria-label="Next"
           >
             <ChevronRight className="w-5 h-5 text-white" />

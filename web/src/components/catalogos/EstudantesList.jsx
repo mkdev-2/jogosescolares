@@ -82,39 +82,47 @@ export default function EstudantesList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div>
+            <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
               Total de Alunos
             </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
+            <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
               {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
             </p>
           </div>
-          <Users size={28} className="text-[#0f766e]" />
+          <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
+            <Users size={24} className="text-[#0f766e]" />
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
         {showInstituicao && escolas?.length > 0 && (
           <EscolaFilterAutoComplete
             escolas={escolas}
             value={escolaFilterId}
             onChange={setEscolaFilterId}
-            className="min-w-[280px]"
+            className="w-full sm:min-w-[280px]"
           />
         )}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, e-mail, CPF ou responsável..."
+            placeholder="Buscar por nome, e-mail, CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
+            className="w-full"
           />
         </div>
         {onNewAluno && (
-          <Button type="primary" onClick={onNewAluno} icon={<Plus size={16} />}>
+          <Button 
+            type="primary" 
+            onClick={onNewAluno} 
+            icon={<Plus size={16} />}
+            className="w-full sm:w-auto h-10 font-semibold"
+          >
             Novo aluno
           </Button>
         )}

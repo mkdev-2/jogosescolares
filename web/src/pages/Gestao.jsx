@@ -75,18 +75,18 @@ export default function Gestao() {
 
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
+    <div className="flex flex-col gap-4 sm:gap-6 px-0 sm:px-0">
+      <header className="flex flex-col gap-1 px-4 sm:px-0">
+        <h1 className="text-[1.25rem] sm:text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
           Gestão
         </h1>
-        <p className="text-[0.9375rem] text-[#64748b] m-0">
+        <p className="text-[0.875rem] sm:text-[0.9375rem] text-[#64748b] m-0">
           Centralize o controle de alunos, professores e equipes em um único painel.
         </p>
       </header>
 
-      <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="flex gap-0 p-2 border-b border-[#f1f5f9]">
+      <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="flex gap-0 p-1 sm:p-2 border-b border-[#f1f5f9] overflow-x-auto overflow-y-hidden scrollbar-hide whitespace-nowrap">
           {TABS.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -98,19 +98,19 @@ export default function Gestao() {
                   setActiveTab(tab.id)
                   setSearchParams(tab.id === 'alunos' ? {} : { tab: tab.id })
                 }}
-                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${isActive
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-[10px] font-medium text-[0.875rem] sm:text-[0.9375rem] transition-colors border-0 cursor-pointer shrink-0 ${isActive
                   ? 'bg-[#f1f5f9] text-[#0f766e]'
                   : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
                   }`}
               >
-                <Icon size={20} className={isActive ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
+                <Icon size={18} className={isActive ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
                 <span>{tab.label}</span>
               </button>
             )
           })}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {activeTab === 'alunos' && (
             <>
               {!cadastroAlunosBloqueado && prazoCadastroAlunos && (

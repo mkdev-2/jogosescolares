@@ -326,34 +326,35 @@ export default function Credenciais() {
     }
 
     return (
-        <Card bordered={false} className="shadow-sm">
+        <Card bordered={false} className="shadow-sm sm:rounded-xl">
             <Spin spinning={loadingEscolas || loadingEstudantes}>
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                    <Space direction="vertical" size="small">
-                        <Typography.Title level={4} style={{ margin: 0 }}>
-                            <Space>
-                                <IdCard size={24} className="text-[#0f766e]" />
-                                Gerador de Credenciais
+                    <div className="flex flex-col gap-2">
+                        <Typography.Title level={4} style={{ margin: 0, fontSize: 'clamp(1.125rem, 4vw, 1.5rem)' }}>
+                            <Space align="start">
+                                <IdCard size={28} className="text-[#0f766e] shrink-0 mt-1" />
+                                <span className="leading-tight">Gerador de Credenciais</span>
                             </Space>
                         </Typography.Title>
-                        <Typography.Text type="secondary">
+                        <Typography.Text type="secondary" className="text-[0.875rem] sm:text-[1rem] leading-relaxed">
                             Gere centenas de credenciais em segundos usando o novo motor de exportação direta em PDF.
                         </Typography.Text>
-                    </Space>
+                    </div>
 
-                    <Form form={form} layout="vertical">
-                        <Row gutter={16}>
+                    <Form form={form} layout="vertical" className="mt-2">
+                        <Row gutter={[16, 16]}>
                             <Col xs={24} sm={24} md={12}>
                                 <Form.Item
                                     label="Selecione a Escola"
                                     required
                                     rules={[{ required: true, message: 'Selecione uma escola' }]}
+                                    style={{ marginBottom: 12 }}
                                 >
                                     <Select
                                         placeholder="Selecione uma escola..."
                                         value={escolaSelecionada}
                                         onChange={setEscolaSelecionada}
-                                        style={{ width: '100%' }}
+                                        style={{ width: '100%', height: 45 }}
                                         showSearch
                                         filterOption={(input, option) =>
                                             (option?.label || '').toLowerCase().includes(input.toLowerCase())
@@ -368,38 +369,40 @@ export default function Credenciais() {
                         </Row>
 
                         {escolaSelecionada && (
-                            <Alert
-                                message={
-                                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                                        <div><strong>Escola:</strong> {escolaObj?.nome_escola}</div>
-                                        <div><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
-                                    </Space>
-                                }
-                                type="info"
-                                showIcon
-                                icon={<Building2 size={20} />}
-                                style={{ marginBottom: 16 }}
-                            />
+                            <div className="mb-4">
+                                <Alert
+                                    message={
+                                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Escola:</strong> {escolaObj?.nome_escola}</div>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
+                                        </Space>
+                                    }
+                                    type="info"
+                                    showIcon
+                                    icon={<Building2 size={20} />}
+                                />
+                            </div>
                         )}
 
                         {escolasExportadas[escolaSelecionada] && (
-                            <Alert
-                                message={
-                                    <span>
-                                        Exportado em: <strong>{new Date(escolasExportadas[escolaSelecionada]).toLocaleString('pt-BR')}</strong>
-                                    </span>
-                                }
-                                type="success"
-                                showIcon
-                                style={{ marginBottom: 16 }}
-                            />
+                            <div className="mb-4">
+                                <Alert
+                                    message={
+                                        <span className="text-[0.875rem]">
+                                            Exportado em: <strong>{new Date(escolasExportadas[escolaSelecionada]).toLocaleString('pt-BR')}</strong>
+                                        </span>
+                                    }
+                                    type="success"
+                                    showIcon
+                                />
+                            </div>
                         )}
 
                         {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                            <div style={{ marginTop: 16 }}>
+                            <div className="mt-4">
                                 <button
                                     type="button"
-                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all"
+                                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all text-[0.9375rem]"
                                     onClick={handleGerarPdf}
                                     disabled={gerandoPdf}
                                 >
@@ -421,6 +424,7 @@ export default function Credenciais() {
                                 rowKey="id"
                                 pagination={{ pageSize: 15 }}
                                 size="small"
+                                scroll={{ x: 'max-content' }}
                                 columns={[
                                     {
                                         title: 'Nome',
