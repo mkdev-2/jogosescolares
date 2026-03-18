@@ -13,7 +13,7 @@ export default function LandingPage() {
         <PublicHeader />
         <div className="flex flex-col">
           <HeroSection />
-          <div className="relative bg-[#f0fdf4] bg-gradient-to-b from-emerald-50/50 via-white to-emerald-50/30 pt-4 pb-8 md:pt-6 md:pb-12 overflow-hidden border-y border-emerald-100/50 shadow-[inner_0_2px_10px_rgba(16,185,129,0.05)]">
+          <div className="relative bg-[#f0fdf4] bg-gradient-to-b from-emerald-50/50 via-white to-emerald-50/30 pt-1 pb-8 md:pt-2 md:pb-12 overflow-hidden border-y border-emerald-100/50 shadow-[inner_0_2px_10px_rgba(16,185,129,0.05)]">
             {/* Decorações de fundo sutis */}
             <div className="absolute -left-20 top-0 w-64 h-64 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -right-20 bottom-0 w-64 h-64 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none" />
