@@ -65,6 +65,17 @@ export async function uploadDocumentacaoAssinada(file) {
 }
 
 /**
+ * Upload do termo de adesão da escola assinado pelo diretor (PDF ou imagem).
+ * @param {File} file - Arquivo (PDF, JPG, PNG)
+ * @returns {Promise<string>} Path relativo para uso com getStorageUrl
+ */
+export async function uploadTermoAdesao(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
+  const path = `escolas/termo-adesao/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
  * Upload de foto de perfil do usuário (minha conta).
  * @param {File} file - Arquivo de imagem
  * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl

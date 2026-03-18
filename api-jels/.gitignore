@@ -8,3 +8,6 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# contexto da IA
+docs/TERMO DE ADESAO JELS 2026 final.docx

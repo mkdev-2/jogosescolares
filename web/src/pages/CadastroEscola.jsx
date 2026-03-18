@@ -8,6 +8,7 @@ import { configuracoesService } from '../services/configuracoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
+import ModalAdesaoEscola from '../components/catalogos/ModalAdesaoEscola'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -285,6 +286,7 @@ export default function CadastroEscola() {
       .finally(() => setLoadingVariantes(false))
   }, [])
 
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -298,7 +300,7 @@ export default function CadastroEscola() {
     }
   }, [errors])
 
-  const handleSubmit = async (e) => {
+  const handleValidationClick = (e) => {
     e.preventDefault()
     const errs = validateForm(form)
     if (Object.keys(errs).length > 0) {
@@ -306,6 +308,11 @@ export default function CadastroEscola() {
       return
     }
     setErrors({})
+    // Em vez de chamar logo submit, abrimos o Modal final.
+    setUploadModalOpen(true)
+  }
+
+  const handleFinalSubmit = async (extraData) => {
     setSubmitting(true)
     const onlyDigits = (s) => (s || '').replace(/\D/g, '')
     try {
@@ -333,11 +340,14 @@ export default function CadastroEscola() {
           telefone: onlyDigits(form.coordenadorTelefone),
         },
         variante_ids: form.varianteIds,
+        termo_assinatura_url: extraData.termo_assinatura_url,
       })
+      setUploadModalOpen(false)
       setSuccess(true)
       setForm(INITIAL_FORM)
     } catch (err) {
-      setErrors({ submit: err.message || 'Erro ao enviar cadastro. Tente novamente.' })
+      // Se der erro de API lança pro Modal exibir
+      throw new Error(err.message || 'Erro ao enviar cadastro. Tente novamente.')
     } finally {
       setSubmitting(false)
     }
@@ -433,7 +443,7 @@ export default function CadastroEscola() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-10">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleValidationClick} className="space-y-8">
           {errors.submit && (
             <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {errors.submit}
@@ -769,14 +779,20 @@ export default function CadastroEscola() {
             <Button
               type="primary"
               htmlType="submit"
-              loading={submitting}
-              disabled={submitting}
             >
-              {submitting ? 'Enviando...' : 'Enviar Cadastro'}
+              Gerar Ficha de Adesão
             </Button>
           </div>
         </form>
       </div>
+
+      <ModalAdesaoEscola
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        form={form}
+        variantes={variantes}
+        onSuccess={handleFinalSubmit}
+      />
     </div>
   )
 }

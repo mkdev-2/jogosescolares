@@ -115,6 +115,7 @@ def _row_solicitacao_to_adesao_response(row: dict) -> dict:
         "dados_diretor": dados_diretor,
         "dados_coordenador": row.get("dados_coordenador"),
         "modalidades_adesao": row.get("modalidades_adesao"),
+        "termo_assinatura_url": row.get("termo_assinatura_url"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }
@@ -137,7 +138,7 @@ async def list_adesoes(
             await cur.execute(
                 """
                 SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                       status, dados_diretor, dados_coordenador, modalidades_adesao,
+                       status, dados_diretor, dados_coordenador, modalidades_adesao, termo_assinatura_url,
                        escola_id, created_at, updated_at
                 FROM solicitacoes
                 WHERE status = %s
@@ -149,7 +150,7 @@ async def list_adesoes(
             await cur.execute(
                 """
                 SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                       status, dados_diretor, dados_coordenador, modalidades_adesao,
+                       status, dados_diretor, dados_coordenador, modalidades_adesao, termo_assinatura_url,
                        escola_id, created_at, updated_at
                 FROM solicitacoes
                 ORDER BY created_at DESC
@@ -392,7 +393,7 @@ async def aprovar_adesao(
         await cur.execute(
             """
             SELECT id, status, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                   dados_diretor, dados_coordenador, modalidades_adesao
+                   dados_diretor, dados_coordenador, modalidades_adesao, termo_assinatura_url
             FROM solicitacoes WHERE id = %s
             """,
             (solicitacao_id,),
@@ -444,8 +445,8 @@ async def aprovar_adesao(
         await cur.execute(
             """
             INSERT INTO escolas (nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                                dados_coordenador, status_adesao, modalidades_adesao)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'APROVADA', %s::jsonb)
+                                dados_coordenador, status_adesao, modalidades_adesao, termo_assinatura_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'APROVADA', %s::jsonb, %s)
             RETURNING id
             """,
             (
@@ -459,6 +460,7 @@ async def aprovar_adesao(
                 row["telefone"],
                 dados_coord_json,
                 modalidades_json,
+                row.get("termo_assinatura_url"),
             ),
         )
         escola_row = await cur.fetchone()
@@ -660,9 +662,9 @@ async def create_escola_publico(
             """
             INSERT INTO solicitacoes (
                 nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone,
-                dados_diretor, dados_coordenador, modalidades_adesao
+                dados_diretor, dados_coordenador, modalidades_adesao, termo_assinatura_url
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s)
             RETURNING id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at
             """,
             (
@@ -677,6 +679,7 @@ async def create_escola_publico(
                 dados_diretor_json,
                 dados_coordenador_json,
                 modalidades_json,
+                data.termo_assinatura_url,
             ),
         )
         row = await cur.fetchone()

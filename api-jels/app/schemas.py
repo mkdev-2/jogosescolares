@@ -288,6 +288,7 @@ class AdesaoCreate(BaseModel):
     coordenador: AdesaoCoordenador
     # IDs das variantes de esportes selecionadas (escola competirá nestas modalidades)
     variante_ids: list[str] = Field(..., min_length=1, description="IDs das variantes de esportes (esporte+categoria+naipe+tipo) em que a escola pretende competir")
+    termo_assinatura_url: Optional[str] = Field(None, max_length=500, description="URL do documento do termo de adesão assinado")
 
 
 class EscolaResponse(BaseModel):
@@ -328,6 +329,7 @@ class EscolaAdesaoResponse(BaseModel):
     dados_diretor: Optional[dict] = None
     dados_coordenador: Optional[dict] = None
     modalidades_adesao: Optional[dict] = None
+    termo_assinatura_url: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -350,6 +352,7 @@ class SolicitacaoResponse(BaseModel):
     dados_diretor: Optional[dict] = None
     dados_coordenador: Optional[dict] = None
     modalidades_adesao: Optional[dict] = None
+    termo_assinatura_url: Optional[str] = None
     escola_id: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
