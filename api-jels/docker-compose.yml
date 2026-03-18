@@ -129,6 +129,21 @@ services:
     networks:
       - jogosescolares-network
 
+  cron-instagram-refresh:
+    build:
+      context: .
+      dockerfile: cronjobs/instagram-refresh/Dockerfile
+    container_name: jogosescolares-cron-instagram
+    volumes:
+      - .:/app:ro
+    env_file: .env
+    environment:
+      - TZ=America/Sao_Paulo
+      - INTERNAL_AUTH_URL=http://auth-service:8000
+    restart: unless-stopped
+    networks:
+      - jogosescolares-network
+
 networks:
   jogosescolares-network:
     driver: bridge

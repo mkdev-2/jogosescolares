@@ -4,6 +4,7 @@ import SchoolCTA from '../components/landing/SchoolCTA'
 import HowToParticipate from '../components/landing/HowToParticipate'
 import GallerySection from '../components/landing/GallerySection'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
+import InstagramWidget from '../components/landing/InstagramWidget'
 
 export default function LandingPage() {
   return (
@@ -28,6 +29,10 @@ export default function LandingPage() {
 
       {/* Restante do Conteúdo */}
       <GallerySection />
+      
+      {/* Widget do Instagram */}
+      <InstagramWidget />
+      
       <FooterInstitucional />
     </div>
   )

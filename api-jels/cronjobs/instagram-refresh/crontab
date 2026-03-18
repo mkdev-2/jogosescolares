@@ -1,0 +1,1 @@
+0 1 * * 1 cd /app && python /app/scripts/refresh_instagram_token.py >> /var/log/cron.log 2>&1
