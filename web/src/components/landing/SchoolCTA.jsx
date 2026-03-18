@@ -12,7 +12,7 @@ export default function SchoolCTA() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5, ease: [0.2, 0, 0, 1] }}
-        className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-emerald-600 to-[#064e3b] p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-2xl shadow-emerald-900/40 border border-emerald-400/20"
+        className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-emerald-600 to-[#064e3b] p-4 md:p-6 flex flex-col md:flex-row items-center gap-4 md:gap-6 shadow-2xl shadow-emerald-900/40 border border-emerald-400/20"
       >
         {/* Decorative elements */}
         <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10" />
@@ -25,10 +25,10 @@ export default function SchoolCTA() {
         </div>
 
         <div className="relative flex-1 text-center md:text-left">
-          <h2 className="text-lg md:text-2xl font-bold uppercase tracking-tight font-display text-white mb-1 leading-tight">
+          <h2 className="text-xl md:text-2xl font-bold uppercase tracking-tight font-display text-white mb-1.5 md:mb-2 leading-tight">
             INSCRIÇÕES ABERTAS PARA O JELS
           </h2>
-          <p className="text-white/85 font-sans text-xs md:text-sm max-w-xl">
+          <p className="text-white/85 font-sans text-[11px] sm:text-sm max-w-xl mx-auto md:mx-0">
             Cadastre sua escola agora e garanta a participação nos Jogos Escolares de Paço do Lumiar.
           </p>
         </div>
@@ -43,10 +43,10 @@ export default function SchoolCTA() {
             boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" }
           }}
           onClick={() => navigate('/cadastro')}
-          className="relative shrink-0 flex items-center gap-3 px-10 py-4 rounded-2xl bg-[#facc15] text-black font-display font-black uppercase tracking-[0.15em] text-base shadow-[0_10px_40px_-10px_rgba(251,191,36,0.6)] border-b-4 border-yellow-600 active:border-b-0 transition-all"
+          className="relative w-full md:w-auto shrink-0 flex items-center justify-center gap-2 md:gap-3 px-8 md:px-10 py-3 md:py-4 rounded-xl md:rounded-2xl bg-[#facc15] text-black font-display font-black uppercase tracking-[0.12em] md:tracking-[0.15em] text-sm md:text-base shadow-[0_10px_40px_-10px_rgba(251,191,36,0.6)] border-b-[3px] md:border-b-4 border-yellow-600 active:border-b-0 transition-all"
         >
           CADASTRAR
-          <ChevronRight className="w-6 h-6" />
+          <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
         </motion.button>
       </motion.div>
     </section>

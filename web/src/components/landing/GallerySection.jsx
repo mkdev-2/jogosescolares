@@ -109,26 +109,26 @@ export default function GallerySection() {
           </h2>
         </div>
         
-        <div className="relative group/carousel px-4 md:px-12">
+        <div className="relative group/carousel px-2 md:px-12">
           {/* Botões Laterais */}
           <button 
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white shadow-xl shadow-emerald-900/10 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all duration-300 md:-translate-x-6 border border-emerald-50 active:scale-95"
+            className="absolute left-1 md:left-0 top-1/2 -translate-y-1/2 z-20 p-2 md:p-3 rounded-full bg-white/90 shadow-xl shadow-emerald-900/10 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all duration-300 md:-translate-x-6 border border-emerald-50 active:scale-95"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={20} className="md:w-6 md:h-6" />
           </button>
 
           <button 
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white shadow-xl shadow-emerald-900/10 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all duration-300 md:translate-x-6 border border-emerald-50 active:scale-95"
+            className="absolute right-1 md:right-0 top-1/2 -translate-y-1/2 z-20 p-2 md:p-3 rounded-full bg-white/90 shadow-xl shadow-emerald-900/10 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all duration-300 md:translate-x-6 border border-emerald-50 active:scale-95"
           >
-            <ChevronRight size={24} />
+            <ChevronRight size={20} className="md:w-6 md:h-6" />
           </button>
 
           <div 
             ref={carouselRef}
             onScroll={handleInfiniteScroll}
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-6 pt-2"
+            className="flex gap-4 overflow-x-auto scrollbar-hide pb-6 pt-2 snap-x snap-mandatory"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {FOTOS_INFINITAS.map((src, i) => (
@@ -138,7 +138,7 @@ export default function GallerySection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: (i % FOTOS.length) * 0.1 }}
-                className="flex-shrink-0 w-64 md:w-80"
+                className="flex-shrink-0 w-72 md:w-80 snap-center"
               >
                 <button
                   onClick={() => setFotoAberta(src)}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, Plus, Pencil, Trash2 } from 'lucide-react'
-import { Input, Button, Popconfirm, Pagination } from 'antd'
+import { Users, Search, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react'
+import { Input, Button, Popconfirm, Pagination, Popover } from 'antd'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
 import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
 
@@ -51,40 +51,48 @@ export default function ProfessoresTecnicosList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div>
+            <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
               Total de Professores-Técnicos
             </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
+            <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
               {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
             </p>
           </div>
-          <Users size={28} className="text-[#0f766e]" />
+          <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
+            <Users size={24} className="text-[#0f766e]" />
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
         {showInstituicao && escolas?.length > 0 && (
           <EscolaFilterAutoComplete
             escolas={escolas}
             value={escolaFilterId}
             onChange={setEscolaFilterId}
-            className="min-w-[280px]"
+            className="w-full sm:min-w-[280px]"
           />
         )}
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1">
           <Input
             placeholder="Buscar por nome, CPF ou CREF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
+            className="w-full"
           />
         </div>
         {onNewProfessor && (
-          <Button type="primary" onClick={onNewProfessor} icon={<Plus size={16} />}>
-            Novo professor-técnico
+          <Button 
+            type="primary" 
+            onClick={onNewProfessor} 
+            icon={<Plus size={16} />}
+            className="w-full sm:w-auto h-10 font-semibold"
+          >
+            Novo professor
           </Button>
         )}
       </div>
@@ -173,39 +181,53 @@ export default function ProfessoresTecnicosList({
                       </td>
                       {(onEditProfessor || onDeleteProfessor) && (
                         <td
-                          className="px-5 py-4 text-right border-b border-[#f1f5f9]"
+                          className="px-5 py-3 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex justify-end gap-2">
-                            {onEditProfessor && (
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                                onClick={() => onEditProfessor(item)}
-                                title="Editar professor"
-                              >
-                                <Pencil size={18} />
-                              </button>
-                            )}
-                            {onDeleteProfessor && (
-                              <Popconfirm
-                                title="Excluir professor-técnico"
-                                description={`Excluir "${item.nome}"? O professor não poderá ser excluído se estiver vinculado a equipes.`}
-                                onConfirm={() => onDeleteProfessor(item)}
-                                okText="Sim, excluir"
-                                cancelText="Cancelar"
-                                okButtonProps={{ danger: true }}
-                              >
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                                  title="Excluir professor"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </Popconfirm>
-                            )}
-                          </div>
+                          <Popover
+                            placement="bottomRight"
+                            trigger="click"
+                            content={
+                              <div className="flex flex-col min-w-[120px]">
+                                {onEditProfessor && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onEditProfessor(item)}
+                                  >
+                                    <Pencil size={16} />
+                                    Editar
+                                  </button>
+                                )}
+                                {onDeleteProfessor && (
+                                  <Popconfirm
+                                    title="Excluir professor-técnico"
+                                    description={`Excluir "${item.nome}"? O professor não poderá ser excluído se estiver vinculado a equipes.`}
+                                    onConfirm={() => onDeleteProfessor(item)}
+                                    okText="Sim, excluir"
+                                    cancelText="Cancelar"
+                                    okButtonProps={{ danger: true }}
+                                    placement="left"
+                                  >
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#dc2626] hover:bg-[#fef2f2] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full mt-1"
+                                    >
+                                      <Trash2 size={16} />
+                                      Excluir
+                                    </button>
+                                  </Popconfirm>
+                                )}
+                              </div>
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9] bg-transparent cursor-pointer"
+                            >
+                              <MoreVertical size={20} />
+                            </button>
+                          </Popover>
                         </td>
                       )}
                     </tr>

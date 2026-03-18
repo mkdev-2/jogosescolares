@@ -47,27 +47,30 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div>
+            <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
               Total de Escolas
             </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
+            <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
               {lista.length}
             </p>
           </div>
-          <Building2 size={28} className="text-[#0f766e]" />
+          <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
+            <Building2 size={24} className="text-[#0f766e]" />
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+        <div className="flex-1">
           <Input
             placeholder="Buscar por nome, cidade, e-mail, INEP ou CNPJ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
+            className="w-full"
           />
         </div>
       </div>

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Users, Plus, Trophy, Pencil, Trash2, FileText } from 'lucide-react'
-import { Input, Button, Popconfirm, Select, Pagination } from 'antd'
+import { Users, Plus, Trophy, Pencil, Trash2, FileText, MoreVertical } from 'lucide-react'
+import { Input, Button, Popconfirm, Select, Pagination, Popover } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EquipesList({
@@ -77,77 +76,86 @@ export default function EquipesList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div>
+            <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
               Total de Equipes
             </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
+            <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
               {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
             </p>
           </div>
-          <Trophy size={28} className="text-[#0f766e]" />
+          <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
+            <Trophy size={24} className="text-[#0f766e]" />
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        {showInstituicao && escolas?.length > 0 && (
-          <Select
-            placeholder="Filtrar por escola"
-            allowClear
-            value={escolaFilterId ?? undefined}
-            onChange={(v) => setEscolaFilterId(v ?? null)}
-            options={[
-              { value: '', label: 'Todas as escolas' },
-              ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
-            ]}
-            className="min-w-[220px]"
-          />
-        )}
-        <div className="flex flex-wrap flex-1 gap-3">
-          <Select
-            placeholder="Esporte"
-            allowClear
-            value={esporteFilter}
-            onChange={setEsporteFilter}
-            options={esporteOptions}
-            className="min-w-[160px] flex-1 md:flex-initial"
-          />
-          <Select
-            placeholder="Categoria"
-            allowClear
-            value={categoriaFilter}
-            onChange={setCategoriaFilter}
-            options={categoriaOptions}
-            className="min-w-[140px] flex-1 md:flex-initial"
-          />
-          <Select
-            placeholder="Naipe"
-            allowClear
-            value={naipeFilter}
-            onChange={setNaipeFilter}
-            options={naipeOptions}
-            className="min-w-[120px] flex-1 md:flex-initial"
-          />
-          <Select
-            showSearch
-            placeholder="Técnico"
-            allowClear
-            value={tecnicoFilter}
-            onChange={setTecnicoFilter}
-            options={tecnicoOptions}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-            className="min-w-[200px] flex-[2]"
-          />
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {showInstituicao && escolas?.length > 0 && (
+            <Select
+              placeholder="Filtrar por escola"
+              allowClear
+              value={escolaFilterId ?? undefined}
+              onChange={(v) => setEscolaFilterId(v ?? null)}
+              options={[
+                { value: '', label: 'Todas as escolas' },
+                ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
+              ]}
+              className="w-full sm:min-w-[220px]"
+            />
+          )}
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:flex lg:flex-row flex-1 gap-2 sm:gap-3">
+            <Select
+              placeholder="Esporte"
+              allowClear
+              value={esporteFilter}
+              onChange={setEsporteFilter}
+              options={esporteOptions}
+              className="w-full lg:min-w-[140px]"
+            />
+            <Select
+              placeholder="Categoria"
+              allowClear
+              value={categoriaFilter}
+              onChange={setCategoriaFilter}
+              options={categoriaOptions}
+              className="w-full lg:min-w-[120px]"
+            />
+            <Select
+              placeholder="Naipe"
+              allowClear
+              value={naipeFilter}
+              onChange={setNaipeFilter}
+              options={naipeOptions}
+              className="w-full lg:min-w-[100px]"
+            />
+            <Select
+              showSearch
+              placeholder="Técnico"
+              allowClear
+              value={tecnicoFilter}
+              onChange={setTecnicoFilter}
+              options={tecnicoOptions}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              className="w-full lg:min-w-[180px] lg:flex-1"
+            />
+          </div>
+          {onNewEquipe && (
+            <Button 
+              type="primary" 
+              onClick={onNewEquipe} 
+              icon={<Plus size={16} />}
+              className="w-full sm:w-auto h-10 font-semibold shrink-0"
+            >
+              Nova equipe
+            </Button>
+          )}
         </div>
-        {onNewEquipe && (
-          <Button type="primary" onClick={onNewEquipe} icon={<Plus size={16} />}>
-            Nova equipe
-          </Button>
-        )}
       </div>
 
       {error && (
@@ -248,60 +256,65 @@ export default function EquipesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getQtdAlunos(item)}/{item.esporte_limite_atletas || '-'} membros
                       </td>
-                      {onFichaColetiva && (
+                      {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
                         <td
-                          className="px-5 py-4 text-center border-b border-[#f1f5f9]"
+                          className="px-5 py-3 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {isModalidadeColetiva(item) ? (
+                          <Popover
+                            placement="bottomRight"
+                            trigger="click"
+                            content={
+                              <div className="flex flex-col min-w-[140px]">
+                                {onFichaColetiva && isModalidadeColetiva(item) && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onFichaColetiva(item)}
+                                  >
+                                    <FileText size={16} />
+                                    Ficha Coletiva
+                                  </button>
+                                )}
+                                {onEditEquipe && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onEditEquipe(item)}
+                                  >
+                                    <Pencil size={16} />
+                                    Editar
+                                  </button>
+                                )}
+                                {onDeleteEquipe && (
+                                  <Popconfirm
+                                    title="Excluir equipe"
+                                    description={`Excluir a equipe "${getEsporteNome(item)} • ${getCategoriaNome(item)} • ${getNaipeNome(item)}"?`}
+                                    onConfirm={() => onDeleteEquipe(item)}
+                                    okText="Sim, excluir"
+                                    cancelText="Cancelar"
+                                    okButtonProps={{ danger: true }}
+                                    placement="left"
+                                  >
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-2 px-3 py-2 text-sm text-[#dc2626] hover:bg-[#fef2f2] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full mt-1"
+                                    >
+                                      <Trash2 size={16} />
+                                      Excluir
+                                    </button>
+                                  </Popconfirm>
+                                )}
+                              </div>
+                            }
+                          >
                             <button
                               type="button"
-                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                              onClick={() => onFichaColetiva(item)}
-                              title="Gerar Ficha Coletiva JELS"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9] bg-transparent cursor-pointer"
                             >
-                              <FileText size={18} />
+                              <MoreVertical size={20} />
                             </button>
-                          ) : (
-                            <span className="text-[#cbd5e1]">–</span>
-                          )}
-                        </td>
-                      )}
-                      {(onEditEquipe || onDeleteEquipe) && (
-                        <td
-                          className="px-5 py-4 text-right border-b border-[#f1f5f9]"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex justify-end gap-2">
-                            {onEditEquipe && (
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                                onClick={() => onEditEquipe(item)}
-                                title="Editar equipe"
-                              >
-                                <Pencil size={18} />
-                              </button>
-                            )}
-                            {onDeleteEquipe && (
-                              <Popconfirm
-                                title="Excluir equipe"
-                                description={`Excluir a equipe "${getEsporteNome(item)} • ${getCategoriaNome(item)} • ${getNaipeNome(item)}"?`}
-                                onConfirm={() => onDeleteEquipe(item)}
-                                okText="Sim, excluir"
-                                cancelText="Cancelar"
-                                okButtonProps={{ danger: true }}
-                              >
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                                  title="Excluir equipe"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </Popconfirm>
-                            )}
-                          </div>
+                          </Popover>
                         </td>
                       )}
                     </tr>

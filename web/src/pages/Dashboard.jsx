@@ -53,27 +53,27 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
 
   const content = (
     <div
-      className={`relative overflow-hidden rounded-2xl border bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${to ? 'cursor-pointer' : ''}`}
+      className={`relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${to ? 'cursor-pointer' : ''}`}
     >
       <div className="absolute inset-0 bg-gradient-to-br opacity-40" />
-      <div className="relative flex justify-between items-start mb-3">
-        <p className="text-[10px] sm:text-xs font-bold text-[#64748b] uppercase tracking-widest">
+      <div className="relative flex justify-between items-start mb-2 sm:mb-3">
+        <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
           {title}
         </p>
         <div
-          className={`p-2 rounded-xl shadow-md ${iconBg[variant]}`}
+          className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md ${iconBg[variant]} shrink-0`}
         >
           <Icon className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
         </div>
       </div>
-      <p className="text-2xl sm:text-3xl font-extrabold text-[#042f2e]">
+      <p className="text-xl sm:text-3xl font-extrabold text-[#042f2e] leading-none mb-1">
         {formatValue(value)}
       </p>
       {subtitle && (
-        <p className="text-xs text-[#64748b] mt-1 font-medium">{subtitle}</p>
+        <p className="text-[10px] sm:text-xs text-[#64748b] font-medium leading-tight">{subtitle}</p>
       )}
       <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
-        <Icon size={100} className="text-[#0f766e]" />
+        <Icon size={80} className="text-[#0f766e]" />
       </div>
     </div>
   )
@@ -143,15 +143,17 @@ export default function Dashboard() {
 
       {/* Contagem regressiva prazo cadastro de alunos (apenas diretores/coordenadores) */}
       {!isAdmin && prazoCadastroAlunos && !prazoEncerrado && (
-        <section className="rounded-xl border border-red-200 bg-[#fdf5f6] px-3 py-3 sm:px-4 sm:py-3.5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 text-[#1e3a4b] shrink-0">
-              <Clock className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 text-red-800" strokeWidth={2.5} />
-              <span className="font-bold text-xl sm:text-2xl">
+        <section className="rounded-xl border border-red-200 bg-[#fdf5f6] p-3 sm:px-4 sm:py-3.5 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 text-[#1e3a4b]">
+              <div className="p-2 rounded-lg bg-red-100/50">
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-red-800" strokeWidth={2.5} />
+              </div>
+              <span className="font-bold text-lg sm:text-xl leading-tight">
                 Cadastro de alunos encerra em
               </span>
             </div>
-            <div className="flex gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 self-center lg:self-auto">
               {[
                 { value: restante?.days ?? 0, label: 'DIAS' },
                 { value: restante ? String(restante.hours).padStart(2, '0') : '00', label: 'HORAS' },
@@ -159,29 +161,30 @@ export default function Dashboard() {
                 { value: restante ? String(restante.seconds).padStart(2, '0') : '00', label: 'SEG' },
               ].map(({ value, label }) => (
                 <div key={label} className="flex flex-col items-center">
-                  <div className="min-w-[3.5rem] sm:min-w-[4rem] rounded-lg bg-red-500 px-3 py-2 sm:px-3.5 sm:py-2.5 text-center shadow">
-                    <span className="font-bold text-white text-2xl sm:text-3xl tabular-nums">
+                  <div className="min-w-[2.8rem] sm:min-w-[3.5rem] rounded-lg bg-red-500 px-2 py-1.5 sm:px-3 sm:py-2 text-center shadow-lg shadow-red-500/20">
+                    <span className="font-black text-white text-xl sm:text-2xl tabular-nums">
                       {value}
                     </span>
                   </div>
-                  <span className="text-red-600 text-xs sm:text-sm font-semibold mt-1 uppercase tracking-wide">
+                  <span className="text-red-700 text-[9px] sm:text-[10px] font-black mt-1 uppercase tracking-tight">
                     {label}
                   </span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-2.5 pt-2.5 border-t border-red-200/50">
-            <div className="flex items-center gap-1.5 text-[#1e3a4b] text-sm sm:text-base">
-              <Calendar className="w-4 h-4 text-red-600 shrink-0" />
-              <span className="font-medium">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 mt-3 pt-3 border-t border-red-200/50">
+            <div className="flex items-center gap-1.5 text-[#1e3a4b] text-sm font-medium">
+              <Calendar className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span>
                 Último dia para cadastro:{' '}
                 <span className="text-red-600 font-bold">
                   {new Date(prazoCadastroAlunos + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </span>
               </span>
             </div>
-            <span className="text-[#1e3a4b]/90 text-sm sm:text-base">
+            <span className="hidden sm:inline text-red-300">•</span>
+            <span className="text-[#1e3a4b]/80 text-[13px] sm:text-sm italic">
               Após essa data não será possível incluir novos atletas.
             </span>
           </div>
@@ -189,7 +192,7 @@ export default function Dashboard() {
       )}
 
       {/* Cards de métricas */}
-      <section className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <section className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard
           title="Escolas Cadastradas"
           value={loading ? '...' : stats.total_escolas ?? 0}
