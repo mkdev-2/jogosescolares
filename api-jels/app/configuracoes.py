@@ -81,10 +81,9 @@ async def get_configuracoes_app(
 @router.get("/logos")
 async def get_configuracoes_logos(
     conn: psycopg.AsyncConnection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
 ):
-    """Retorna apenas as logos e o bg_credencial publicamente."""
-    chaves = ("logo_secretaria", "logo_jels", "bg_credencial")
+    """Retorna logos, bg_credencial e banners_hero (endpoint público, sem autenticação)."""
+    chaves = ("logo_secretaria", "logo_jels", "bg_credencial", "banners_hero")
     result = {k: None for k in chaves}
     async with conn.cursor() as cur:
         await cur.execute(

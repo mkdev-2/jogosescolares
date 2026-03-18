@@ -29,7 +29,7 @@ export default function HeroSection() {
 
   const loadBanners = async () => {
     try {
-      const data = await configuracoesService.get();
+      const data = await configuracoesService.getLogos();
       const bannersStr = data?.banners_hero || '';
       const banners = bannersStr.split(',').filter(b => !!b.trim());
       
