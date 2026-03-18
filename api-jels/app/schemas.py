@@ -454,11 +454,21 @@ class EstudanteAtletaResponse(BaseModel):
     responsavel_nis: str
     ficha_assinada: bool = False
     documentacao_assinada_url: Optional[str] = None
+    # Validação de documentos pelo ADMIN
+    documentos_validados: bool = False
+    documentos_validados_por: Optional[int] = None
+    documentos_validados_por_nome: Optional[str] = None
+    documentos_validados_em: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class ValidacaoDocumentosRequest(BaseModel):
+    """Payload para validar ou revogar a validação de documentos de um aluno."""
+    validado: bool = Field(..., description="True para marcar como validado; False para revogar")
 
 
 # ========== PROFESSORES TÉCNICOS ==========

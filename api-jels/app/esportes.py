@@ -7,7 +7,7 @@ import psycopg
 
 from app.schemas import EsporteCreate, EsporteUpdate, EsporteResponse
 from app.auth import get_current_user
-from app.database import get_db
+from app.database import get_db, log_audit
 
 router = APIRouter(prefix="/api/esportes", tags=["esportes"])
 logger = logging.getLogger(__name__)
@@ -101,6 +101,48 @@ async def _get_tipos_das_variantes(conn, esporte_id: str) -> list[str]:
     return [str(r["tipo_modalidade_id"]) for r in rows]
 
 
+async def _snapshot_esporte(conn, esporte_id: str) -> dict:
+    """Captura snapshot completo do esporte com variantes (nomes legíveis) para auditoria."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s",
+            (esporte_id,),
+        )
+        esporte_row = await cur.fetchone()
+        if not esporte_row:
+            return {}
+        await cur.execute(
+            """
+            SELECT
+                ev.id AS variante_id,
+                c.nome AS categoria_nome,
+                n.nome AS naipe_nome,
+                tm.nome AS tipo_nome
+            FROM esporte_variantes ev
+            JOIN categorias c ON c.id = ev.categoria_id
+            JOIN naipes n ON n.id = ev.naipe_id
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ev.esporte_id = %s
+            ORDER BY c.nome, n.nome, tm.nome
+            """,
+            (esporte_id,),
+        )
+        variantes = await cur.fetchall()
+
+    return {
+        "nome": esporte_row["nome"],
+        "descricao": esporte_row["descricao"] or "",
+        "icone": esporte_row["icone"] or "",
+        "requisitos": esporte_row["requisitos"] or "",
+        "limite_atletas": esporte_row["limite_atletas"],
+        "ativa": esporte_row["ativa"],
+        "variantes": [
+            f"{v['categoria_nome']} / {v['naipe_nome']} / {v['tipo_nome']}"
+            for v in variantes
+        ],
+    }
+
+
 @router.post("", response_model=EsporteResponse, status_code=status.HTTP_201_CREATED)
 async def create_esporte(
     data: EsporteCreate,
@@ -166,6 +208,17 @@ async def create_esporte(
                 )
         await conn.commit()
 
+    esporte_id_str = str(row["id"])
+    snapshot_depois = await _snapshot_esporte(conn, esporte_id_str)
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="CREATE",
+        tipo_recurso="ESPORTE",
+        recurso_id=int(esporte_id_str),
+        detalhes_depois=snapshot_depois,
+        mensagem=f"Usuário {current_user['nome']} criou o Esporte {row['nome']}.",
+    )
     return _row_to_response(row)
 
 
@@ -185,6 +238,9 @@ async def update_esporte(
         existing = await cur.fetchone()
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
+
+    # Captura snapshot ANTES para auditoria
+    snapshot_antes = await _snapshot_esporte(conn, esporte_id)
 
     updates = []
     values = []
@@ -305,6 +361,18 @@ async def update_esporte(
     else:
         await conn.commit()
 
+    snapshot_depois = await _snapshot_esporte(conn, esporte_id)
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="ESPORTE",
+        recurso_id=int(esporte_id),
+        detalhes_antes=snapshot_antes,
+        detalhes_depois=snapshot_depois,
+        mensagem=f"Usuário {current_user['nome']} alterou dados do Esporte {snapshot_depois['nome']}.",
+    )
+
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at FROM esportes WHERE id = %s",
@@ -321,8 +389,23 @@ async def delete_esporte(
     current_user: dict = Depends(get_current_user),
 ):
     """Remove esporte e suas variantes em cascata (requer autenticação)."""
+    # Captura snapshot ANTES da exclusão para auditoria
+    snapshot_antes = await _snapshot_esporte(conn, esporte_id)
+    if not snapshot_antes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
+
     async with conn.cursor() as cur:
         await cur.execute("DELETE FROM esportes WHERE id = %s RETURNING id", (esporte_id,))
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
         await conn.commit()
+
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="DELETE",
+        tipo_recurso="ESPORTE",
+        recurso_id=int(esporte_id),
+        detalhes_antes=snapshot_antes,
+        mensagem=f"Usuário {current_user['nome']} excluiu o Esporte {snapshot_antes['nome']}.",
+    )

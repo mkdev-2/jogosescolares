@@ -40,6 +40,7 @@ export default function Auditoria({ embedded = false }) {
   }, [filters])
 
   const FIELD_LABELS = {
+    // Estudante / dados gerais
     nome: 'Nome',
     cpf: 'CPF',
     rg: 'RG',
@@ -56,6 +57,7 @@ export default function Auditoria({ embedded = false }) {
     escola_nome: 'Escola',
     role: 'Perfil/Cargo',
     status: 'Status',
+    // Equipe
     esporte_nome: 'Esporte',
     categoria_nome: 'Categoria',
     naipe_nome: 'Naipe',
@@ -64,7 +66,16 @@ export default function Auditoria({ embedded = false }) {
     ficha_assinada: 'Ficha Assinada',
     documentacao_assinada_url: 'Doc. Assinado',
     foto_url: 'Foto',
-    modalidades_adesao: 'Modalidades (IDs)'
+    modalidades_adesao: 'Modalidades (IDs)',
+    // Professor
+    cref: 'CREF',
+    // Esporte
+    descricao: 'Descrição',
+    icone: 'Ícone',
+    requisitos: 'Requisitos',
+    limite_atletas: 'Limite de Atletas',
+    ativa: 'Ativa',
+    variantes: 'Variantes',
   }
 
   const formatValue = (val) => {
@@ -90,7 +101,7 @@ export default function Auditoria({ embedded = false }) {
     
     keys.forEach(key => {
       // Ignorar campos de sistema ou redundantes
-      if (['id', 'created_at', 'updated_at', 'escola_id', 'user_id', 'password_hash', 'escola_inep'].includes(key)) return
+      if (['id', 'created_at', 'updated_at', 'escola_id', 'user_id', 'password_hash', 'escola_inep', 'variante_id'].includes(key)) return
       
       const valAntes = antes[key]
       const valDepois = depois[key]
@@ -150,7 +161,32 @@ export default function Auditoria({ embedded = false }) {
                 <div className="flex flex-col gap-2 mt-2 ml-2 pl-4 border-l-2 border-gray-100">
                   {changes.length > 0 ? changes.map((change, idx) => {
                     const isFile = ['foto_url', 'documentacao_assinada_url'].includes(change.key)
+                    const isList = change.key === 'variantes'
                     
+                    if (isList) {
+                      const oldList = Array.isArray(change.old) ? change.old : []
+                      const newList = Array.isArray(change.new) ? change.new : []
+                      const removed = oldList.filter(v => !newList.includes(v))
+                      const added = newList.filter(v => !oldList.includes(v))
+                      return (
+                        <div key={idx} className="flex flex-col gap-1 text-[13px] text-gray-600">
+                          <span className="font-bold text-orange-600">
+                            {String(idx + 1).padStart(2, '0')} — <strong>{change.label}</strong>
+                          </span>
+                          {removed.map((v, i) => (
+                            <span key={`r${i}`} className="ml-4 bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 line-through">
+                              − {v}
+                            </span>
+                          ))}
+                          {added.map((v, i) => (
+                            <span key={`a${i}`} className="ml-4 bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100">
+                              + {v}
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    }
+
                     if (isFile) {
                       let action = 'Alterou'
                       if (!change.old) {
@@ -207,6 +243,8 @@ export default function Auditoria({ embedded = false }) {
         if (acao === 'CREATE') color = 'green'
         if (acao === 'DELETE') color = 'red'
         if (acao === 'UPDATE') color = 'orange'
+        if (acao === 'APPROVE') color = 'cyan'
+        if (acao === 'REVOKE') color = 'volcano'
         return <Tag color={color} style={{ fontWeight: 600 }}>{acao}</Tag>
       }
     },

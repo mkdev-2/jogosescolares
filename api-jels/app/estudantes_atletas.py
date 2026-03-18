@@ -14,6 +14,7 @@ from app.schemas import (
     EstudanteAtletaResponse,
     EstudanteCredencialResponse,
     ModalidadeSimples,
+    ValidacaoDocumentosRequest,
 )
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db, log_audit
@@ -44,6 +45,7 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
     r = row if isinstance(row, dict) else dict(row)
     escola_inep_val = r.get("escola_inep")
     escola_inep_out = (str(escola_inep_val).strip() or None) if escola_inep_val is not None else None
+    doc_val_em = r.get("documentos_validados_em")
     return EstudanteAtletaResponse(
         id=r["id"],
         escola_id=r["escola_id"],
@@ -67,6 +69,10 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
         responsavel_nis=r["responsavel_nis"],
         ficha_assinada=r.get("ficha_assinada", False),
         documentacao_assinada_url=r.get("documentacao_assinada_url"),
+        documentos_validados=r.get("documentos_validados", False),
+        documentos_validados_por=r.get("documentos_validados_por"),
+        documentos_validados_por_nome=r.get("documentos_validados_por_nome"),
+        documentos_validados_em=doc_val_em.isoformat() if doc_val_em else None,
         created_at=r["created_at"].isoformat() if r.get("created_at") else None,
         updated_at=r["updated_at"].isoformat() if r.get("updated_at") else None,
     )
@@ -86,9 +92,12 @@ async def list_estudantes_atletas(
                        e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                       e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                       u.nome AS documentos_validados_por_nome,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
+                LEFT JOIN users u ON u.id = e.documentos_validados_por
                 ORDER BY s.nome_escola NULLS LAST, e.nome
                 """,
             )
@@ -107,9 +116,12 @@ async def list_estudantes_atletas(
                        e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                       e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                       u.nome AS documentos_validados_por_nome,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
+                LEFT JOIN users u ON u.id = e.documentos_validados_por
                 WHERE e.escola_id = %s
                 ORDER BY e.nome
                 """,
@@ -261,9 +273,12 @@ async def get_estudante_atleta(
                    e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                   u.nome AS documentos_validados_por_nome,
                    e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
             FROM estudantes_atletas e
             LEFT JOIN escolas s ON s.id = e.escola_id
+            LEFT JOIN users u ON u.id = e.documentos_validados_por
             WHERE e.id = %s
             """,
             (estudante_id,),
@@ -479,9 +494,12 @@ async def update_estudante_atleta(
                    e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                   u.nome AS documentos_validados_por_nome,
                    e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
             FROM estudantes_atletas e
             LEFT JOIN escolas s ON s.id = e.escola_id
+            LEFT JOIN users u ON u.id = e.documentos_validados_por
             WHERE e.id = %s
             """,
             (estudante_id,),
@@ -532,3 +550,95 @@ async def delete_estudante_atleta(
             detalhes_antes=dict(existing),
             mensagem=f"Usuário {current_user['nome']} excluiu o Aluno {existing['nome']}.",
         )
+
+
+@router.patch("/{estudante_id}/validar-documentos", response_model=EstudanteAtletaResponse)
+async def validar_documentos_estudante(
+    estudante_id: int,
+    data: ValidacaoDocumentosRequest,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Valida (ou revoga a validação de) documentos de inscrição do aluno. Exclusivo para ADMIN/SUPERADMIN."""
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores podem validar documentos de inscrição.",
+        )
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, nome, documentacao_assinada_url FROM estudantes_atletas WHERE id = %s",
+            (estudante_id,),
+        )
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+
+    if data.validado and not existing["documentacao_assinada_url"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Não é possível validar: o aluno não possui ficha de inscrição anexada.",
+        )
+
+    if data.validado:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                UPDATE estudantes_atletas
+                SET documentos_validados = TRUE,
+                    documentos_validados_por = %s,
+                    documentos_validados_em = NOW()
+                WHERE id = %s
+                """,
+                (current_user["id"], estudante_id),
+            )
+            await conn.commit()
+        mensagem = f"Usuário {current_user['nome']} aprovou os documentos de inscrição do Aluno {existing['nome']}."
+        acao_audit = "APPROVE"
+    else:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                UPDATE estudantes_atletas
+                SET documentos_validados = FALSE,
+                    documentos_validados_por = NULL,
+                    documentos_validados_em = NULL
+                WHERE id = %s
+                """,
+                (estudante_id,),
+            )
+            await conn.commit()
+        mensagem = f"Usuário {current_user['nome']} revogou a validação dos documentos do Aluno {existing['nome']}."
+        acao_audit = "REVOKE"
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao=acao_audit,
+        tipo_recurso="ESTUDANTE",
+        recurso_id=estudante_id,
+        mensagem=mensagem,
+    )
+
+    # Retorna o estudante atualizado
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                   u.nome AS documentos_validados_por_nome,
+                   e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
+            FROM estudantes_atletas e
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            LEFT JOIN users u ON u.id = e.documentos_validados_por
+            WHERE e.id = %s
+            """,
+            (estudante_id,),
+        )
+        row = await cur.fetchone()
+    return _row_to_response(dict(row))
+
