@@ -28,6 +28,25 @@ async function uploadToStorage(file, bucket, path) {
 }
 
 /**
+ * Faz upload público para caminhos autorizados (ex: termo de adesão).
+ */
+async function uploadToStoragePublic(file, bucket, path) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const url = `${API_SERVICE_URL}/api/storage/upload/public?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || data.message || `Erro ${res.status} no upload`)
+  }
+  const data = await res.json()
+  return data.url || ''
+}
+
+/**
  * Retorna URL para exibir arquivo do storage (via GET /api/storage/file/).
  * path pode ser relativo (bucket/path) ou URL absoluta (retornada como está).
  */
@@ -72,7 +91,7 @@ export async function uploadDocumentacaoAssinada(file) {
 export async function uploadTermoAdesao(file) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
   const path = `escolas/termo-adesao/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  return uploadToStorage(file, BUCKET, path)
+  return uploadToStoragePublic(file, BUCKET, path)
 }
 
 /**

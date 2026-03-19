@@ -16,7 +16,7 @@ export default function ModalAdesaoEscola({ open, onClose, onSuccess, form, vari
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
   const [submitError, setSubmitError] = useState(null)
-  
+
   const [fichaPreviewOpen, setFichaPreviewOpen] = useState(false)
 
   const docFileList = [
@@ -112,7 +112,7 @@ export default function ModalAdesaoEscola({ open, onClose, onSuccess, form, vari
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800 m-0 leading-relaxed">
-            Sua solicitação está quase pronta. Para finalizar, gere o <strong>Termo de Adesão</strong> abaixo, imprima, colha a assinatura e carimbo do diretor, e anexe a versão digitalizada.
+            Sua solicitação está quase pronta. Para finalizar, gere o <strong>Termo de Adesão</strong> abaixo, assine, e anexe a versão digitalizada.
           </p>
         </div>
 

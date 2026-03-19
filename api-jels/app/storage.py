@@ -101,8 +101,64 @@ async def upload_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao fazer upload: {str(e)}",
         )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro inesperado: {str(e)}",
+        )
+
+@router.post("/upload/public")
+async def upload_file_public(
+    bucket: str,
+    path: str,
+    file: UploadFile = File(...),
+):
+    """
+    Upload de arquivo público para o MinIO (apenas diretórios permitidos).
+    Criado para aceitar arquivos de formulários de registro não logados.
+    """
+    if not path.startswith("escolas/termo-adesao/"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Upload público não permitido para este caminho."
+        )
+
+    if not minio_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço de storage não disponível",
+        )
+
+    try:
+        if not minio_client.bucket_exists(bucket):
+            minio_client.make_bucket(bucket)
+            logger.info(f"Bucket '{bucket}' criado")
+
+        file_content = await file.read()
+        file_size = len(file_content)
+
+        minio_client.put_object(
+            bucket,
+            path,
+            io.BytesIO(file_content),
+            length=file_size,
+            content_type=file.content_type or "application/octet-stream",
+        )
+
+        relative_path = f"{bucket}/{path}"
+        return {
+            "url": relative_path,
+            "bucket": bucket,
+            "path": path,
+            "size": file_size,
+        }
+    except S3Error as e:
+        logger.error(f"Erro S3 no upload público. Erro: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao fazer upload público: {str(e)}",
+        )
     except Exception as e:
-        logger.error(f"Erro ao fazer upload: {e}")
+        logger.error(f"Erro ao fazer upload público: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro inesperado: {str(e)}",
