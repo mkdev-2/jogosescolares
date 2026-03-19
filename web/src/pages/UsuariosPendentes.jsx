@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { School, Search, CheckCircle, Loader2, XCircle, Building2, User, Users, Trophy, CheckCircle2, XOctagon, Eye } from 'lucide-react'
+import { School, Search, CheckCircle, Loader2, XCircle, Building2, User, Users, Trophy, CheckCircle2, XOctagon, Eye, FileText, ExternalLink } from 'lucide-react'
 import { Popconfirm, Input, Pagination } from 'antd'
 import { escolasService } from '../services/escolasService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
+import { getStorageUrl } from '../services/storageService'
 import Modal from '../components/ui/Modal'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 
@@ -29,14 +30,14 @@ function formatCnpj(v) {
   return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5')
 }
 
-function SectionCard({ icon: Icon, title, children }) {
+function SectionCard({ icon: Icon, title, children, className = '' }) {
   return (
-    <div className="bg-[#f8fafc] rounded-[10px] border border-[#e2e8f0] p-4">
-      <div className="flex items-center gap-2 mb-3">
+    <div className={`bg-[#f8fafc] rounded-[10px] border border-[#e2e8f0] p-4 h-full flex flex-col ${className}`}>
+      <div className="flex items-center gap-2 mb-3 shrink-0">
         <Icon size={18} className="text-[#0f766e] shrink-0" />
         <h3 className="text-[0.9375rem] font-semibold text-[#334155] m-0">{title}</h3>
       </div>
-      <div className="text-[0.875rem] text-[#475569] space-y-2">{children}</div>
+      <div className="text-[0.875rem] text-[#475569] space-y-2 flex-1">{children}</div>
     </div>
   )
 }
@@ -403,59 +404,135 @@ export default function UsuariosPendentes({ embedded }) {
       >
         {modalSolicitacao && (
           <div className="space-y-4">
-            <p className="text-[0.875rem] text-[#64748b] m-0 -mt-1 mb-1">
-              Revise todas as informações enviadas no formulário de cadastro e decida por aprovar ou negar a solicitação.
-            </p>
-            {modalSolicitacao.created_at && (
-              <p className="text-[0.8125rem] text-[#64748b] m-0 -mt-2 mb-2">
-                Solicitado em {new Date(modalSolicitacao.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+            <div>
+              <p className="text-[0.875rem] text-[#64748b] m-0 -mt-1 mb-1">
+                Revise todas as informações enviadas no formulário de cadastro e decida por aprovar ou negar a solicitação.
               </p>
-            )}
-            <SectionCard icon={Building2} title="Instituição">
-              <InfoRow label="Nome/Razão Social" value={modalSolicitacao.nome_escola} />
-              <InfoRow label="INEP" value={modalSolicitacao.inep} />
-              <InfoRow label="CNPJ" value={formatCnpj(modalSolicitacao.cnpj)} />
-              <InfoRow label="Endereço" value={modalSolicitacao.endereco} />
-              <InfoRow label="Cidade" value={modalSolicitacao.cidade} />
-              <InfoRow label="UF" value={modalSolicitacao.uf} />
-              <InfoRow label="E-mail" value={modalSolicitacao.email} />
-              <InfoRow label="Telefone" value={formatTelefone(modalSolicitacao.telefone)} />
-            </SectionCard>
+              {modalSolicitacao.created_at && (
+                <p className="text-[0.8125rem] text-[#64748b] m-0 mb-2">
+                  Solicitado em {new Date(modalSolicitacao.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </div>
 
-            <SectionCard icon={User} title="Diretor">
-              <InfoRow label="Nome" value={modalSolicitacao.dados_diretor?.nome} />
-              <InfoRow label="CPF" value={formatCpf(modalSolicitacao.dados_diretor?.cpf)} />
-              <InfoRow label="RG" value={modalSolicitacao.dados_diretor?.rg} />
-            </SectionCard>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <SectionCard icon={Building2} title="Instituição">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
+                    <InfoRow label="Nome/Razão Social" value={modalSolicitacao.nome_escola} />
+                    <InfoRow label="INEP" value={modalSolicitacao.inep} />
+                    <InfoRow label="CNPJ" value={formatCnpj(modalSolicitacao.cnpj)} />
+                    <InfoRow label="Endereço" value={modalSolicitacao.endereco} />
+                    <InfoRow label="Cidade" value={modalSolicitacao.cidade} />
+                    <InfoRow label="UF" value={modalSolicitacao.uf} />
+                    <InfoRow label="E-mail" value={modalSolicitacao.email} />
+                    <InfoRow label="Telefone" value={formatTelefone(modalSolicitacao.telefone)} />
+                  </div>
+                </SectionCard>
+              </div>
 
-            <SectionCard icon={Users} title="Coordenador de Esportes">
-              <InfoRow label="Nome" value={modalSolicitacao.dados_coordenador?.nome} />
-              <InfoRow label="CPF" value={formatCpf(modalSolicitacao.dados_coordenador?.cpf)} />
-              <InfoRow label="RG" value={modalSolicitacao.dados_coordenador?.rg} />
-              <InfoRow label="Endereço" value={modalSolicitacao.dados_coordenador?.endereco} />
-              <InfoRow label="E-mail" value={modalSolicitacao.dados_coordenador?.email} />
-              <InfoRow label="Telefone" value={formatTelefone(modalSolicitacao.dados_coordenador?.telefone)} />
-            </SectionCard>
+              <div className="col-span-1">
+                <SectionCard icon={User} title="Diretor">
+                  <InfoRow label="Nome" value={modalSolicitacao.dados_diretor?.nome} />
+                  <InfoRow label="CPF" value={formatCpf(modalSolicitacao.dados_diretor?.cpf)} />
+                  <InfoRow label="RG" value={modalSolicitacao.dados_diretor?.rg} />
+                </SectionCard>
+              </div>
 
-            <SectionCard icon={Trophy} title="Modalidades">
-              {(() => {
-                const ids = modalSolicitacao.modalidades_adesao?.variante_ids || []
-                if (ids.length === 0) return <p className="m-0 text-[#64748b]">Nenhuma modalidade selecionada</p>
-                return (
-                  <ul className="list-none m-0 p-0 space-y-1">
-                    {ids.map((id) => {
-                      const v = variantes.find((x) => x.id === id)
-                      return (
-                        <li key={id} className="text-[#1e293b] flex items-center gap-2">
-                          <ModalidadeIcon icone={v?.esporte_icone || 'Zap'} size={16} className="text-[#0f766e] shrink-0" />
-                          {variantesMap[id] || id}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )
-              })()}
-            </SectionCard>
+              <div className="col-span-1">
+                <SectionCard icon={Users} title="Coordenador de Esportes">
+                  <InfoRow label="Nome" value={modalSolicitacao.dados_coordenador?.nome} />
+                  <InfoRow label="CPF" value={formatCpf(modalSolicitacao.dados_coordenador?.cpf)} />
+                  <InfoRow label="RG" value={modalSolicitacao.dados_coordenador?.rg} />
+                  <InfoRow label="Endereço" value={modalSolicitacao.dados_coordenador?.endereco} />
+                  <InfoRow label="E-mail" value={modalSolicitacao.dados_coordenador?.email} />
+                  <InfoRow label="Telefone" value={formatTelefone(modalSolicitacao.dados_coordenador?.telefone)} />
+                </SectionCard>
+              </div>
+
+              <div className="md:col-span-2">
+                <SectionCard icon={Trophy} title="Modalidades">
+                  {(() => {
+                    const ids = modalSolicitacao.modalidades_adesao?.variante_ids || []
+                    if (ids.length === 0) return <p className="m-0 text-[#64748b]">Nenhuma modalidade selecionada</p>
+                    
+                    const variantesSelecionadas = ids
+                      .map(id => variantes.find(x => x.id === id))
+                      .filter(Boolean)
+                    
+                    const agrupadas = variantesSelecionadas.reduce((acc, v) => {
+                      const esporte = v.esporte_nome || 'Variado'
+                      if (!acc[esporte]) acc[esporte] = []
+                      acc[esporte].push(v)
+                      return acc
+                    }, {})
+
+                    return (
+                      <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
+                        {Object.entries(agrupadas).map(([esporte, vars]) => (
+                          <div
+                            key={esporte}
+                            className="min-w-[260px] flex-shrink-0 px-4 py-3.5 rounded-xl bg-white border border-[#e2e8f0] shadow-sm hover:border-[#0f766e]/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 rounded-lg bg-[#f0fdfa] flex items-center justify-center">
+                                <Trophy size={16} className="text-[#0f766e]" />
+                              </div>
+                              <span className="text-sm font-bold text-[#042f2e]">{esporte}</span>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              {vars.map((v) => (
+                                <span
+                                  key={v.id}
+                                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#f1f5f9] text-[#475569] border border-[#e2e8f0] hover:bg-[#e2e8f0] transition-colors"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#0f766e]" />
+                                  <span className="flex-1">{v.categoria_nome}</span>
+                                  <span className="text-[#cbd5e1] font-normal">|</span>
+                                  <span className="text-[#64748b]">
+                                    {v.naipe_nome?.toUpperCase() === 'MASCULINO' ? 'Masculino' : 
+                                     v.naipe_nome?.toUpperCase() === 'FEMININO' ? 'Feminino' : v.naipe_nome}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </SectionCard>
+              </div>
+
+              {modalSolicitacao.termo_assinatura_url && (
+                <div className="md:col-span-2">
+                  <SectionCard icon={FileText} title="Termo de Adesão Anexado">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-end pr-1">
+                        <a 
+                          href={getStorageUrl(modalSolicitacao.termo_assinatura_url)} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[#0f766e] hover:text-[#0d9488]"
+                        >
+                          <ExternalLink size={14} /> Abrir em nova guia
+                        </a>
+                      </div>
+                      <div className="w-full bg-[#f8fafc] rounded-[8px] border border-[#cbd5e1] overflow-hidden flex justify-center items-center">
+                        {(() => {
+                          const url = getStorageUrl(modalSolicitacao.termo_assinatura_url)
+                          const isImage = url.toLowerCase().match(/\.(jpeg|jpg|gif|png|webp|bmp)(?:\?|$)/)
+                          if (isImage) {
+                            return <img src={url} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" />
+                          }
+                          return <iframe src={url} className="w-full h-[500px] border-0" title="Termo de Adesão" />
+                        })()}
+                      </div>
+                    </div>
+                  </SectionCard>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Modal>

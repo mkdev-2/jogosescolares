@@ -232,19 +232,26 @@ async def get_file(bucket: str, path: str):
         response.release_conn()
 
         content_type = "application/octet-stream"
-        if path.endswith(".png"):
+        lower_path = path.lower()
+        if lower_path.endswith(".png"):
             content_type = "image/png"
-        elif path.endswith(".jpg") or path.endswith(".jpeg"):
+        elif lower_path.endswith(".jpg") or lower_path.endswith(".jpeg"):
             content_type = "image/jpeg"
-        elif path.endswith(".gif"):
+        elif lower_path.endswith(".gif"):
             content_type = "image/gif"
-        elif path.endswith(".webp"):
+        elif lower_path.endswith(".webp"):
             content_type = "image/webp"
+        elif lower_path.endswith(".pdf"):
+            content_type = "application/pdf"
+
+        headers = {"Cache-Control": "public, max-age=31536000"}
+        if content_type == "application/pdf":
+            headers["Content-Disposition"] = 'inline; filename="documento.pdf"'
 
         return Response(
             content=content,
             media_type=content_type,
-            headers={"Cache-Control": "public, max-age=31536000"},
+            headers=headers,
         )
     except S3Error as e:
         if e.code == "NoSuchKey":
