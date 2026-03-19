@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Building2, User, Users, GraduationCap, UserCircle, Trophy } from 'lucide-react'
+import { Building2, User, Users, GraduationCap, UserCircle, Trophy, FileText, ExternalLink } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { escolasService } from '../../services/escolasService'
 import { usersService } from '../../services/usersService'
+import { getStorageUrl } from '../../services/storageService'
 
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col gap-0.5">
@@ -230,6 +231,47 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
               <p className="text-sm text-[#64748b] m-0">Nenhum usuário vinculado.</p>
             )}
           </div>
+
+          {dados.escola?.termo_assinatura_url && (
+            <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="w-4 h-4 text-[#64748b]" />
+                <h3 className="text-sm font-semibold text-[#042f2e] m-0">
+                  Termo de Adesão Anexado
+                </h3>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-end pr-1">
+                  {(() => {
+                    const url = getStorageUrl(dados.escola.termo_assinatura_url)
+                    const nocacheUrl = url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now()
+                    return (
+                      <a 
+                        href={nocacheUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[#0f766e] hover:text-[#0d9488]"
+                      >
+                        <ExternalLink size={14} /> Abrir em nova guia
+                      </a>
+                    )
+                  })()}
+                </div>
+                <div className="w-full bg-[#f8fafc] rounded-[8px] border border-[#cbd5e1] overflow-hidden flex justify-center items-center">
+                  {(() => {
+                    const url = getStorageUrl(dados.escola.termo_assinatura_url)
+                    const isImage = url.toLowerCase().match(/\.(jpeg|jpg|gif|png|webp|bmp)(?:\?|$)/)
+                    const nocacheUrl = url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now()
+                    
+                    if (isImage) {
+                      return <img src={nocacheUrl} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" />
+                    }
+                    return <iframe src={nocacheUrl} className="w-full h-[500px] border-0" title="Termo de Adesão" />
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Modal>

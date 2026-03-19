@@ -47,6 +47,7 @@ def _row_to_response(row: dict) -> dict:
         "uf": row["uf"],
         "email": row["email"],
         "telefone": row["telefone"],
+        "termo_assinatura_url": row.get("termo_assinatura_url"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }
@@ -262,7 +263,7 @@ async def get_escola_detalhes(
     """Obtém escola por ID com dados do diretor, contagens e usuários vinculados."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at "
+            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at, termo_assinatura_url "
             "FROM escolas WHERE id = %s",
             (escola_id,),
         )
