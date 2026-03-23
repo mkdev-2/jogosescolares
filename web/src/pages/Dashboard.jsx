@@ -283,14 +283,22 @@ export default function Dashboard() {
       {/* Cards de métricas */}
       <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
         <div className="p-6">
-          <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3">
-            <StatCard
-              title="Escolas Cadastradas"
-              value={loading ? '...' : stats.total_escolas ?? 0}
-              icon={Building2}
-              variant="primary"
-              to={isAdmin ? '/app/gestao?tab=escolas' : undefined}
-            />
+          <div
+            className={
+              isAdmin
+                ? 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
+                : 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'
+            }
+          >
+            {isAdmin && (
+              <StatCard
+                title="Escolas Cadastradas"
+                value={loading ? '...' : stats.total_escolas ?? 0}
+                icon={Building2}
+                variant="primary"
+                to="/app/gestao?tab=escolas"
+              />
+            )}
             <StatCard
               title="Alunos Cadastrados"
               value={loading ? '...' : stats.total_estudantes ?? 0}
