@@ -88,6 +88,15 @@ export default function Auditoria({ embedded = false }) {
 
   const cleanMessage = (msg) => {
     if (!msg) return ''
+    // Formato específico para geração de credenciais:
+    // "Usuário X gerou credenciais da escola Escola Y (10 aptos, 20 pendentes)."
+    // -> "Gerou credenciais da escola Escola Y (20 pendentes)."
+    const credenciaisMatch = msg.match(/^Usuário .+? gerou credenciais da escola (.+?) \((\d+)\s+aptos,\s*(\d+)\s+pendentes\)\.?$/i)
+    if (credenciaisMatch) {
+      const escola = credenciaisMatch[1]
+      const pendentes = credenciaisMatch[3]
+      return `Gerou credenciais da escola ${escola} (${pendentes} pendentes).`
+    }
     // Remove "Usuário [qualquer_coisa] " se a frase começar assim, pegando a partir da ação (verbo)
     // Exemplos: "adicionou", "excluiu", "alterou", "aprovou", "negou"
     const cleaned = msg.replace(/^Usuário .+? (adicionou|excluiu|alterou|aprovou|negou|gerou|exportou)/, '$1')

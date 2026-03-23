@@ -324,7 +324,7 @@ async def create_equipe(
         # Validar todos os estudantes existem e pertencem à escola
         for sid in data.estudante_ids:
             await cur.execute(
-                "SELECT id, escola_id FROM estudantes_atletas WHERE id = %s",
+                "SELECT id, escola_id, documentacao_assinada_url FROM estudantes_atletas WHERE id = %s",
                 (sid,),
             )
             est = await cur.fetchone()
@@ -337,6 +337,11 @@ async def create_equipe(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Todos os estudantes devem pertencer à sua escola",
+                )
+            if not est.get("documentacao_assinada_url") or not str(est.get("documentacao_assinada_url")).strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A equipe só pode ser formada por alunos com documentação assinada.",
                 )
 
         # Validar se a escola já possui equipe nesta variante
@@ -480,10 +485,18 @@ async def update_equipe(
 
         if "estudante_ids" in updates:
             for sid in updates["estudante_ids"]:
-                await cur.execute("SELECT id, escola_id FROM estudantes_atletas WHERE id = %s", (sid,))
+                await cur.execute(
+                    "SELECT id, escola_id, documentacao_assinada_url FROM estudantes_atletas WHERE id = %s",
+                    (sid,),
+                )
                 est = await cur.fetchone()
                 if not est or est["escola_id"] != escola_id:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Todos os estudantes devem pertencer à sua escola")
+                if not est.get("documentacao_assinada_url") or not str(est.get("documentacao_assinada_url")).strip():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="A equipe só pode ser formada por alunos com documentação assinada.",
+                    )
 
         if "professor_tecnico_id" in updates:
             await cur.execute(

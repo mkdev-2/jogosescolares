@@ -25,6 +25,10 @@ function calcularIdade(dataNasc) {
   return idade
 }
 
+function temDocumentoAssinado(estudante) {
+  return !!String(estudante?.documentacao_assinada_url || '').trim()
+}
+
 function VarianteOptionLabel({ variante }) {
   return (
     <span className="inline-flex items-center gap-2">
@@ -87,7 +91,10 @@ export default function EquipeModal({
   }
 
   const selectAllAlunos = () => {
-    const ids = filteredEstudantes.map((e) => e.id).filter(Boolean)
+    const ids = filteredEstudantes
+      .filter((e) => temDocumentoAssinado(e))
+      .map((e) => e.id)
+      .filter(Boolean)
     if (ids.length === 0) return
     const allSelected = ids.every((id) => estudanteIds.includes(id))
     if (allSelected) {
@@ -116,6 +123,11 @@ export default function EquipeModal({
     if (estudanteIds.length === 0) err.estudante_ids = 'Selecione pelo menos um aluno'
     if (limiteAtletas != null && estudanteIds.length > limiteAtletas) {
       err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta variante.`
+    }
+    const alunosSelecionados = estudantes.filter((e) => estudanteIds.includes(e.id))
+    const algumSemDocumento = alunosSelecionados.some((e) => !temDocumentoAssinado(e))
+    if (algumSemDocumento) {
+      err.estudante_ids = 'A equipe só pode ser formada por alunos com documentação assinada.'
     }
 
     // Validação de duplicidade (mesma variante para a mesma escola)
@@ -270,7 +282,7 @@ export default function EquipeModal({
             </div>
             {errors.estudante_ids && <p className={errorClass}>{errors.estudante_ids}</p>}
             <p className="text-sm text-[#64748b] mb-3">
-              Selecione os alunos já cadastrados em Alunos. O sistema valida idade e naipe automaticamente.
+              Selecione os alunos já cadastrados em Alunos com documentação assinada. O sistema valida idade e naipe automaticamente.
               {limiteAtletas != null && (
                 <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe.</span>
               )}
@@ -293,7 +305,8 @@ export default function EquipeModal({
                 <ul className="list-none m-0 p-0 space-y-1">
                   {filteredEstudantes.map((est) => {
                     const jaSelecionado = estudanteIds.includes(est.id)
-                    const desabilitado = !jaSelecionado && !podeAdicionarMais
+                    const documentoAssinado = temDocumentoAssinado(est)
+                    const desabilitado = !jaSelecionado && (!podeAdicionarMais || !documentoAssinado)
                     return (
                     <li key={est.id}>
                       <label className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer hover:bg-[#e2e8f0]/50 ${desabilitado ? 'opacity-60 cursor-not-allowed' : ''}`}>
@@ -310,6 +323,10 @@ export default function EquipeModal({
                             <span>{calcularIdade(est.data_nascimento)} anos</span>
                             <span>•</span>
                             <span>{est.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+                            <span>•</span>
+                            <span className={documentoAssinado ? 'text-emerald-700 font-medium' : 'text-amber-700 font-medium'}>
+                              {documentoAssinado ? 'Documento assinado' : 'Assinatura pendente'}
+                            </span>
                           </div>
                         </div>
                       </label>

@@ -24,12 +24,34 @@ export default function Credenciais() {
             return {}
         }
     })
+    const [credenciaisGeradasPorEscola, setCredenciaisGeradasPorEscola] = useState(() => {
+        try {
+            const raw = localStorage.getItem('credenciais_alunos_exportados')
+            return raw ? JSON.parse(raw) : {}
+        } catch (e) {
+            return {}
+        }
+    })
+    const [filtroGeracao, setFiltroGeracao] = useState('todos')
 
     const escolaObj = listaEscolas.find((e) => Number(e.id) === Number(escolaSelecionada))
     const estudantesComDocumentoAssinado = estudantesDaEscola.filter(
         (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
     )
     const estudantesComAssinaturaPendente = estudantesDaEscola.length - estudantesComDocumentoAssinado.length
+    const credenciaisDaEscola = credenciaisGeradasPorEscola[String(escolaSelecionada)] || {}
+    const estudantesSemCredencialGerada = estudantesDaEscola.filter(
+        (aluno) => !credenciaisDaEscola[String(aluno.id)]
+    )
+    const estudantesAptosSemCredencialGerada = estudantesSemCredencialGerada.filter(
+        (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
+    )
+    const estudantesSelecionadosParaGeracao = filtroGeracao === 'nao-geradas'
+        ? estudantesAptosSemCredencialGerada
+        : estudantesComDocumentoAssinado
+    const estudantesExibidosNaTabela = filtroGeracao === 'nao-geradas'
+        ? estudantesSemCredencialGerada
+        : estudantesComDocumentoAssinado
 
     const fetchEstudantes = useCallback(async () => {
         if (!escolaSelecionada) {
@@ -58,13 +80,17 @@ export default function Credenciais() {
             return
         }
 
-        if (estudantesComDocumentoAssinado.length === 0) {
-            alert('Nenhum estudante com status "Documento assinado" para esta escola.')
+        if (estudantesSelecionadosParaGeracao.length === 0) {
+            if (filtroGeracao === 'nao-geradas') {
+                alert('Nenhum estudante apto sem credencial gerada para esta escola.')
+            } else {
+                alert('Nenhum estudante com status "Documento assinado" para esta escola.')
+            }
             return
         }
 
         setGerandoPdf(true)
-        setProgressoPdf({ atual: 0, total: estudantesComDocumentoAssinado.length })
+        setProgressoPdf({ atual: 0, total: estudantesSelecionadosParaGeracao.length })
 
         try {
             await estudantesService.auditarGeracaoCredenciais(escolaSelecionada)
@@ -127,8 +153,8 @@ export default function Credenciais() {
             const topMargin = 15
             const gapY = 15
 
-            for (let i = 0; i < estudantesComDocumentoAssinado.length; i++) {
-                const aluno = estudantesComDocumentoAssinado[i]
+            for (let i = 0; i < estudantesSelecionadosParaGeracao.length; i++) {
+                const aluno = estudantesSelecionadosParaGeracao[i]
                 const indexInPage = i % 2
                 if (i > 0 && indexInPage === 0) doc.addPage()
 
@@ -318,7 +344,7 @@ export default function Credenciais() {
                     doc.addImage(logoJels.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dJels.h) / 2, dJels.w, dJels.h)
                 }
 
-                setProgressoPdf({ atual: i + 1, total: estudantesComDocumentoAssinado.length })
+                setProgressoPdf({ atual: i + 1, total: estudantesSelecionadosParaGeracao.length })
             }
 
             const nomeArquivo = `credenciais-${(escolaObj?.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`
@@ -327,6 +353,22 @@ export default function Credenciais() {
             const novoExportadas = { ...escolasExportadas, [escolaSelecionada]: new Date().toISOString() }
             setEscolasExportadas(novoExportadas)
             localStorage.setItem('credenciais_exportadas', JSON.stringify(novoExportadas))
+
+            const escolaKey = String(escolaSelecionada)
+            const baseEscola = credenciaisGeradasPorEscola[escolaKey] || {}
+            const novosIds = estudantesSelecionadosParaGeracao.reduce((acc, aluno) => {
+                acc[String(aluno.id)] = new Date().toISOString()
+                return acc
+            }, {})
+            const novoMapaCredenciais = {
+                ...credenciaisGeradasPorEscola,
+                [escolaKey]: {
+                    ...baseEscola,
+                    ...novosIds,
+                },
+            }
+            setCredenciaisGeradasPorEscola(novoMapaCredenciais)
+            localStorage.setItem('credenciais_alunos_exportados', JSON.stringify(novoMapaCredenciais))
 
         } catch (err) {
             console.error(err)
@@ -347,8 +389,6 @@ export default function Credenciais() {
                                 <span className="leading-tight">Gerador de Credenciais</span>
                             </Space>
                         </Typography.Title>
-                        <Typography.Text type="secondary" className="text-[0.875rem] sm:text-[1rem] leading-relaxed">
-                        </Typography.Text>
                     </div>
                     <Alert
                         type="warning"
@@ -378,6 +418,22 @@ export default function Credenciais() {
                                             label: escola.nome_escola,
                                             value: escola.id,
                                         }))}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={24} md={12}>
+                                <Form.Item
+                                    label="Filtro de geração"
+                                    style={{ marginBottom: 12 }}
+                                >
+                                    <Select
+                                        value={filtroGeracao}
+                                        onChange={setFiltroGeracao}
+                                        style={{ width: '100%', height: 45 }}
+                                        options={[
+                                            { label: 'Todos os aptos (Documento assinado)', value: 'todos' },
+                                            { label: 'Somente sem credencial gerada', value: 'nao-geradas' },
+                                        ]}
                                     />
                                 </Form.Item>
                             </Col>
@@ -421,23 +477,30 @@ export default function Credenciais() {
                                     type="button"
                                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all text-[0.9375rem]"
                                     onClick={handleGerarPdf}
-                                    disabled={gerandoPdf || estudantesComDocumentoAssinado.length === 0}
+                                    disabled={gerandoPdf || estudantesSelecionadosParaGeracao.length === 0}
                                 >
                                     {gerandoPdf ? (
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     ) : (
                                         <Download size={20} />
                                     )}
-                                    {gerandoPdf ? 'Processando...' : `GERAR PDF)`}
+                                    {gerandoPdf ? 'Processando...' : `GERAR PDF (${estudantesSelecionadosParaGeracao.length} SELECIONADOS)`}
                                 </button>
                             </div>
                         )}
                     </Form>
 
                     {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                        <Card size="small" title={`Estudantes Encontrados (${estudantesDaEscola.length})`}>
+                        <Card
+                            size="small"
+                            title={
+                                filtroGeracao === 'nao-geradas'
+                                    ? `Estudantes sem credencial gerada (${estudantesExibidosNaTabela.length})`
+                                    : `Estudantes Encontrados (${estudantesExibidosNaTabela.length})`
+                            }
+                        >
                             <Table
-                                dataSource={estudantesDaEscola}
+                                dataSource={estudantesExibidosNaTabela}
                                 rowKey="id"
                                 pagination={{ pageSize: 15 }}
                                 size="small"
@@ -461,6 +524,16 @@ export default function Credenciais() {
                                             return temDocumentoAssinado
                                                 ? <Tag color="green">Documento assinado</Tag>
                                                 : <Tag color="orange">Assinatura pendente</Tag>
+                                        }
+                                    },
+                                    {
+                                        title: 'Credencial',
+                                        key: 'status_credencial',
+                                        render: (_, row) => {
+                                            const gerada = !!credenciaisDaEscola[String(row?.id)]
+                                            return gerada
+                                                ? <Tag color="cyan">Gerada</Tag>
+                                                : <Tag color="default">Não gerada</Tag>
                                         }
                                     },
                                     {
