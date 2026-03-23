@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import psycopg
 
 from app.auth import get_current_user
-from app.database import get_db
+from app.database import get_db, log_audit
 from app.schemas import ConfiguracoesUpdate, ConfiguracoesLogosUpdate
 
 router = APIRouter(prefix="/api/configuracoes", tags=["configuracoes"])
@@ -161,7 +161,15 @@ async def update_configuracoes(
         "prefeito_descricao": payload.prefeito_descricao,
     }
 
+    previous_values = {}
     async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(updates.keys()),),
+        )
+        async for row in cur:
+            previous_values[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+
         for chave, valor in updates.items():
             await cur.execute(
                 """
@@ -172,6 +180,16 @@ async def update_configuracoes(
                 (chave, valor),
             )
     await conn.commit()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="CONFIGURACOES",
+        detalhes_antes=previous_values,
+        detalhes_depois={k: _valor_para_resposta(v, k) for k, v in updates.items()},
+        mensagem=f"Usuário {current_user['nome']} alterou as configurações de datas e prazos.",
+    )
 
     result = {chave: None for chave in CHAVES_CONHECIDAS}
     async with conn.cursor() as cur:
@@ -216,7 +234,15 @@ async def update_configuracoes_logos(
                 result[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
         return result
 
+    previous_values = {}
     async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (list(updates.keys()),),
+        )
+        async for row in cur:
+            previous_values[row["chave"]] = _valor_para_resposta(row["valor"], row["chave"])
+
         for chave, valor in updates.items():
             await cur.execute(
                 """
@@ -227,6 +253,16 @@ async def update_configuracoes_logos(
                 (chave, valor),
             )
     await conn.commit()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="MIDIAS",
+        detalhes_antes=previous_values,
+        detalhes_depois={k: _valor_para_resposta(v, k) for k, v in updates.items()},
+        mensagem=f"Usuário {current_user['nome']} alterou itens da central de mídias.",
+    )
 
     result = {chave: None for chave in CHAVES_CONHECIDAS}
     async with conn.cursor() as cur:
