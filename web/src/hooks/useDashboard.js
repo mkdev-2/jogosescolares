@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { dashboardService } from '../services/dashboardService'
 
-export function useDashboard() {
+export function useDashboard(edicaoId = null) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -13,7 +13,7 @@ export function useDashboard() {
     setLoading(true)
     setError(null)
     try {
-      const stats = await dashboardService.getStats()
+      const stats = await dashboardService.getStats(edicaoId)
       setData(stats)
       return stats
     } catch (err) {
@@ -23,7 +23,7 @@ export function useDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [edicaoId])
 
   useEffect(() => {
     fetchData()

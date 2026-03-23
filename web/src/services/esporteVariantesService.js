@@ -23,8 +23,9 @@ export const esporteVariantesService = {
     return Array.isArray(data) ? data : []
   },
 
-  async listMinhaEscola() {
-    const res = await apiFetch(`${BASE}/minha-escola`)
+  async listMinhaEscola(edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/minha-escola${qs}`)
     const data = await handleResponse(res, 'Erro ao listar modalidades da escola')
     return Array.isArray(data) ? data : []
   },

@@ -85,9 +85,20 @@ async def update_status_edicao(
 ):
     _require_admin(current_user)
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id FROM edicoes WHERE id = %s", (edicao_id,))
-        if not await cur.fetchone():
+        await cur.execute("SELECT id, status FROM edicoes WHERE id = %s", (edicao_id,))
+        current = await cur.fetchone()
+        if not current:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edição não encontrada.")
+
+        # Regra de segurança: sempre deve existir ao menos uma edição ativa.
+        if data.status != "ATIVA" and current["status"] == "ATIVA":
+            await cur.execute("SELECT COUNT(*) AS total FROM edicoes WHERE status = 'ATIVA'")
+            total_ativas = (await cur.fetchone())["total"] or 0
+            if total_ativas <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Não é possível encerrar a única edição ativa. Ative outra edição antes.",
+                )
 
         if data.status == "ATIVA":
             await cur.execute("UPDATE edicoes SET status = 'ENCERRADA' WHERE status = 'ATIVA' AND id <> %s", (edicao_id,))

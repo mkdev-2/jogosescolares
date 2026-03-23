@@ -43,6 +43,7 @@ export default function EquipeModal({
   professoresTecnicos = [],
   equipe = null,
   equipes = [],
+  edicaoId = null,
 }) {
   const [varianteId, setVarianteId] = useState('')
   const [estudanteIds, setEstudanteIds] = useState([])
@@ -144,9 +145,9 @@ export default function EquipeModal({
         professor_tecnico_id: Number(professorTecnicoId),
       }
       if (equipe?.id) {
-        await equipesService.atualizar(equipe.id, payload)
+        await equipesService.atualizar(equipe.id, payload, edicaoId)
       } else {
-        await equipesService.criar(payload)
+        await equipesService.criar(payload, edicaoId)
       }
       handleClose()
       onSuccess?.()
