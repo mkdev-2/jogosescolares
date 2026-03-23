@@ -216,7 +216,7 @@ export default function Midias({ embedded }) {
 
       {/* Banners Section */}
       <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center justify-between">
-        Banners do Carrossel (Home)
+        Banners da Página Inicial
         <button 
           onClick={() => inputBannerRef.current?.click()}
           disabled={uploadingBanner}

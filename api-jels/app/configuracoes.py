@@ -254,6 +254,28 @@ async def update_configuracoes_logos(
             )
     await conn.commit()
 
+    added_keys = []
+    removed_keys = []
+    changed_keys = []
+    for chave, novo_valor in updates.items():
+        anterior = previous_values.get(chave)
+        novo = _valor_para_resposta(novo_valor, chave)
+        if not anterior and novo:
+            added_keys.append(chave)
+        elif anterior and not novo:
+            removed_keys.append(chave)
+        elif anterior != novo:
+            changed_keys.append(chave)
+
+    if added_keys and not removed_keys and not changed_keys:
+        acao_midias = "adicionou"
+    elif removed_keys and not added_keys and not changed_keys:
+        acao_midias = "removeu"
+    elif changed_keys and not added_keys and not removed_keys:
+        acao_midias = "alterou"
+    else:
+        acao_midias = "atualizou"
+
     await log_audit(
         conn=conn,
         user_id=current_user["id"],
@@ -261,7 +283,7 @@ async def update_configuracoes_logos(
         tipo_recurso="MIDIAS",
         detalhes_antes=previous_values,
         detalhes_depois={k: _valor_para_resposta(v, k) for k, v in updates.items()},
-        mensagem=f"Usuário {current_user['nome']} alterou itens da central de mídias.",
+        mensagem=f"Usuário {current_user['nome']} {acao_midias} itens da central de mídias.",
     )
 
     result = {chave: None for chave in CHAVES_CONHECIDAS}
