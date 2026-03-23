@@ -39,7 +39,26 @@ async def get_dashboard_stats(
             await cur.execute("SELECT COUNT(*) AS total FROM estudantes_atletas")
             total_estudantes = (await cur.fetchone())["total"] or 0
 
-            # Total de modalidades (esporte_variantes)
+            # Total de estudantes sem documentação assinada enviada
+            await cur.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM estudantes_atletas
+                WHERE documentacao_assinada_url IS NULL OR documentacao_assinada_url = ''
+                """
+            )
+            alunos_sem_documentacao = (await cur.fetchone())["total"] or 0
+
+            # Total de esportes únicos com base nas variantes (equivale ao contador do /app/atividades)
+            await cur.execute(
+                """
+                SELECT COUNT(DISTINCT ev.esporte_id) AS total
+                FROM esporte_variantes ev
+                """
+            )
+            total_esportes = (await cur.fetchone())["total"] or 0
+
+            # Total de modalidades (esporte_variantes) - mantido por compatibilidade
             await cur.execute(
                 """
                 SELECT COUNT(*) AS total FROM esporte_variantes ev
@@ -96,15 +115,24 @@ async def get_dashboard_stats(
                 """
                 SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
                        ev.id AS esporte_variante_id,
-                       COUNT(e.id) AS total_equipes
+                       esp.limite_atletas AS esporte_limite_atletas,
+                       COUNT(DISTINCT e.id) AS total_equipes,
+                       COUNT(DISTINCT ee.estudante_id) AS total_atletas
                 FROM equipes e
                 JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
                 JOIN esportes esp ON esp.id = ev.esporte_id
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
+                LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
                 WHERE e.edicao_id = %s
-                GROUP BY ev.id, esp.nome, c.nome, n.nome
-                ORDER BY total_equipes DESC
+                GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
+                ORDER BY COALESCE(
+                    (
+                        COUNT(DISTINCT ee.estudante_id)::numeric
+                        / NULLIF(COUNT(DISTINCT e.id) * esp.limite_atletas, 0)
+                    ) * 100,
+                    0
+                ) DESC
                 """
                 ,
                 (resolved_edicao_id,),
@@ -114,8 +142,18 @@ async def get_dashboard_stats(
                     "esporte_nome": r["esporte_nome"],
                     "categoria_nome": r["categoria_nome"],
                     "naipe_nome": r["naipe_nome"],
+                    "esporte_variante_id": r["esporte_variante_id"],
                     "modalidade": f"{r['esporte_nome']} - {r['categoria_nome']} ({r['naipe_nome']})",
-                    "total": r["total_equipes"],
+                    "total_equipes": r["total_equipes"] or 0,
+                    "total_atletas": r["total_atletas"] or 0,
+                    "limite_atletas": r["esporte_limite_atletas"] or 0,
+                    "ocupacao_percent": (
+                        round((r["total_atletas"] or 0) / ((r["total_equipes"] or 0) * (r["esporte_limite_atletas"] or 0)) * 100, 1)
+                        if (r["total_equipes"] or 0) > 0 and (r["esporte_limite_atletas"] or 0) > 0
+                        else 0
+                    ),
+                    # campo legada (mantém compatibilidade com UI anterior)
+                    "total": r["total_equipes"] or 0,
                 }
                 for r in await cur.fetchall()
             ]
@@ -153,7 +191,42 @@ async def get_dashboard_stats(
             )
             total_estudantes = (await cur.fetchone())["total"] or 0
 
-            # Modalidades disponíveis (todas, pois são catálogo)
+            # Total de estudantes sem documentação assinada enviada
+            await cur.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM estudantes_atletas
+                WHERE escola_id = %s
+                  AND (documentacao_assinada_url IS NULL OR documentacao_assinada_url = '')
+                """,
+                (escola_id,),
+            )
+            alunos_sem_documentacao = (await cur.fetchone())["total"] or 0
+
+            # Total de esportes únicos com base nas variantes selecionadas na escola do usuário
+            await cur.execute(
+                "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+                (escola_id,),
+            )
+            escola_row = await cur.fetchone()
+            variante_ids = []
+            if escola_row and isinstance(escola_row.get("modalidades_adesao"), dict):
+                variante_ids = escola_row["modalidades_adesao"].get("variante_ids") or []
+
+            if not variante_ids:
+                total_esportes = 0
+            else:
+                await cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT ev.esporte_id) AS total
+                    FROM esporte_variantes ev
+                    WHERE ev.id = ANY(%s)
+                    """,
+                    (variante_ids,),
+                )
+                total_esportes = (await cur.fetchone())["total"] or 0
+
+            # Modalidades disponíveis (variantes - todas, pois são catálogo)
             await cur.execute(
                 """
                 SELECT COUNT(*) AS total FROM esporte_variantes ev
@@ -192,15 +265,24 @@ async def get_dashboard_stats(
                 """
                 SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
                        ev.id AS esporte_variante_id,
-                       COUNT(e.id) AS total_equipes
+                       esp.limite_atletas AS esporte_limite_atletas,
+                       COUNT(DISTINCT e.id) AS total_equipes,
+                       COUNT(DISTINCT ee.estudante_id) AS total_atletas
                 FROM equipes e
                 JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
                 JOIN esportes esp ON esp.id = ev.esporte_id
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
+                LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
                 WHERE e.escola_id = %s AND e.edicao_id = %s
-                GROUP BY ev.id, esp.nome, c.nome, n.nome
-                ORDER BY total_equipes DESC
+                GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
+                ORDER BY COALESCE(
+                    (
+                        COUNT(DISTINCT ee.estudante_id)::numeric
+                        / NULLIF(COUNT(DISTINCT e.id) * esp.limite_atletas, 0)
+                    ) * 100,
+                    0
+                ) DESC
                 """,
                 (escola_id, resolved_edicao_id),
             )
@@ -209,8 +291,18 @@ async def get_dashboard_stats(
                     "esporte_nome": r["esporte_nome"],
                     "categoria_nome": r["categoria_nome"],
                     "naipe_nome": r["naipe_nome"],
+                    "esporte_variante_id": r["esporte_variante_id"],
                     "modalidade": f"{r['esporte_nome']} - {r['categoria_nome']} ({r['naipe_nome']})",
-                    "total": r["total_equipes"],
+                    "total_equipes": r["total_equipes"] or 0,
+                    "total_atletas": r["total_atletas"] or 0,
+                    "limite_atletas": r["esporte_limite_atletas"] or 0,
+                    "ocupacao_percent": (
+                        round((r["total_atletas"] or 0) / ((r["total_equipes"] or 0) * (r["esporte_limite_atletas"] or 0)) * 100, 1)
+                        if (r["total_equipes"] or 0) > 0 and (r["esporte_limite_atletas"] or 0) > 0
+                        else 0
+                    ),
+                    # campo legada (mantém compatibilidade com UI anterior)
+                    "total": r["total_equipes"] or 0,
                 }
                 for r in await cur.fetchall()
             ]
@@ -220,6 +312,8 @@ async def get_dashboard_stats(
     return {
         "total_escolas": total_escolas,
         "total_estudantes": total_estudantes,
+        "alunos_sem_documentacao": alunos_sem_documentacao,
+        "total_esportes": total_esportes,
         "total_modalidades": total_modalidades,
         "total_equipes": total_equipes,
         "total_professores": total_professores,

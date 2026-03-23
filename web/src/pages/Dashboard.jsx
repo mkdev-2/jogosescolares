@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useMemo } from 'react'
+import { Tabs } from 'antd'
 import {
   Building2,
   Users,
@@ -10,10 +11,16 @@ import {
   Activity,
   Clock,
   Calendar,
+  FileText,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useDashboard } from '../hooks/useDashboard'
 import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
+import Modal from '../components/ui/Modal'
+import { equipesService } from '../services/equipesService'
+import { estudantesService } from '../services/estudantesService'
+import EquipesList from '../components/catalogos/EquipesList'
+import EquipeViewModal from '../components/catalogos/EquipeViewModal'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
@@ -34,12 +41,19 @@ function getRestante(dataLimiteStr, now = new Date()) {
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to }) {
-  const variants = {
-    primary: 'from-[#0f766e]/10 to-[#0d9488]/10 border-[#0f766e]/20',
-    secondary: 'from-blue-500/10 to-indigo-600/10 border-blue-500/20',
-    success: 'from-emerald-500/10 to-emerald-600/10 border-emerald-500/20',
-    warning: 'from-amber-500/10 to-amber-600/10 border-amber-500/20',
-    info: 'from-indigo-500/10 to-indigo-600/10 border-indigo-500/20',
+  const overlayVariants = {
+    primary: 'from-[#0f766e]/10 to-[#0d9488]/10',
+    secondary: 'from-blue-500/10 to-indigo-600/10',
+    success: 'from-emerald-500/10 to-emerald-600/10',
+    warning: 'from-amber-500/10 to-amber-600/10',
+    info: 'from-indigo-500/10 to-indigo-600/10',
+  }
+  const borderVariants = {
+    primary: 'border-[#0f766e]/20',
+    secondary: 'border-blue-500/20',
+    success: 'border-emerald-500/20',
+    warning: 'border-amber-500/20',
+    info: 'border-indigo-500/20',
   }
   const iconBg = {
     primary: 'bg-[#0f766e] text-white',
@@ -53,26 +67,26 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
 
   const content = (
     <div
-      className={`relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${to ? 'cursor-pointer' : ''}`}
+      className={`group relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${borderVariants[variant] || borderVariants.primary} ${to ? 'cursor-pointer' : ''}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-br opacity-40" />
+      <div className={`absolute inset-0 bg-gradient-to-br opacity-40 ${overlayVariants[variant] || overlayVariants.primary} transition-opacity group-hover:opacity-60`} />
+
       <div className="relative flex justify-between items-start mb-2 sm:mb-3">
-        <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
+        <p className="text-[11px] sm:text-[12px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
           {title}
         </p>
-        <div
-          className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md ${iconBg[variant]} shrink-0`}
-        >
+        <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${iconBg[variant] || iconBg.primary} shrink-0`}>
           <Icon className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
         </div>
       </div>
-      <p className="text-xl sm:text-3xl font-extrabold text-[#042f2e] leading-none mb-1">
+
+      <p className="relative text-xl sm:text-3xl font-extrabold text-[#042f2e] leading-none mb-1">
         {formatValue(value)}
       </p>
       {subtitle && (
         <p className="text-[10px] sm:text-xs text-[#64748b] font-medium leading-tight">{subtitle}</p>
       )}
-      <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
+      <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none transition-opacity group-hover:opacity-[0.08]">
         <Icon size={80} className="text-[#0f766e]" />
       </div>
     </div>
@@ -89,7 +103,104 @@ export default function Dashboard() {
   const { data, loading, error } = useDashboard()
   const { dataLimite: prazoCadastroAlunos, bloqueado: prazoEncerrado } = usePrazoCadastroAlunos()
   const [now, setNow] = useState(() => new Date())
+  const [tabEquipesModalidade, setTabEquipesModalidade] = useState('')
   const isAdmin = ADMIN_ROLES.includes(user?.role)
+
+  const [equipesCache, setEquipesCache] = useState(null)
+  const [openAlunosModal, setOpenAlunosModal] = useState(false)
+  const [alunosModalidade, setAlunosModalidade] = useState([])
+  const [loadingAlunosModalidade, setLoadingAlunosModalidade] = useState(false)
+  const [modalidadeSelecionada, setModalidadeSelecionada] = useState(null)
+
+  // Admin: modal com lista de equipes (com escola) e, ao clicar, lista de alunos daquela equipe.
+  const [openEquipesAdminModal, setOpenEquipesAdminModal] = useState(false)
+  const [equipesAdminDaModalidade, setEquipesAdminDaModalidade] = useState([])
+  const [loadingEquipesAdminDaModalidade, setLoadingEquipesAdminDaModalidade] = useState(false)
+  const [modalidadeSelecionadaAdmin, setModalidadeSelecionadaAdmin] = useState(null)
+  const [equipeAdminSelecionada, setEquipeAdminSelecionada] = useState(null)
+
+  const handleAbrirAlunosModalidade = async (item) => {
+    if (isAdmin) return
+    setModalidadeSelecionada(item)
+    setOpenAlunosModal(true)
+    setLoadingAlunosModalidade(true)
+
+    try {
+      let equipes = equipesCache
+      if (!Array.isArray(equipes)) {
+        equipes = await equipesService.listar()
+        setEquipesCache(equipes)
+      }
+
+      const matches = equipes.filter((e) => {
+        if (item?.esporte_variante_id) {
+          return String(e?.esporte_variante_id ?? '') === String(item?.esporte_variante_id)
+        }
+        return (
+          e?.esporte_nome === item?.esporte_nome &&
+          e?.categoria_nome === item?.categoria_nome &&
+          e?.naipe_nome === item?.naipe_nome
+        )
+      })
+
+      const dedup = new Map()
+      matches.forEach((eq) => {
+        ;(eq?.estudantes || []).forEach((est) => {
+          if (!est?.id) return
+          dedup.set(est.id, est)
+        })
+      })
+
+      const alunos = Array.from(dedup.values())
+      alunos.sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '', 'pt-BR', { sensitivity: 'base' }))
+      setAlunosModalidade(alunos)
+    } catch (e) {
+      setAlunosModalidade([])
+      alert('Erro ao carregar alunos da modalidade. Tente novamente.')
+    } finally {
+      setLoadingAlunosModalidade(false)
+    }
+  }
+
+  const handleAbrirEquipesAdminModalidade = async (item) => {
+    if (!isAdmin) return
+    setModalidadeSelecionadaAdmin(item)
+    setOpenEquipesAdminModal(true)
+    setEquipeAdminSelecionada(null)
+    setLoadingEquipesAdminDaModalidade(true)
+
+    try {
+      let equipes = equipesCache
+      if (!Array.isArray(equipes)) {
+        equipes = await equipesService.listar()
+        setEquipesCache(equipes)
+      }
+
+      const filtered = equipes.filter((e) => {
+        if (item?.esporte_variante_id) {
+          return String(e?.esporte_variante_id ?? '') === String(item?.esporte_variante_id)
+        }
+        return (
+          e?.esporte_nome === item?.esporte_nome &&
+          e?.categoria_nome === item?.categoria_nome &&
+          e?.naipe_nome === item?.naipe_nome
+        )
+      })
+
+      filtered.sort((a, b) => {
+        const ea = a?.escola_nome || ''
+        const eb = b?.escola_nome || ''
+        return ea.localeCompare(eb, 'pt-BR', { sensitivity: 'base' })
+      })
+
+      setEquipesAdminDaModalidade(filtered)
+    } catch (e) {
+      setEquipesAdminDaModalidade([])
+      alert('Erro ao carregar equipes da modalidade. Tente novamente.')
+    } finally {
+      setLoadingEquipesAdminDaModalidade(false)
+    }
+  }
 
   const restante = useMemo(
     () => getRestante(prazoCadastroAlunos, now),
@@ -119,10 +230,79 @@ export default function Dashboard() {
   }
 
   const stats = data || {}
-  const maxEquipesModalidade = Math.max(
-    ...(stats.equipes_por_modalidade || []).map((e) => e.total),
-    1
-  )
+
+  const equipesPorEsporte = useMemo(() => {
+    const items = Array.isArray(stats.equipes_por_modalidade) ? stats.equipes_por_modalidade : []
+    const map = new Map()
+    items.forEach((it) => {
+      const key = it?.esporte_nome || 'Outros'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(it)
+    })
+
+    const groups = Array.from(map.entries()).map(([esporte_nome, arr]) => ({
+      esporte_nome,
+      itens: arr,
+      // Para admin exibimos número de equipes; para diretor/coordenador, exibimos ocupação (por atletas).
+      total: arr.reduce(
+        (acc, x) =>
+          acc +
+          (isAdmin
+            ? Number(x?.total_equipes ?? x?.total ?? 0) || 0
+            : Number(x?.total_atletas ?? 0) || 0),
+        0,
+      ),
+    }))
+
+    groups.sort((a, b) => b.total - a.total)
+    return groups
+  }, [stats.equipes_por_modalidade, isAdmin])
+
+  const tabItemsEquipesModalidade = useMemo(() => {
+    const renderLista = (itens) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {itens.map((item, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => (isAdmin ? handleAbrirEquipesAdminModalidade(item) : handleAbrirAlunosModalidade(item))}
+            className="bg-white border border-[#f1f5f9] rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-left cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#0f766e]/30"
+          >
+            <div className="flex justify-between items-center text-sm mb-2">
+              <span
+                className="inline-flex items-center px-3 py-1 rounded-full bg-[#0f766e]/10 text-[#0d9488] border border-[#0f766e]/20 font-bold text-[13px] sm:text-[14px] truncate max-w-[70%]"
+                title={item?.modalidade || ''}
+              >
+                {item?.modalidade || '-'}
+              </span>
+
+              {isAdmin && (
+                <span className="font-extrabold text-[#0f766e] shrink-0 whitespace-nowrap text-xl sm:text-2xl tabular-nums leading-none">
+                  {new Intl.NumberFormat('pt-BR').format(item?.total_equipes ?? item?.total ?? 0)}
+                </span>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    )
+
+    const groupTabs = equipesPorEsporte.map((g) => {
+      return {
+        key: `ESP-${g.esporte_nome}`,
+        label: g.esporte_nome,
+        children: renderLista(g.itens),
+      }
+    })
+
+    return groupTabs
+  }, [equipesPorEsporte, isAdmin, equipesCache]) // equipesCache para garantir que a closure funcione
+
+  useEffect(() => {
+    if (!tabItemsEquipesModalidade?.length) return
+    const exists = tabItemsEquipesModalidade.some((t) => t.key === tabEquipesModalidade)
+    if (!exists) setTabEquipesModalidade(tabItemsEquipesModalidade[0].key)
+  }, [tabItemsEquipesModalidade, tabEquipesModalidade])
 
   return (
     <div className="flex flex-col gap-6">
@@ -192,55 +372,71 @@ export default function Dashboard() {
       )}
 
       {/* Cards de métricas */}
-      <section className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <StatCard
-          title="Escolas Cadastradas"
-          value={loading ? '...' : stats.total_escolas ?? 0}
-          icon={Building2}
-          variant="primary"
-          to={isAdmin ? '/app/gestao?tab=escolas' : undefined}
-        />
-        <StatCard
-          title="Alunos Cadastrados"
-          value={loading ? '...' : stats.total_estudantes ?? 0}
-          subtitle="Estudantes atletas no sistema"
-          icon={Users}
-          variant="secondary"
-          to="/app/gestao?tab=alunos"
-        />
-        <StatCard
-          title="Modalidades"
-          value={loading ? '...' : stats.total_modalidades ?? 0}
-          subtitle="Esportes × categoria × naipe"
-          icon={Trophy}
-          variant="success"
-          to="/app/atividades"
-        />
-        <StatCard
-          title="Equipes"
-          value={loading ? '...' : stats.total_equipes ?? 0}
-          subtitle={`${stats.total_atletas_vinculados ?? 0} atletas vinculados`}
-          icon={UsersRound}
-          variant="info"
-          to="/app/gestao?tab=equipes"
-        />
-        <StatCard
-          title="Professores Técnicos"
-          value={loading ? '...' : stats.total_professores ?? 0}
-          icon={GraduationCap}
-          variant="primary"
-          to="/app/gestao?tab=professores"
-        />
-        {isAdmin && (
-          <StatCard
-            title="Solicitações Pendentes"
-            value={loading ? '...' : stats.solicitacoes_pendentes ?? 0}
-            subtitle="Aguardando aprovação"
-            icon={ClipboardList}
-            variant="warning"
-            to="/app/administrativo?tab=usuarios-pendentes"
-          />
-        )}
+      <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="p-6">
+          <div
+            className={
+              isAdmin
+                ? 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
+                : 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'
+            }
+          >
+            {isAdmin && (
+              <StatCard
+                title="Escolas Cadastradas"
+                value={loading ? '...' : stats.total_escolas ?? 0}
+                icon={Building2}
+                variant="primary"
+                to="/app/gestao?tab=escolas"
+              />
+            )}
+            <StatCard
+              title="Alunos Cadastrados"
+              value={loading ? '...' : stats.total_estudantes ?? 0}
+              icon={Users}
+              variant="secondary"
+              to="/app/gestao?tab=alunos"
+            />
+            <StatCard
+          title="Esportes"
+          value={loading ? '...' : stats.total_esportes ?? 0}
+              icon={Trophy}
+              variant="success"
+              to="/app/atividades"
+            />
+            <StatCard
+              title="Equipes"
+              value={loading ? '...' : stats.total_equipes ?? 0}
+              icon={UsersRound}
+              variant="info"
+              to="/app/gestao?tab=equipes"
+            />
+            <StatCard
+              title="Professores Técnicos"
+              value={loading ? '...' : stats.total_professores ?? 0}
+              icon={GraduationCap}
+              variant="primary"
+              to="/app/gestao?tab=professores"
+            />
+            <StatCard
+              title="Sem documentação"
+              value={loading ? '...' : stats.alunos_sem_documentacao ?? 0}
+              subtitle="Alunos que não enviaram o anexo assinado"
+              icon={FileText}
+              variant="warning"
+              to="/app/gestao?tab=alunos"
+            />
+            {isAdmin && (
+              <StatCard
+                title="Solicitações Pendentes"
+                value={loading ? '...' : stats.solicitacoes_pendentes ?? 0}
+                icon={ClipboardList}
+                variant="warning"
+                to="/app/administrativo?tab=usuarios-pendentes"
+              />
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Equipes por modalidade */}
@@ -263,28 +459,12 @@ export default function Dashboard() {
               Nenhuma equipe cadastrada ainda.
             </p>
           ) : (
-            <div className="space-y-4">
-              {stats.equipes_por_modalidade.map((item, idx) => (
-                <div key={idx} className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-medium text-[#334155] truncate pr-2">
-                      {item.modalidade}
-                    </span>
-                    <span className="font-bold text-[#0f766e] shrink-0">
-                      {new Intl.NumberFormat('pt-BR').format(item.total)} equipes
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#0f766e,#0d9488)] transition-all duration-500"
-                      style={{
-                        width: `${Math.min((item.total / maxEquipesModalidade) * 100, 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Tabs
+              activeKey={tabEquipesModalidade}
+              onChange={setTabEquipesModalidade}
+              items={tabItemsEquipesModalidade}
+              type="card"
+            />
           )}
         </div>
       </section>
@@ -301,14 +481,14 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="p-6">
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
               {stats.equipes_por_escola.map((item, idx) => (
                 <Link
                   key={item.escola_id}
                   to={`/app/gestao?tab=escolas`}
-                  className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-[#f1f5f9] transition-colors no-underline"
+                  className="flex justify-between items-center py-3 px-3 rounded-xl bg-white border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-md transition-all no-underline"
                 >
-                  <span className="text-[#334155] font-medium truncate pr-2">
+                  <span className="text-[#334155] font-semibold truncate pr-2">
                     {idx + 1}. {item.escola_nome}
                   </span>
                   <span className="text-[#0f766e] font-bold shrink-0">
@@ -321,33 +501,93 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Escolas por status (apenas admin) */}
-      {isAdmin && stats.escolas_por_status?.length > 0 && (
-        <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
-            <h3 className="text-lg font-semibold text-[#042f2e] m-0">
-              Escolas por Status de Adesão
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="flex flex-wrap gap-4">
-              {stats.escolas_por_status.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]"
-                >
-                  <span className="text-sm font-medium text-[#64748b]">
-                    {item.status}
-                  </span>
-                  <span className="text-lg font-bold text-[#0f766e]">
-                    {new Intl.NumberFormat('pt-BR').format(item.total)}
-                  </span>
-                </div>
-              ))}
+      {/* Modal: alunos por modalidade (diretor/coordenador) */}
+      {!isAdmin && (
+        <Modal
+          isOpen={openAlunosModal}
+          onClose={() => setOpenAlunosModal(false)}
+          title="Alunos da Modalidade"
+          subtitle={modalidadeSelecionada?.modalidade || ''}
+          size="lg"
+          footer={
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+              onClick={() => setOpenAlunosModal(false)}
+            >
+              Fechar
+            </button>
+          }
+        >
+          {loadingAlunosModalidade ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
             </div>
-          </div>
-        </section>
+          ) : alunosModalidade.length > 0 ? (
+            <ul className="list-none m-0 p-0 space-y-2">
+              {alunosModalidade.map((est) => (
+                <li
+                  key={est.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <span className="text-[0.9375rem] font-medium text-[#334155]">{est.nome}</span>
+                  <span className="text-xs font-mono text-[#64748b]">{estudantesService.formatCpf(est.cpf)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[#64748b] m-0">Nenhum aluno vinculado para esta modalidade.</p>
+          )}
+        </Modal>
       )}
+
+      {/* Modal: equipes (admin) da modalidade e alunos por equipe */}
+      {isAdmin && (
+        <Modal
+          isOpen={openEquipesAdminModal}
+          onClose={() => {
+            setOpenEquipesAdminModal(false)
+            setEquipeAdminSelecionada(null)
+          }}
+          title="Equipes da Modalidade"
+          subtitle={modalidadeSelecionadaAdmin?.modalidade || ''}
+          size="xl"
+          footer={
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+              onClick={() => {
+                setOpenEquipesAdminModal(false)
+                setEquipeAdminSelecionada(null)
+              }}
+            >
+              Fechar
+            </button>
+          }
+        >
+          <EquipesList
+            lista={equipesAdminDaModalidade}
+            loading={loadingEquipesAdminDaModalidade}
+            error={null}
+            onViewEquipe={(item) => setEquipeAdminSelecionada(item)}
+            showInstituicao={true}
+            showFilters={false}
+            showTotalEquipes={false}
+            escolas={[]}
+          />
+        </Modal>
+      )}
+
+      {/* Segundo modal (admin): detalhes e alunos da equipe */}
+      {isAdmin && (
+        <EquipeViewModal
+          open={!!equipeAdminSelecionada}
+          onClose={() => setEquipeAdminSelecionada(null)}
+          equipe={equipeAdminSelecionada}
+        />
+      )}
+
+      {/* Bloco removido: Escolas por Status de Adesão */}
     </div>
   )
 }

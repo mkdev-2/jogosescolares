@@ -13,6 +13,8 @@ export default function EquipesList({
   onViewEquipe,
   onFichaColetiva,
   showInstituicao = false,
+  showFilters = true,
+  showTotalEquipes = true,
   escolas = [],
 }) {
   const [esporteFilter, setEsporteFilter] = useState(null)
@@ -77,86 +79,90 @@ export default function EquipesList({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div>
-            <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
-              Total de Equipes
-            </p>
-            <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
-              {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
-            </p>
-          </div>
-          <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
-            <Trophy size={24} className="text-[#0f766e]" />
+      {showTotalEquipes && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between px-4 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <div>
+              <p className="text-[0.75rem] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider">
+                Total de Equipes
+              </p>
+              <p className="text-[1.25rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
+                {escolaFilterId != null && escolaFilterId !== '' ? filteredLista.length : lista.length}
+              </p>
+            </div>
+            <div className="p-2 sm:p-3 bg-[#f0fdfa] rounded-xl">
+              <Trophy size={24} className="text-[#0f766e]" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {showInstituicao && escolas?.length > 0 && (
-            <Select
-              placeholder="Filtrar por escola"
-              allowClear
-              value={escolaFilterId ?? undefined}
-              onChange={(v) => setEscolaFilterId(v ?? null)}
-              options={[
-                { value: '', label: 'Todas as escolas' },
-                ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
-              ]}
-              className="w-full sm:min-w-[220px]"
-            />
-          )}
-          <div className="grid grid-cols-1 xs:grid-cols-2 lg:flex lg:flex-row flex-1 gap-2 sm:gap-3">
-            <Select
-              placeholder="Esporte"
-              allowClear
-              value={esporteFilter}
-              onChange={setEsporteFilter}
-              options={esporteOptions}
-              className="w-full lg:min-w-[140px]"
-            />
-            <Select
-              placeholder="Categoria"
-              allowClear
-              value={categoriaFilter}
-              onChange={setCategoriaFilter}
-              options={categoriaOptions}
-              className="w-full lg:min-w-[120px]"
-            />
-            <Select
-              placeholder="Naipe"
-              allowClear
-              value={naipeFilter}
-              onChange={setNaipeFilter}
-              options={naipeOptions}
-              className="w-full lg:min-w-[100px]"
-            />
-            <Select
-              showSearch
-              placeholder="Técnico"
-              allowClear
-              value={tecnicoFilter}
-              onChange={setTecnicoFilter}
-              options={tecnicoOptions}
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              className="w-full lg:min-w-[180px] lg:flex-1"
-            />
+        {showFilters && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {showInstituicao && escolas?.length > 0 && (
+              <Select
+                placeholder="Filtrar por escola"
+                allowClear
+                value={escolaFilterId ?? undefined}
+                onChange={(v) => setEscolaFilterId(v ?? null)}
+                options={[
+                  { value: '', label: 'Todas as escolas' },
+                  ...escolas.map((e) => ({ value: e.id, label: e.nome_escola || `Escola ${e.id}` })),
+                ]}
+                className="w-full sm:min-w-[220px]"
+              />
+            )}
+            <div className="grid grid-cols-1 xs:grid-cols-2 lg:flex lg:flex-row flex-1 gap-2 sm:gap-3">
+              <Select
+                placeholder="Esporte"
+                allowClear
+                value={esporteFilter}
+                onChange={setEsporteFilter}
+                options={esporteOptions}
+                className="w-full lg:min-w-[140px]"
+              />
+              <Select
+                placeholder="Categoria"
+                allowClear
+                value={categoriaFilter}
+                onChange={setCategoriaFilter}
+                options={categoriaOptions}
+                className="w-full lg:min-w-[120px]"
+              />
+              <Select
+                placeholder="Naipe"
+                allowClear
+                value={naipeFilter}
+                onChange={setNaipeFilter}
+                options={naipeOptions}
+                className="w-full lg:min-w-[100px]"
+              />
+              <Select
+                showSearch
+                placeholder="Técnico"
+                allowClear
+                value={tecnicoFilter}
+                onChange={setTecnicoFilter}
+                options={tecnicoOptions}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                className="w-full lg:min-w-[180px] lg:flex-1"
+              />
+            </div>
+            {onNewEquipe && (
+              <Button
+                type="primary"
+                onClick={onNewEquipe}
+                icon={<Plus size={16} />}
+                className="w-full sm:w-auto h-10 font-semibold shrink-0"
+              >
+                Nova equipe
+              </Button>
+            )}
           </div>
-          {onNewEquipe && (
-            <Button 
-              type="primary" 
-              onClick={onNewEquipe} 
-              icon={<Plus size={16} />}
-              className="w-full sm:w-auto h-10 font-semibold shrink-0"
-            >
-              Nova equipe
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {error && (
