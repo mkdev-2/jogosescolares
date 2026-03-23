@@ -2,11 +2,12 @@
 Roteador de dashboard: estatísticas agregadas para o Quadro de Resumo.
 """
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 import psycopg
 
 from app.auth import get_current_user, is_admin
 from app.database import get_db
+from app.edicao_context import resolve_edicao_id
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("")
 async def get_dashboard_stats(
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -22,6 +24,7 @@ async def get_dashboard_stats(
     Admin vê todos os dados; diretor/coordenador vê apenas da sua escola.
     """
     escola_id = current_user.get("escola_id") if not is_admin(current_user) else None
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     async with conn.cursor() as cur:
         # Totais gerais (admin) ou filtrados por escola
@@ -65,7 +68,10 @@ async def get_dashboard_stats(
             total_modalidades = (await cur.fetchone())["total"] or 0
 
             # Total de equipes
-            await cur.execute("SELECT COUNT(*) AS total FROM equipes")
+            await cur.execute(
+                "SELECT COUNT(*) AS total FROM equipes WHERE edicao_id = %s",
+                (resolved_edicao_id,),
+            )
             total_equipes = (await cur.fetchone())["total"] or 0
 
             # Total de professores técnicos
@@ -77,7 +83,11 @@ async def get_dashboard_stats(
                 """
                 SELECT COUNT(DISTINCT ee.estudante_id) AS total
                 FROM equipe_estudantes ee
+                JOIN equipes eq ON eq.id = ee.equipe_id
+                WHERE eq.edicao_id = %s
                 """
+                ,
+                (resolved_edicao_id,),
             )
             total_atletas_vinculados = (await cur.fetchone())["total"] or 0
 
@@ -114,6 +124,7 @@ async def get_dashboard_stats(
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
                 LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
+                WHERE e.edicao_id = %s
                 GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
                 ORDER BY COALESCE(
                     (
@@ -123,6 +134,8 @@ async def get_dashboard_stats(
                     0
                 ) DESC
                 """
+                ,
+                (resolved_edicao_id,),
             )
             equipes_por_modalidade = [
                 {
@@ -151,10 +164,13 @@ async def get_dashboard_stats(
                 SELECT s.nome_escola AS escola_nome, s.id AS escola_id, COUNT(e.id) AS total_equipes
                 FROM equipes e
                 JOIN escolas s ON s.id = e.escola_id
+                WHERE e.edicao_id = %s
                 GROUP BY s.id, s.nome_escola
                 ORDER BY total_equipes DESC
                 LIMIT 10
                 """
+                ,
+                (resolved_edicao_id,),
             )
             equipes_por_escola = [
                 {"escola_nome": r["escola_nome"], "escola_id": r["escola_id"], "total": r["total_equipes"]}
@@ -220,8 +236,8 @@ async def get_dashboard_stats(
             total_modalidades = (await cur.fetchone())["total"] or 0
 
             await cur.execute(
-                "SELECT COUNT(*) AS total FROM equipes WHERE escola_id = %s",
-                (escola_id,),
+                "SELECT COUNT(*) AS total FROM equipes WHERE escola_id = %s AND edicao_id = %s",
+                (escola_id, resolved_edicao_id),
             )
             total_equipes = (await cur.fetchone())["total"] or 0
 
@@ -236,9 +252,9 @@ async def get_dashboard_stats(
                 SELECT COUNT(DISTINCT ee.estudante_id) AS total
                 FROM equipe_estudantes ee
                 JOIN equipes eq ON eq.id = ee.equipe_id
-                WHERE eq.escola_id = %s
+                WHERE eq.escola_id = %s AND eq.edicao_id = %s
                 """,
-                (escola_id,),
+                (escola_id, resolved_edicao_id),
             )
             total_atletas_vinculados = (await cur.fetchone())["total"] or 0
 
@@ -258,7 +274,7 @@ async def get_dashboard_stats(
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
                 LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
-                WHERE e.escola_id = %s
+                WHERE e.escola_id = %s AND e.edicao_id = %s
                 GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
                 ORDER BY COALESCE(
                     (
@@ -268,7 +284,7 @@ async def get_dashboard_stats(
                     0
                 ) DESC
                 """,
-                (escola_id,),
+                (escola_id, resolved_edicao_id),
             )
             equipes_por_modalidade = [
                 {

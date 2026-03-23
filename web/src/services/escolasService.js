@@ -48,8 +48,9 @@ export const escolasService = {
     return handleResponse(res, 'Erro ao buscar escola')
   },
 
-  async getDetalhes(id) {
-    const res = await apiFetch(`${BASE}/${id}/detalhes`)
+  async getDetalhes(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}/detalhes${qs}`)
     if (res.status === 404) return null
     return handleResponse(res, 'Erro ao buscar detalhes da escola')
   },
@@ -99,8 +100,9 @@ export const escolasService = {
     return handleResponse(res, 'Erro ao negar solicitação')
   },
 
-  async updateModalidades(escolaId, varianteIds) {
-    const res = await apiFetch(`${BASE}/${escolaId}/modalidades`, {
+  async updateModalidades(escolaId, varianteIds, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${escolaId}/modalidades${qs}`, {
       method: 'PATCH',
       body: JSON.stringify({ variante_ids: varianteIds }),
     })
@@ -108,8 +110,9 @@ export const escolasService = {
   },
 
   /** Para o diretor: atualiza modalidades da própria escola (usa token, evita 404 por rota). */
-  async updateMinhaEscolaModalidades(varianteIds) {
-    const res = await apiFetch(`${BASE}/minha-escola/modalidades`, {
+  async updateMinhaEscolaModalidades(varianteIds, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/minha-escola/modalidades${qs}`, {
       method: 'PATCH',
       body: JSON.stringify({ variante_ids: varianteIds }),
     })

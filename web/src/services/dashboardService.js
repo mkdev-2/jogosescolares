@@ -17,8 +17,9 @@ function handleResponse(res, fallbackError = 'Erro ao carregar dados do dashboar
 }
 
 export const dashboardService = {
-  async getStats() {
-    const res = await apiFetch(BASE)
+  async getStats(edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}${qs}`)
     return handleResponse(res)
   },
 }

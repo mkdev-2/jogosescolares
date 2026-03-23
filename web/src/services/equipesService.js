@@ -9,8 +9,9 @@ export const equipesService = {
   /**
    * Lista equipes da instituição do coordenador logado.
    */
-  async listar() {
-    const res = await apiFetch('/equipes')
+  async listar(edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes${qs}`)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
@@ -25,8 +26,9 @@ export const equipesService = {
    * @param {number[]} payload.estudante_ids - IDs dos estudantes
    * @param {number} payload.professor_tecnico_id - ID do professor-técnico
    */
-  async getById(id) {
-    const res = await apiFetch(`/equipes/${id}`)
+  async getById(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes/${id}${qs}`)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
@@ -34,8 +36,9 @@ export const equipesService = {
     return res.json().catch(() => ({}))
   },
 
-  async criar(payload) {
-    const res = await apiFetch('/equipes', {
+  async criar(payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes${qs}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -47,8 +50,9 @@ export const equipesService = {
     return res.json().catch(() => ({}))
   },
 
-  async atualizar(id, payload) {
-    const res = await apiFetch(`/equipes/${id}`, {
+  async atualizar(id, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes/${id}${qs}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     })
@@ -60,8 +64,9 @@ export const equipesService = {
     return res.json().catch(() => ({}))
   },
 
-  async excluir(id) {
-    const res = await apiFetch(`/equipes/${id}`, { method: 'DELETE' })
+  async excluir(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes/${id}${qs}`, { method: 'DELETE' })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.detail || data.message || `Erro ${res.status}`)
@@ -71,8 +76,9 @@ export const equipesService = {
   /**
    * Dados para impressão da Ficha Coletiva JELS (apenas modalidades coletivas).
    */
-  async getFichaColetiva(equipeId) {
-    const res = await apiFetch(`/equipes/${equipeId}/ficha-coletiva`)
+  async getFichaColetiva(equipeId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`/equipes/${equipeId}/ficha-coletiva${qs}`)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.detail || data.message || `Erro ${res.status}`)

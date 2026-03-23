@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { equipesService } from '../services/equipesService'
 
-export default function useEquipes() {
+export default function useEquipes(edicaoId = null) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -10,7 +10,7 @@ export default function useEquipes() {
     setLoading(true)
     setError(null)
     try {
-      const data = await equipesService.listar()
+      const data = await equipesService.listar(edicaoId)
       setLista(Array.isArray(data) ? data : [])
       return data
     } catch (err) {
@@ -19,16 +19,16 @@ export default function useEquipes() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [edicaoId])
 
   useEffect(() => {
     fetchLista()
   }, [fetchLista])
 
   const deleteEquipe = useCallback(async (id) => {
-    await equipesService.excluir(id)
+    await equipesService.excluir(id, edicaoId)
     await fetchLista()
-  }, [fetchLista])
+  }, [fetchLista, edicaoId])
 
   return {
     lista,

@@ -30,7 +30,7 @@ const ROLE_LABEL = {
   SUPER_ADMIN: 'Super Administrador',
 }
 
-export default function EscolaViewModal({ open, onClose, escolaId }) {
+export default function EscolaViewModal({ open, onClose, escolaId, edicaoId = null }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dados, setDados] = useState(null)
@@ -44,7 +44,7 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
     setLoading(true)
     setError(null)
     escolasService
-      .getDetalhes(escolaId)
+      .getDetalhes(escolaId, edicaoId)
       .then((res) => {
         setDados(res)
       })
@@ -54,7 +54,7 @@ export default function EscolaViewModal({ open, onClose, escolaId }) {
       .finally(() => {
         setLoading(false)
       })
-  }, [open, escolaId])
+  }, [open, escolaId, edicaoId])
 
   if (!open) return null
 
