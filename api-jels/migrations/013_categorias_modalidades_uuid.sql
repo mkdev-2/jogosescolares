@@ -32,4 +32,5 @@ ALTER TABLE equipes ADD COLUMN categoria_id uuid NOT NULL REFERENCES categorias(
 
 -- Ícone da modalidade (nome do ícone lucide-react)
 ALTER TABLE modalidades ADD COLUMN IF NOT EXISTS icone VARCHAR(50) DEFAULT 'Zap';
-ALTER TABLE modalidades ALTER COLUMN limite_atletas SET DEFAULT 3;
+-- campo existe nem sempre nas versões anteriores; adiciona se necessário
+ALTER TABLE modalidades ADD COLUMN IF NOT EXISTS limite_atletas INTEGER DEFAULT 1;

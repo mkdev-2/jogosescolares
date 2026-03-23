@@ -11,6 +11,7 @@ from app.schemas import (
 )
 from app.auth import get_current_user, get_current_user_with_escola
 from app.database import get_db
+from app.edicao_context import get_escola_modalidades_adesao, resolve_edicao_id
 
 router = APIRouter(prefix="/api/esporte-variantes", tags=["esporte-variantes"])
 logger = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ async def list_esporte_variantes(
 
 @router.get("/minha-escola", response_model=list[EsporteVarianteResponse])
 async def list_variantes_minha_escola(
+    edicao_id: int | None = Query(None, description="Filtra pelo vínculo da escola na edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user_with_escola),
 ):
@@ -99,16 +101,8 @@ async def list_variantes_minha_escola(
     escola_id = current_user.get("escola_id")
     if not escola_id:
         return []
-
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
-            (escola_id,),
-        )
-        row = await cur.fetchone()
-    if not row or not isinstance(row.get("modalidades_adesao"), dict):
-        return []
-    variante_ids = row["modalidades_adesao"].get("variante_ids") or []
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+    variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)
     if not variante_ids:
         return []
 

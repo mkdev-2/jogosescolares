@@ -4,7 +4,7 @@ Validações de idade e naipe são feitas pelo trigger no banco ao inserir em eq
 """
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
 
 from app.schemas import (
@@ -18,6 +18,7 @@ from app.schemas import (
 )
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db, log_audit
+from app.edicao_context import get_escola_modalidades_adesao, resolve_edicao_id
 
 router = APIRouter(prefix="/equipes", tags=["equipes"])
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
     """Converte row do banco para EquipeResponse."""
     return EquipeResponse(
         id=row["id"],
+        edicao_id=row.get("edicao_id"),
         escola_id=row["escola_id"],
         escola_nome=row.get("escola_nome"),
         esporte_variante_id=str(row["esporte_variante_id"]),
@@ -69,7 +71,7 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
 
 def _get_equipes_sql(where_clause: str = "") -> str:
     return f"""
-        SELECT e.id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id,
+        SELECT e.id, e.edicao_id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id,
                e.created_at, e.updated_at,
                esp.nome AS esporte_nome, esp.icone AS esporte_icone,
                esp.limite_atletas AS esporte_limite_atletas,
@@ -91,13 +93,15 @@ def _get_equipes_sql(where_clause: str = "") -> str:
 
 @router.get("", response_model=list[EquipeResponse])
 async def list_equipes(
+    edicao_id: int | None = Query(None, description="Filtra pela edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Lista equipes: admin vê todas; diretor/coordenador vê apenas da sua escola."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     if is_admin(current_user):
-        sql = _get_equipes_sql("")
-        params = ()
+        sql = _get_equipes_sql("WHERE e.edicao_id = %s")
+        params = (resolved_edicao_id,)
     else:
         escola_id = current_user.get("escola_id")
         if escola_id is None:
@@ -105,8 +109,8 @@ async def list_equipes(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acesso restrito a usuários vinculados a uma escola (diretor/coordenador).",
             )
-        sql = _get_equipes_sql("WHERE e.escola_id = %s")
-        params = (escola_id,)
+        sql = _get_equipes_sql("WHERE e.escola_id = %s AND e.edicao_id = %s")
+        params = (escola_id, resolved_edicao_id)
 
     async with conn.cursor() as cur:
         await cur.execute(sql, params)
@@ -150,10 +154,12 @@ def _check_equipe_visible(current_user: dict, escola_id: int | None) -> None:
 @router.get("/{equipe_id}/ficha-coletiva", response_model=FichaColetivaResponse)
 async def get_ficha_coletiva(
     equipe_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Retorna dados para impressão da Ficha Coletiva JELS. Apenas para equipes de modalidade COLETIVA."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -170,9 +176,9 @@ async def get_ficha_coletiva(
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
             LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
             LEFT JOIN escolas s ON s.id = e.escola_id
-            WHERE e.id = %s
+            WHERE e.id = %s AND e.edicao_id = %s
             """,
-            (equipe_id,),
+            (equipe_id, resolved_edicao_id),
         )
         row = await cur.fetchone()
     if not row:
@@ -238,14 +244,16 @@ async def get_ficha_coletiva(
 @router.get("/{equipe_id}", response_model=EquipeResponse)
 async def get_equipe(
     equipe_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Obtém equipe por ID."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            _get_equipes_sql("WHERE e.id = %s"),
-            (equipe_id,),
+            _get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"),
+            (equipe_id, resolved_edicao_id),
         )
         row = await cur.fetchone()
     if not row:
@@ -274,11 +282,13 @@ async def get_equipe(
 @router.post("", response_model=EquipeResponse, status_code=status.HTTP_201_CREATED)
 async def create_equipe(
     data: EquipeCreate,
+    edicao_id: int | None = Query(None, description="Edição para criação; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Cria equipe na escola do usuário. Valida professor e estudantes. Idade/naipe validados pelo banco."""
     escola_id = current_user["escola_id"]
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     async with conn.cursor() as cur:
         # Validar professor-técnico existe e pertence à escola
@@ -304,14 +314,7 @@ async def create_equipe(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada")
 
         # Validar que a variante está entre as selecionadas no cadastro da escola
-        await cur.execute(
-            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
-            (escola_id,),
-        )
-        escola_row = await cur.fetchone()
-        variante_ids = []
-        if escola_row and isinstance(escola_row.get("modalidades_adesao"), dict):
-            variante_ids = escola_row["modalidades_adesao"].get("variante_ids") or []
+        variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)
         if variante_ids and data.esporte_variante_id not in variante_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -338,8 +341,8 @@ async def create_equipe(
 
         # Validar se a escola já possui equipe nesta variante
         await cur.execute(
-            "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s",
-            (escola_id, data.esporte_variante_id),
+            "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND edicao_id = %s",
+            (escola_id, data.esporte_variante_id, resolved_edicao_id),
         )
         if await cur.fetchone():
             raise HTTPException(
@@ -350,11 +353,11 @@ async def create_equipe(
         # Inserir equipe
         await cur.execute(
             """
-            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id)
-            VALUES (%s, %s, %s)
-            RETURNING id, escola_id, esporte_variante_id, professor_tecnico_id, created_at, updated_at
+            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id, edicao_id)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, escola_id, esporte_variante_id, professor_tecnico_id, edicao_id, created_at, updated_at
             """,
-            (escola_id, data.esporte_variante_id, data.professor_tecnico_id),
+            (escola_id, data.esporte_variante_id, data.professor_tecnico_id, resolved_edicao_id),
         )
         equipe_row = await cur.fetchone()
         if not equipe_row:
@@ -381,8 +384,8 @@ async def create_equipe(
     # Montar resposta com JOINs
     async with conn.cursor() as cur:
         await cur.execute(
-            _get_equipes_sql("WHERE e.id = %s"),
-            (equipe_id,),
+            _get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"),
+            (equipe_id, resolved_edicao_id),
         )
         row = await cur.fetchone()
 
@@ -420,16 +423,18 @@ async def create_equipe(
 async def update_equipe(
     equipe_id: int,
     data: EquipeUpdate,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Atualiza equipe. Apenas da mesma escola."""
     escola_id = current_user["escola_id"]
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     async with conn.cursor() as cur:
         await cur.execute(
-            _get_equipes_sql("WHERE e.id = %s"),
-            (equipe_id,),
+            _get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"),
+            (equipe_id, resolved_edicao_id),
         )
         existing = await cur.fetchone()
     if not existing:
@@ -439,7 +444,10 @@ async def update_equipe(
     updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
     if not updates:
         async with conn.cursor() as cur:
-            await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+            await cur.execute(
+                _get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"),
+                (equipe_id, resolved_edicao_id),
+            )
             row = await cur.fetchone()
             await cur.execute(
                 """
@@ -466,12 +474,7 @@ async def update_equipe(
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor-técnico deve pertencer à sua escola")
 
         if "esporte_variante_id" in updates:
-            await cur.execute(
-                "SELECT modalidades_adesao FROM escolas WHERE id = %s",
-                (escola_id,),
-            )
-            escola_row = await cur.fetchone()
-            variante_ids = escola_row["modalidades_adesao"].get("variante_ids", []) if escola_row and escola_row.get("modalidades_adesao") else []
+            variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)
             if variante_ids and updates["esporte_variante_id"] not in variante_ids:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Modalidade não vinculada à escola")
 
@@ -490,8 +493,8 @@ async def update_equipe(
         if "esporte_variante_id" in updates:
             # Validar se já existe outra equipe com esta variante
             await cur.execute(
-                "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND id <> %s",
-                (escola_id, updates["esporte_variante_id"], equipe_id),
+                "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND edicao_id = %s AND id <> %s",
+                (escola_id, updates["esporte_variante_id"], resolved_edicao_id, equipe_id),
             )
             if await cur.fetchone():
                 raise HTTPException(
@@ -523,7 +526,7 @@ async def update_equipe(
 
         # Auditoria: pegar estado após update
         async with conn.cursor() as cur:
-            await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+            await cur.execute(_get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"), (equipe_id, resolved_edicao_id))
             after = await cur.fetchone()
 
         if after:
@@ -539,7 +542,7 @@ async def update_equipe(
             )
 
     async with conn.cursor() as cur:
-        await cur.execute(_get_equipes_sql("WHERE e.id = %s"), (equipe_id,))
+        await cur.execute(_get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"), (equipe_id, resolved_edicao_id))
         row = await cur.fetchone()
         await cur.execute(
             """
@@ -559,14 +562,16 @@ async def update_equipe(
 @router.delete("/{equipe_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_equipe(
     equipe_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Remove equipe. Apenas da mesma escola."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            _get_equipes_sql("WHERE e.id = %s"),
-            (equipe_id,),
+            _get_equipes_sql("WHERE e.id = %s AND e.edicao_id = %s"),
+            (equipe_id, resolved_edicao_id),
         )
         existing = await cur.fetchone()
     if not existing:

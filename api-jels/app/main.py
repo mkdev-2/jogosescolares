@@ -27,6 +27,7 @@ from app.noticias import router as noticias_router
 from app.categorias_noticias import router as categorias_noticias_router
 from app.auditoria import router as auditoria_router
 from app.instagram import router as instagram_router
+from app.edicoes import router as edicoes_router
 try:
     from app.storage import router as storage_router
     STORAGE_AVAILABLE = True
@@ -106,6 +107,7 @@ app.include_router(noticias_router)
 app.include_router(categorias_noticias_router)
 app.include_router(auditoria_router)
 app.include_router(instagram_router)
+app.include_router(edicoes_router)
 if STORAGE_AVAILABLE and storage_router:
     app.include_router(storage_router)
 
@@ -131,6 +133,7 @@ async def root():
             "equipes": "/equipes",
             "noticias": "/api/noticias",
             "categorias-noticias": "/api/categorias-noticias",
+            "edicoes": "/api/edicoes",
             "storage": "/api/storage" if STORAGE_AVAILABLE else None,
             "docs": "/docs",
         },

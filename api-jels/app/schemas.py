@@ -360,6 +360,38 @@ class SolicitacaoResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ========== EDIÇÕES ==========
+
+EDICAO_STATUS = Literal["PLANEJAMENTO", "ATIVA", "ENCERRADA"]
+
+
+class EdicaoCreate(BaseModel):
+    """Schema para criação de edição anual."""
+    nome: str = Field(..., min_length=3, max_length=120)
+    ano: int = Field(..., ge=2020, le=2100)
+    status: EDICAO_STATUS = "PLANEJAMENTO"
+    data_inicio: Optional[str] = Field(None, description="YYYY-MM-DD")
+    data_fim: Optional[str] = Field(None, description="YYYY-MM-DD")
+
+
+class EdicaoStatusUpdate(BaseModel):
+    """Atualização de status de edição."""
+    status: EDICAO_STATUS
+
+
+class EdicaoResponse(BaseModel):
+    """Schema para resposta de edição."""
+    id: int
+    uuid: str
+    nome: str
+    ano: int
+    status: EDICAO_STATUS
+    data_inicio: Optional[str] = None
+    data_fim: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
 # ========== CONFIGURAÇÕES ==========
 
 class ConfiguracoesUpdate(BaseModel):
@@ -531,6 +563,7 @@ class EquipeEstudanteItem(BaseModel):
 class EquipeResponse(BaseModel):
     """Schema para resposta de equipe (com variante, técnico e estudantes)."""
     id: int
+    edicao_id: Optional[int] = None
     escola_id: int
     escola_nome: Optional[str] = None
     esporte_variante_id: str

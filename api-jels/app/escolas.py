@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
 
 from app.schemas import (
@@ -17,6 +17,7 @@ from app.schemas import (
 )
 from app.auth import get_current_user
 from app.database import get_db, log_audit
+from app.edicao_context import get_edicao_ativa, resolve_edicao_id
 from app.security import get_password_hash
 
 router = APIRouter(prefix="/api/escolas", tags=["escolas"])
@@ -164,6 +165,7 @@ async def list_adesoes(
 @router.patch("/minha-escola/modalidades", status_code=status.HTTP_200_OK)
 async def update_minha_escola_modalidades(
     data: EscolaModalidadesUpdate,
+    edicao_id: int | None = Query(None, description="Edição alvo; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -180,6 +182,7 @@ async def update_minha_escola_modalidades(
             detail="Usuário não está vinculado a uma escola.",
         )
     escola_id = int(escola_id)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     # Verificar data limite para diretor editar modalidades (configuração admin)
     async with conn.cursor() as cur:
@@ -209,17 +212,31 @@ async def update_minha_escola_modalidades(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
         await cur.execute(
-            "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
-            (modalidades_json, escola_id),
+            """
+            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao)
+            VALUES (%s, %s, %s::jsonb)
+            ON CONFLICT (escola_id, edicao_id) DO UPDATE
+            SET modalidades_adesao = EXCLUDED.modalidades_adesao,
+                updated_at = NOW()
+            """,
+            (escola_id, resolved_edicao_id, modalidades_json),
         )
+        # Mantém compatibilidade com legado para edição ativa.
+        ativa = await get_edicao_ativa(conn)
+        if int(ativa["id"]) == resolved_edicao_id:
+            await cur.execute(
+                "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
+                (modalidades_json, escola_id),
+            )
         await conn.commit()
-    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
+    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids, "edicao_id": resolved_edicao_id}
 
 
 @router.patch("/{escola_id}/modalidades", status_code=status.HTTP_200_OK)
 async def update_escola_modalidades(
     escola_id: int,
     data: EscolaModalidadesUpdate,
+    edicao_id: int | None = Query(None, description="Edição alvo; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -238,6 +255,7 @@ async def update_escola_modalidades(
             detail="Acesso negado.",
         )
 
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     modalidades_json = json.dumps({"variante_ids": data.variante_ids})
     async with conn.cursor() as cur:
         await cur.execute(
@@ -247,20 +265,34 @@ async def update_escola_modalidades(
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
         await cur.execute(
-            "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
-            (modalidades_json, escola_id),
+            """
+            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao)
+            VALUES (%s, %s, %s::jsonb)
+            ON CONFLICT (escola_id, edicao_id) DO UPDATE
+            SET modalidades_adesao = EXCLUDED.modalidades_adesao,
+                updated_at = NOW()
+            """,
+            (escola_id, resolved_edicao_id, modalidades_json),
         )
+        ativa = await get_edicao_ativa(conn)
+        if int(ativa["id"]) == resolved_edicao_id:
+            await cur.execute(
+                "UPDATE escolas SET modalidades_adesao = %s::jsonb, updated_at = NOW() WHERE id = %s",
+                (modalidades_json, escola_id),
+            )
         await conn.commit()
-    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids}
+    return {"message": "Modalidades atualizadas.", "variante_ids": data.variante_ids, "edicao_id": resolved_edicao_id}
 
 
 @router.get("/{escola_id}/detalhes")
 async def get_escola_detalhes(
     escola_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição para contagens/modalidades"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Obtém escola por ID com dados do diretor, contagens e usuários vinculados."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at, termo_assinatura_url "
@@ -306,8 +338,8 @@ async def get_escola_detalhes(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT COUNT(*) AS total FROM equipes WHERE escola_id = %s",
-            (escola_id,),
+            "SELECT COUNT(*) AS total FROM equipes WHERE escola_id = %s AND edicao_id = %s",
+            (escola_id, resolved_edicao_id),
         )
         total_equipes = (await cur.fetchone())["total"] or 0
 
@@ -315,10 +347,21 @@ async def get_escola_detalhes(
     modalidades = []
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT modalidades_adesao FROM escolas WHERE id = %s",
-            (escola_id,),
+            """
+            SELECT modalidades_adesao
+            FROM escola_edicao_modalidades
+            WHERE escola_id = %s AND edicao_id = %s
+            """,
+            (escola_id, resolved_edicao_id),
         )
         row_mod = await cur.fetchone()
+    if not row_mod:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+                (escola_id,),
+            )
+            row_mod = await cur.fetchone()
     if row_mod and row_mod.get("modalidades_adesao"):
         variante_ids = row_mod["modalidades_adesao"].get("variante_ids", [])
         if variante_ids:
@@ -360,6 +403,7 @@ async def get_escola_detalhes(
         "total_equipes": total_equipes,
         "usuarios": usuarios,
         "modalidades": modalidades,
+        "edicao_id": resolved_edicao_id,
     }
 
 
@@ -466,6 +510,17 @@ async def aprovar_adesao(
         )
         escola_row = await cur.fetchone()
         escola_id = escola_row["id"]
+        ativa = await get_edicao_ativa(conn)
+        await cur.execute(
+            """
+            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao)
+            VALUES (%s, %s, COALESCE(%s::jsonb, '{"variante_ids":[]}'::jsonb))
+            ON CONFLICT (escola_id, edicao_id) DO UPDATE
+            SET modalidades_adesao = EXCLUDED.modalidades_adesao,
+                updated_at = NOW()
+            """,
+            (escola_id, int(ativa["id"]), modalidades_json),
+        )
         # 2. Criar usuário diretor
         await cur.execute(
             """
