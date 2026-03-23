@@ -269,17 +269,21 @@ async def update_configuracoes_logos(
 
     if added_keys and not removed_keys and not changed_keys:
         acao_midias = "adicionou"
+        acao_audit = "CREATE"
     elif removed_keys and not added_keys and not changed_keys:
         acao_midias = "removeu"
+        acao_audit = "DELETE"
     elif changed_keys and not added_keys and not removed_keys:
         acao_midias = "alterou"
+        acao_audit = "UPDATE"
     else:
         acao_midias = "atualizou"
+        acao_audit = "UPDATE"
 
     await log_audit(
         conn=conn,
         user_id=current_user["id"],
-        acao="UPDATE",
+        acao=acao_audit,
         tipo_recurso="MIDIAS",
         detalhes_antes=previous_values,
         detalhes_depois={k: _valor_para_resposta(v, k) for k, v in updates.items()},

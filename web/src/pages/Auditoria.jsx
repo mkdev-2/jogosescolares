@@ -86,7 +86,7 @@ export default function Auditoria({ embedded = false }) {
     return String(val)
   }
 
-  const cleanMessage = (msg) => {
+  const cleanMessage = (msg, record) => {
     if (!msg) return ''
     // Formato específico para geração de credenciais:
     // "Usuário X gerou credenciais da escola Escola Y (10 aptos, 20 pendentes)."
@@ -96,6 +96,21 @@ export default function Auditoria({ embedded = false }) {
       const escola = credenciaisMatch[1]
       const pendentes = credenciaisMatch[3]
       return `Gerou credenciais da escola ${escola} (${pendentes} pendentes).`
+    }
+    // Para mídias, deduzir verbo (adicionou/removeu/alterou) a partir dos dados.
+    if (record?.tipo_recurso === 'MIDIAS') {
+      const changes = getChanges(record.detalhes_antes, record.detalhes_depois)
+      const fileKeys = ['logo_secretaria', 'logo_jels', 'bg_credencial', 'banners_hero', 'prefeito_foto']
+      const mediaChanges = changes.filter((c) => fileKeys.includes(c.key))
+      if (mediaChanges.length > 0) {
+        const onlyAdded = mediaChanges.every((c) => !c.old && !!c.new)
+        const onlyRemoved = mediaChanges.every((c) => !!c.old && !c.new)
+        const onlyChanged = mediaChanges.every((c) => !!c.old && !!c.new && c.old !== c.new)
+        if (onlyAdded) return 'Adicionou itens da central de mídias.'
+        if (onlyRemoved) return 'Removeu itens da central de mídias.'
+        if (onlyChanged) return 'Alterou itens da central de mídias.'
+        return 'Atualizou itens da central de mídias.'
+      }
     }
     // Remove "Usuário [qualquer_coisa] " se a frase começar assim, pegando a partir da ação (verbo)
     // Exemplos: "adicionou", "excluiu", "alterou", "aprovou", "negou"
@@ -157,7 +172,7 @@ export default function Auditoria({ embedded = false }) {
       dataIndex: 'mensagem',
       key: 'mensagem',
       render: (text, record) => {
-        const displayMsg = cleanMessage(text)
+        const displayMsg = cleanMessage(text, record)
         if (record.acao === 'UPDATE') {
           const changes = getChanges(record.detalhes_antes, record.detalhes_depois)
           
