@@ -15,6 +15,11 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { useDashboard } from '../hooks/useDashboard'
 import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
+import Modal from '../components/ui/Modal'
+import { equipesService } from '../services/equipesService'
+import { estudantesService } from '../services/estudantesService'
+import EquipesList from '../components/catalogos/EquipesList'
+import EquipeViewModal from '../components/catalogos/EquipeViewModal'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN']
 
@@ -100,6 +105,102 @@ export default function Dashboard() {
   const [tabEquipesModalidade, setTabEquipesModalidade] = useState('')
   const isAdmin = ADMIN_ROLES.includes(user?.role)
 
+  const [equipesCache, setEquipesCache] = useState(null)
+  const [openAlunosModal, setOpenAlunosModal] = useState(false)
+  const [alunosModalidade, setAlunosModalidade] = useState([])
+  const [loadingAlunosModalidade, setLoadingAlunosModalidade] = useState(false)
+  const [modalidadeSelecionada, setModalidadeSelecionada] = useState(null)
+
+  // Admin: modal com lista de equipes (com escola) e, ao clicar, lista de alunos daquela equipe.
+  const [openEquipesAdminModal, setOpenEquipesAdminModal] = useState(false)
+  const [equipesAdminDaModalidade, setEquipesAdminDaModalidade] = useState([])
+  const [loadingEquipesAdminDaModalidade, setLoadingEquipesAdminDaModalidade] = useState(false)
+  const [modalidadeSelecionadaAdmin, setModalidadeSelecionadaAdmin] = useState(null)
+  const [equipeAdminSelecionada, setEquipeAdminSelecionada] = useState(null)
+
+  const handleAbrirAlunosModalidade = async (item) => {
+    if (isAdmin) return
+    setModalidadeSelecionada(item)
+    setOpenAlunosModal(true)
+    setLoadingAlunosModalidade(true)
+
+    try {
+      let equipes = equipesCache
+      if (!Array.isArray(equipes)) {
+        equipes = await equipesService.listar()
+        setEquipesCache(equipes)
+      }
+
+      const matches = equipes.filter((e) => {
+        if (item?.esporte_variante_id) {
+          return String(e?.esporte_variante_id ?? '') === String(item?.esporte_variante_id)
+        }
+        return (
+          e?.esporte_nome === item?.esporte_nome &&
+          e?.categoria_nome === item?.categoria_nome &&
+          e?.naipe_nome === item?.naipe_nome
+        )
+      })
+
+      const dedup = new Map()
+      matches.forEach((eq) => {
+        ;(eq?.estudantes || []).forEach((est) => {
+          if (!est?.id) return
+          dedup.set(est.id, est)
+        })
+      })
+
+      const alunos = Array.from(dedup.values())
+      alunos.sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '', 'pt-BR', { sensitivity: 'base' }))
+      setAlunosModalidade(alunos)
+    } catch (e) {
+      setAlunosModalidade([])
+      alert('Erro ao carregar alunos da modalidade. Tente novamente.')
+    } finally {
+      setLoadingAlunosModalidade(false)
+    }
+  }
+
+  const handleAbrirEquipesAdminModalidade = async (item) => {
+    if (!isAdmin) return
+    setModalidadeSelecionadaAdmin(item)
+    setOpenEquipesAdminModal(true)
+    setEquipeAdminSelecionada(null)
+    setLoadingEquipesAdminDaModalidade(true)
+
+    try {
+      let equipes = equipesCache
+      if (!Array.isArray(equipes)) {
+        equipes = await equipesService.listar()
+        setEquipesCache(equipes)
+      }
+
+      const filtered = equipes.filter((e) => {
+        if (item?.esporte_variante_id) {
+          return String(e?.esporte_variante_id ?? '') === String(item?.esporte_variante_id)
+        }
+        return (
+          e?.esporte_nome === item?.esporte_nome &&
+          e?.categoria_nome === item?.categoria_nome &&
+          e?.naipe_nome === item?.naipe_nome
+        )
+      })
+
+      filtered.sort((a, b) => {
+        const ea = a?.escola_nome || ''
+        const eb = b?.escola_nome || ''
+        return ea.localeCompare(eb, 'pt-BR', { sensitivity: 'base' })
+      })
+
+      setEquipesAdminDaModalidade(filtered)
+    } catch (e) {
+      setEquipesAdminDaModalidade([])
+      alert('Erro ao carregar equipes da modalidade. Tente novamente.')
+    } finally {
+      setLoadingEquipesAdminDaModalidade(false)
+    }
+  }
+
   const restante = useMemo(
     () => getRestante(prazoCadastroAlunos, now),
     [prazoCadastroAlunos, now]
@@ -160,9 +261,11 @@ export default function Dashboard() {
     const renderLista = (itens) => (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {itens.map((item, idx) => (
-          <div
+          <button
             key={idx}
-            className="bg-white border border-[#f1f5f9] rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+            type="button"
+            onClick={() => (isAdmin ? handleAbrirEquipesAdminModalidade(item) : handleAbrirAlunosModalidade(item))}
+            className="bg-white border border-[#f1f5f9] rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-left cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#0f766e]/30"
           >
             <div className="flex justify-between items-center text-sm mb-2">
               <span
@@ -171,27 +274,14 @@ export default function Dashboard() {
               >
                 {item?.modalidade || '-'}
               </span>
-              <span className="font-extrabold text-[#0f766e] shrink-0 whitespace-nowrap text-xl sm:text-2xl tabular-nums leading-none">
-                {isAdmin
-                  ? new Intl.NumberFormat('pt-BR').format(item?.total_equipes ?? item?.total ?? 0)
-                  : `${Math.round(item?.ocupacao_percent ?? 0)}%`}
-              </span>
-            </div>
 
-            {!isAdmin && (
-              <div className="mt-3">
-                <div className="text-[11px] sm:text-[12px] text-[#475569] font-medium">
-                  {Number(item?.total_atletas ?? 0)} atletas de capacidade {Number(item?.total_equipes ?? 0) * Number(item?.limite_atletas ?? 0)}
-                </div>
-                <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden mt-2">
-                  <div
-                    className="h-full bg-[#0d9488]"
-                    style={{ width: `${Math.min(100, Math.max(0, Number(item?.ocupacao_percent ?? 0)))}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+              {isAdmin && (
+                <span className="font-extrabold text-[#0f766e] shrink-0 whitespace-nowrap text-xl sm:text-2xl tabular-nums leading-none">
+                  {new Intl.NumberFormat('pt-BR').format(item?.total_equipes ?? item?.total ?? 0)}
+                </span>
+              )}
+            </div>
+          </button>
         ))}
       </div>
     )
@@ -205,7 +295,7 @@ export default function Dashboard() {
     })
 
     return groupTabs
-  }, [equipesPorEsporte, isAdmin])
+  }, [equipesPorEsporte, isAdmin, equipesCache]) // equipesCache para garantir que a closure funcione
 
   useEffect(() => {
     if (!tabItemsEquipesModalidade?.length) return
@@ -400,6 +490,92 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Modal: alunos por modalidade (diretor/coordenador) */}
+      {!isAdmin && (
+        <Modal
+          isOpen={openAlunosModal}
+          onClose={() => setOpenAlunosModal(false)}
+          title="Alunos da Modalidade"
+          subtitle={modalidadeSelecionada?.modalidade || ''}
+          size="lg"
+          footer={
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+              onClick={() => setOpenAlunosModal(false)}
+            >
+              Fechar
+            </button>
+          }
+        >
+          {loadingAlunosModalidade ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : alunosModalidade.length > 0 ? (
+            <ul className="list-none m-0 p-0 space-y-2">
+              {alunosModalidade.map((est) => (
+                <li
+                  key={est.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <span className="text-[0.9375rem] font-medium text-[#334155]">{est.nome}</span>
+                  <span className="text-xs font-mono text-[#64748b]">{estudantesService.formatCpf(est.cpf)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[#64748b] m-0">Nenhum aluno vinculado para esta modalidade.</p>
+          )}
+        </Modal>
+      )}
+
+      {/* Modal: equipes (admin) da modalidade e alunos por equipe */}
+      {isAdmin && (
+        <Modal
+          isOpen={openEquipesAdminModal}
+          onClose={() => {
+            setOpenEquipesAdminModal(false)
+            setEquipeAdminSelecionada(null)
+          }}
+          title="Equipes da Modalidade"
+          subtitle={modalidadeSelecionadaAdmin?.modalidade || ''}
+          size="xl"
+          footer={
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+              onClick={() => {
+                setOpenEquipesAdminModal(false)
+                setEquipeAdminSelecionada(null)
+              }}
+            >
+              Fechar
+            </button>
+          }
+        >
+          <EquipesList
+            lista={equipesAdminDaModalidade}
+            loading={loadingEquipesAdminDaModalidade}
+            error={null}
+            onViewEquipe={(item) => setEquipeAdminSelecionada(item)}
+            showInstituicao={true}
+            showFilters={false}
+            showTotalEquipes={false}
+            escolas={[]}
+          />
+        </Modal>
+      )}
+
+      {/* Segundo modal (admin): detalhes e alunos da equipe */}
+      {isAdmin && (
+        <EquipeViewModal
+          open={!!equipeAdminSelecionada}
+          onClose={() => setEquipeAdminSelecionada(null)}
+          equipe={equipeAdminSelecionada}
+        />
       )}
 
       {/* Bloco removido: Escolas por Status de Adesão */}
