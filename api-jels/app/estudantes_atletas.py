@@ -230,6 +230,7 @@ async def list_escola_credenciais(
             e.cpf,
             e.data_nascimento,
             e.foto_url,
+            e.documentacao_assinada_url,
             s.nome_escola as escola_nome,
             COALESCE(sm.modalidades, '[]'::jsonb) as modalidades
         FROM estudantes_atletas e
@@ -253,6 +254,7 @@ async def list_escola_credenciais(
                 data_nascimento=r["data_nascimento"].isoformat() if r.get("data_nascimento") else None,
                 escola_nome=r["escola_nome"],
                 foto_url=r["foto_url"],
+                documentacao_assinada_url=r.get("documentacao_assinada_url"),
                 modalidades=[ModalidadeSimples(**m) for m in r["modalidades"]],
             )
         )

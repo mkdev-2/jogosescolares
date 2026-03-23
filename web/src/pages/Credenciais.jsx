@@ -26,6 +26,10 @@ export default function Credenciais() {
     })
 
     const escolaObj = listaEscolas.find((e) => Number(e.id) === Number(escolaSelecionada))
+    const estudantesComDocumentoAssinado = estudantesDaEscola.filter(
+        (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
+    )
+    const estudantesComAssinaturaPendente = estudantesDaEscola.length - estudantesComDocumentoAssinado.length
 
     const fetchEstudantes = useCallback(async () => {
         if (!escolaSelecionada) {
@@ -54,8 +58,13 @@ export default function Credenciais() {
             return
         }
 
+        if (estudantesComDocumentoAssinado.length === 0) {
+            alert('Nenhum estudante com status "Documento assinado" para esta escola.')
+            return
+        }
+
         setGerandoPdf(true)
-        setProgressoPdf({ atual: 0, total: estudantesDaEscola.length })
+        setProgressoPdf({ atual: 0, total: estudantesComDocumentoAssinado.length })
 
         try {
             // 1. Carregar mídias (logos e fundo)
@@ -116,8 +125,8 @@ export default function Credenciais() {
             const topMargin = 15
             const gapY = 15
 
-            for (let i = 0; i < estudantesDaEscola.length; i++) {
-                const aluno = estudantesDaEscola[i]
+            for (let i = 0; i < estudantesComDocumentoAssinado.length; i++) {
+                const aluno = estudantesComDocumentoAssinado[i]
                 const indexInPage = i % 2
                 if (i > 0 && indexInPage === 0) doc.addPage()
 
@@ -307,7 +316,7 @@ export default function Credenciais() {
                     doc.addImage(logoJels.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dJels.h) / 2, dJels.w, dJels.h)
                 }
 
-                setProgressoPdf({ atual: i + 1, total: estudantesDaEscola.length })
+                setProgressoPdf({ atual: i + 1, total: estudantesComDocumentoAssinado.length })
             }
 
             const nomeArquivo = `credenciais-${(escolaObj?.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`
@@ -375,6 +384,8 @@ export default function Credenciais() {
                                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                                             <div className="text-[0.875rem] sm:text-[1rem]"><strong>Escola:</strong> {escolaObj?.nome_escola}</div>
                                             <div className="text-[0.875rem] sm:text-[1rem]"><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Documento assinado:</strong> {estudantesComDocumentoAssinado.length}</div>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Assinatura pendente:</strong> {estudantesComAssinaturaPendente}</div>
                                         </Space>
                                     }
                                     type="info"
@@ -404,14 +415,14 @@ export default function Credenciais() {
                                     type="button"
                                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all text-[0.9375rem]"
                                     onClick={handleGerarPdf}
-                                    disabled={gerandoPdf}
+                                    disabled={gerandoPdf || estudantesComDocumentoAssinado.length === 0}
                                 >
                                     {gerandoPdf ? (
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     ) : (
                                         <Download size={20} />
                                     )}
-                                    {gerandoPdf ? 'Processando...' : 'GERAR PDF (MOLDE TIMBRADO)'}
+                                    {gerandoPdf ? 'Processando...' : `GERAR PDF)`}
                                 </button>
                             </div>
                         )}
@@ -435,6 +446,16 @@ export default function Credenciais() {
                                         title: 'CPF',
                                         dataIndex: 'cpf',
                                         render: (c) => estudantesService.formatCpf(c)
+                                    },
+                                    {
+                                        title: 'Status da ficha',
+                                        key: 'status_ficha',
+                                        render: (_, row) => {
+                                            const temDocumentoAssinado = !!String(row?.documentacao_assinada_url || '').trim()
+                                            return temDocumentoAssinado
+                                                ? <Tag color="green">Documento assinado</Tag>
+                                                : <Tag color="orange">Assinatura pendente</Tag>
+                                        }
                                     },
                                     {
                                         title: 'Modalidades',

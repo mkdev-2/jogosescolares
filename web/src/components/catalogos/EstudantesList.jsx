@@ -16,10 +16,8 @@ function SexoBadge({ sexo }) {
 
 function FichaInscricaoBadge({ item }) {
   const temAnexo = !!(item?.documentacao_assinada_url?.trim())
-  const assinado = !!item?.ficha_assinada
-  if (temAnexo) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap">Ficha Anexada</span>
-  if (assinado) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 whitespace-nowrap">Assinado</span>
-  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">Não Assinou</span>
+  if (temAnexo) return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap">Documento assinado</span>
+  return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">Assinatura pendente</span>
 }
 
 function formatDate(str) {

@@ -206,12 +206,12 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
               {temFicha ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 w-fit">
                   <Check className="w-3 h-3" />
-                  Ficha anexada
+                  Documento assinado
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 w-fit">
                   <X className="w-3 h-3" />
-                  Ficha não anexada
+                  Assinatura pendente
                 </span>
               )}
             </div>
@@ -283,11 +283,11 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
             )}
           </div>
 
-          {/* Indicador de assinaturas */}
+          {/* Indicador de status de assinatura */}
           {(aluno.ficha_assinada || temFicha) && (
             <div className="flex items-center gap-2 text-sm text-[#334155]">
               {aluno.ficha_assinada ? <Check className="w-4 h-4 text-[#0f766e]" /> : <X className="w-4 h-4 text-[#94a3b8]" />}
-              <span>Assinaturas de Médico, Aluno, Responsável e Escola coletadas</span>
+              <span>Documento assinado</span>
             </div>
           )}
 

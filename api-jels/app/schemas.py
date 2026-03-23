@@ -599,6 +599,7 @@ class EstudanteCredencialResponse(BaseModel):
     data_nascimento: Optional[str] = None
     escola_nome: Optional[str] = None
     foto_url: Optional[str] = None
+    documentacao_assinada_url: Optional[str] = None
     modalidades: list[ModalidadeSimples] = []
 
 

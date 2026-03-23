@@ -40,12 +40,13 @@ function getRestante(dataLimiteStr, now = new Date()) {
   return { days, hours, minutes, seconds }
 }
 
-function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to }) {
+function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to, onClick }) {
   const overlayVariants = {
     primary: 'from-[#0f766e]/10 to-[#0d9488]/10',
     secondary: 'from-blue-500/10 to-indigo-600/10',
     success: 'from-emerald-500/10 to-emerald-600/10',
     warning: 'from-amber-500/10 to-amber-600/10',
+    danger: 'from-red-500/10 to-rose-600/10',
     info: 'from-indigo-500/10 to-indigo-600/10',
   }
   const borderVariants = {
@@ -53,6 +54,7 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
     secondary: 'border-blue-500/20',
     success: 'border-emerald-500/20',
     warning: 'border-amber-500/20',
+    danger: 'border-red-500/20',
     info: 'border-indigo-500/20',
   }
   const iconBg = {
@@ -60,6 +62,7 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
     secondary: 'bg-blue-500 text-white',
     success: 'bg-emerald-500 text-white',
     warning: 'bg-amber-500 text-white',
+    danger: 'bg-red-500 text-white',
     info: 'bg-indigo-500 text-white',
   }
   const formatValue = (val) =>
@@ -67,7 +70,7 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
 
   const content = (
     <div
-      className={`group relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${borderVariants[variant] || borderVariants.primary} ${to ? 'cursor-pointer' : ''}`}
+      className={`group relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${borderVariants[variant] || borderVariants.primary} ${to || onClick ? 'cursor-pointer' : ''}`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br opacity-40 ${overlayVariants[variant] || overlayVariants.primary} transition-opacity group-hover:opacity-60`} />
 
@@ -95,6 +98,17 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
   if (to) {
     return <Link to={to} className="block no-underline">{content}</Link>
   }
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full bg-transparent border-0 p-0 text-left cursor-pointer"
+      >
+        {content}
+      </button>
+    )
+  }
   return content
 }
 
@@ -118,6 +132,35 @@ export default function Dashboard() {
   const [loadingEquipesAdminDaModalidade, setLoadingEquipesAdminDaModalidade] = useState(false)
   const [modalidadeSelecionadaAdmin, setModalidadeSelecionadaAdmin] = useState(null)
   const [equipeAdminSelecionada, setEquipeAdminSelecionada] = useState(null)
+
+  // Diretor/coordenador: modal com lista de alunos sem documentação
+  const [openAlunosSemDocModal, setOpenAlunosSemDocModal] = useState(false)
+  const [loadingAlunosSemDoc, setLoadingAlunosSemDoc] = useState(false)
+  const [alunosSemDoc, setAlunosSemDoc] = useState([])
+  const [alunosSemDocCarregado, setAlunosSemDocCarregado] = useState(false)
+
+  const handleAbrirAlunosSemDocumentacao = async () => {
+    if (isAdmin) return
+    setOpenAlunosSemDocModal(true)
+
+    if (alunosSemDocCarregado) return
+    setLoadingAlunosSemDoc(true)
+    try {
+      const lista = await estudantesService.listar()
+      const filtrados = (Array.isArray(lista) ? lista : []).filter((est) => {
+        const url = est?.documentacao_assinada_url
+        return !url || !String(url).trim()
+      })
+      filtrados.sort((a, b) => (a?.nome || '').localeCompare(b?.nome || '', 'pt-BR', { sensitivity: 'base' }))
+      setAlunosSemDoc(filtrados)
+      setAlunosSemDocCarregado(true)
+    } catch (e) {
+      setAlunosSemDoc([])
+      alert('Erro ao carregar alunos sem documentação. Tente novamente.')
+    } finally {
+      setLoadingAlunosSemDoc(false)
+    }
+  }
 
   const handleAbrirAlunosModalidade = async (item) => {
     if (isAdmin) return
@@ -419,12 +462,12 @@ export default function Dashboard() {
               to="/app/gestao?tab=professores"
             />
             <StatCard
-              title="Sem documentação"
+              title="Alunos sem documentação"
               value={loading ? '...' : stats.alunos_sem_documentacao ?? 0}
-              subtitle="Alunos que não enviaram o anexo assinado"
               icon={FileText}
-              variant="warning"
-              to="/app/gestao?tab=alunos"
+              variant="danger"
+              to={isAdmin ? '/app/gestao?tab=alunos' : undefined}
+              onClick={!isAdmin ? handleAbrirAlunosSemDocumentacao : undefined}
             />
             {isAdmin && (
               <StatCard
@@ -537,6 +580,46 @@ export default function Dashboard() {
             </ul>
           ) : (
             <p className="text-sm text-[#64748b] m-0">Nenhum aluno vinculado para esta modalidade.</p>
+          )}
+        </Modal>
+      )}
+
+      {/* Modal: alunos sem documentação (diretor/coordenador) */}
+      {!isAdmin && (
+        <Modal
+          isOpen={openAlunosSemDocModal}
+          onClose={() => setOpenAlunosSemDocModal(false)}
+          title="Alunos sem documentação"
+          subtitle="Alunos que não enviaram o anexo assinado"
+          size="lg"
+          footer={
+            <button
+              type="button"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-[#f1f5f9] text-[#334155] hover:bg-[#e2e8f0]"
+              onClick={() => setOpenAlunosSemDocModal(false)}
+            >
+              Fechar
+            </button>
+          }
+        >
+          {loadingAlunosSemDoc ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : alunosSemDoc.length > 0 ? (
+            <ul className="list-none m-0 p-0 space-y-2">
+              {alunosSemDoc.map((est) => (
+                <li
+                  key={est.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <span className="text-[0.9375rem] font-medium text-[#334155]">{est.nome}</span>
+                  <span className="text-xs font-mono text-[#64748b]">{estudantesService.formatCpf(est.cpf)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[#64748b] m-0">Nenhum aluno sem documentação.</p>
           )}
         </Modal>
       )}

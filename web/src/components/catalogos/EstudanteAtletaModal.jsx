@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { User, UserCircle, School, Camera, TriangleAlert, FileSignature } from 'lucide-react'
-import { DatePicker, Input, Select, Button, Steps, Checkbox, Upload } from 'antd'
+import { DatePicker, Input, Select, Button, Steps, Upload } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
@@ -321,7 +321,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         responsavel_email: form.responsavelEmail.trim(),
         responsavel_nis: form.responsavelNis.trim(),
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
-        ficha_assinada: Boolean(form.fichaAssinada),
+        ficha_assinada: Boolean(form.documentacaoAssinadaUrl?.trim()),
         documentacao_assinada_url: form.documentacaoAssinadaUrl?.trim() || null,
       }
       if (estudante?.id) {
@@ -563,8 +563,8 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       A Ficha de Inscrição Individual deve ser assinada pelo Aluno, Responsável, Médico e Escola.
                     </p>
 
-                    {/* Botão de Gerar Ficha - Agora ACIMA da checkbox */}
-                    <div className={`p-4 bg-[#f0fdfa] border border-[#ccfbf1] rounded-lg transition-opacity ${form.fichaAssinada ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+                    {/* Botão de gerar ficha para coleta de assinaturas */}
+                    <div className="p-4 bg-[#f0fdfa] border border-[#ccfbf1] rounded-lg">
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-[#0f766e] rounded-lg">
@@ -575,11 +575,10 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                             <p className="text-xs text-[#0f766e] m-0">Gere o documento preenchido para coletar as assinaturas.</p>
                           </div>
                         </div>
-                        <Button 
-                          type="primary" 
-                          icon={<PlusOutlined />} 
+                        <Button
+                          type="primary"
+                          icon={<PlusOutlined />}
                           onClick={() => setFichaPreviewOpen(true)}
-                          disabled={form.fichaAssinada}
                           className="bg-[#0f766e] hover:bg-[#0d6961] border-none"
                         >
                           Gerar Ficha de Inscrição
@@ -587,24 +586,12 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       </div>
                     </div>
 
-                    <Checkbox
-                      checked={form.fichaAssinada}
-                      onChange={(e) => {
-                        const checked = e.target.checked
-                        updateField('fichaAssinada', checked)
-                        if (!checked) updateField('documentacaoAssinadaUrl', '')
-                      }}
-                    >
-                      Todas as assinaturas foram coletadas.
-                    </Checkbox>
                   </div>
 
-                  <div className={`border-t border-[#e2e8f0] pt-6 mt-6 ${!form.fichaAssinada ? 'opacity-60 pointer-events-none' : ''}`}>
+                  <div className="border-t border-[#e2e8f0] pt-6 mt-6">
                     <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
                     <p className="text-sm text-[#64748b] mb-4 m-0">
-                      {form.fichaAssinada
-                        ? `PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`
-                        : 'Marque a opção acima para habilitar o anexo.'}
+                      {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
                     </p>
 
                     <Upload
@@ -614,7 +601,6 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       fileList={docFileList}
                       customRequest={handleDocCustomRequest}
                       onChange={handleDocChange}
-                      disabled={!form.fichaAssinada}
                       onPreview={(file) => {
                         if (file.url) window.open(file.url, '_blank')
                         else if (file.originFileObj) {
