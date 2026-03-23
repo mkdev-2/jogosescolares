@@ -261,6 +261,66 @@ async def list_escola_credenciais(
     return result
 
 
+@router.post("/escola/{escola_id}/credenciais/auditar")
+async def auditar_geracao_credenciais(
+    escola_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Registra na auditoria a ação de geração de credenciais de uma escola.
+    """
+    _check_estudante_visible(current_user, escola_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT
+                s.nome_escola,
+                COUNT(e.id) AS total_alunos,
+                COUNT(*) FILTER (
+                    WHERE e.documentacao_assinada_url IS NOT NULL
+                      AND TRIM(e.documentacao_assinada_url) <> ''
+                ) AS total_documento_assinado
+            FROM escolas s
+            LEFT JOIN estudantes_atletas e ON e.escola_id = s.id
+            WHERE s.id = %s
+            GROUP BY s.id, s.nome_escola
+            """,
+            (escola_id,),
+        )
+        escola_stats = await cur.fetchone()
+
+    if not escola_stats:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+
+    total_alunos = int(escola_stats.get("total_alunos") or 0)
+    total_documento_assinado = int(escola_stats.get("total_documento_assinado") or 0)
+    total_pendentes = total_alunos - total_documento_assinado
+    nome_escola = escola_stats.get("nome_escola") or f"ID {escola_id}"
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user.get("id"),
+        acao="CREATE",
+        tipo_recurso="CREDENCIAL",
+        recurso_id=escola_id,
+        detalhes_depois={
+            "escola_id": escola_id,
+            "escola_nome": nome_escola,
+            "total_alunos": total_alunos,
+            "documento_assinado": total_documento_assinado,
+            "assinatura_pendente": total_pendentes,
+        },
+        mensagem=(
+            f"Usuário {current_user['nome']} gerou credenciais da escola "
+            f"{nome_escola} ({total_documento_assinado} aptos, {total_pendentes} pendentes)."
+        ),
+    )
+
+    return {"ok": True}
+
+
 @router.get("/{estudante_id}", response_model=EstudanteAtletaResponse)
 async def get_estudante_atleta(
     estudante_id: int,

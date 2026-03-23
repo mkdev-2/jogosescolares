@@ -36,6 +36,17 @@ export const estudantesService = {
     return res.json().catch(() => [])
   },
 
+  async auditarGeracaoCredenciais(escolaId) {
+    const res = await apiFetch(`/estudantes-atletas/escola/${escolaId}/credenciais/auditar`, {
+      method: 'POST',
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
   formatCpf,
 
   /**

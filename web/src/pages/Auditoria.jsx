@@ -90,7 +90,7 @@ export default function Auditoria({ embedded = false }) {
     if (!msg) return ''
     // Remove "Usuário [qualquer_coisa] " se a frase começar assim, pegando a partir da ação (verbo)
     // Exemplos: "adicionou", "excluiu", "alterou", "aprovou", "negou"
-    const cleaned = msg.replace(/^Usuário .+? (adicionou|excluiu|alterou|aprovou|negou)/, '$1')
+    const cleaned = msg.replace(/^Usuário .+? (adicionou|excluiu|alterou|aprovou|negou|gerou|exportou)/, '$1')
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1) // Capitaliza a primeira letra da ação
   }
 

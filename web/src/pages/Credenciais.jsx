@@ -67,6 +67,8 @@ export default function Credenciais() {
         setProgressoPdf({ atual: 0, total: estudantesComDocumentoAssinado.length })
 
         try {
+            await estudantesService.auditarGeracaoCredenciais(escolaSelecionada)
+
             // 1. Carregar mídias (logos e fundo)
             const midias = await configuracoesService.getLogos()
             const bgUrl = midias?.bg_credencial ? getStorageUrl(midias.bg_credencial) : null
@@ -346,9 +348,13 @@ export default function Credenciais() {
                             </Space>
                         </Typography.Title>
                         <Typography.Text type="secondary" className="text-[0.875rem] sm:text-[1rem] leading-relaxed">
-                            Gere centenas de credenciais em segundos usando o novo motor de exportação direta em PDF.
                         </Typography.Text>
                     </div>
+                    <Alert
+                        type="warning"
+                        showIcon
+                        message="A geração de credenciais é permitida apenas para alunos com status 'Documento assinado'."
+                    />
 
                     <Form form={form} layout="vertical" className="mt-2">
                         <Row gutter={[16, 16]}>
