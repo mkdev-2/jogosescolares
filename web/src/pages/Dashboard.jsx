@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect, useMemo } from 'react'
+import { Tabs } from 'antd'
 import {
   Building2,
   Users,
@@ -34,12 +35,19 @@ function getRestante(dataLimiteStr, now = new Date()) {
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to }) {
-  const variants = {
-    primary: 'from-[#0f766e]/10 to-[#0d9488]/10 border-[#0f766e]/20',
-    secondary: 'from-blue-500/10 to-indigo-600/10 border-blue-500/20',
-    success: 'from-emerald-500/10 to-emerald-600/10 border-emerald-500/20',
-    warning: 'from-amber-500/10 to-amber-600/10 border-amber-500/20',
-    info: 'from-indigo-500/10 to-indigo-600/10 border-indigo-500/20',
+  const overlayVariants = {
+    primary: 'from-[#0f766e]/10 to-[#0d9488]/10',
+    secondary: 'from-blue-500/10 to-indigo-600/10',
+    success: 'from-emerald-500/10 to-emerald-600/10',
+    warning: 'from-amber-500/10 to-amber-600/10',
+    info: 'from-indigo-500/10 to-indigo-600/10',
+  }
+  const borderVariants = {
+    primary: 'border-[#0f766e]/20',
+    secondary: 'border-blue-500/20',
+    success: 'border-emerald-500/20',
+    warning: 'border-amber-500/20',
+    info: 'border-indigo-500/20',
   }
   const iconBg = {
     primary: 'bg-[#0f766e] text-white',
@@ -53,26 +61,26 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
 
   const content = (
     <div
-      className={`relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${variants[variant]} ${to ? 'cursor-pointer' : ''}`}
+      className={`group relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${borderVariants[variant] || borderVariants.primary} ${to ? 'cursor-pointer' : ''}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-br opacity-40" />
+      <div className={`absolute inset-0 bg-gradient-to-br opacity-40 ${overlayVariants[variant] || overlayVariants.primary} transition-opacity group-hover:opacity-60`} />
+
       <div className="relative flex justify-between items-start mb-2 sm:mb-3">
         <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
           {title}
         </p>
-        <div
-          className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md ${iconBg[variant]} shrink-0`}
-        >
+        <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${iconBg[variant] || iconBg.primary} shrink-0`}>
           <Icon className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
         </div>
       </div>
-      <p className="text-xl sm:text-3xl font-extrabold text-[#042f2e] leading-none mb-1">
+
+      <p className="relative text-xl sm:text-3xl font-extrabold text-[#042f2e] leading-none mb-1">
         {formatValue(value)}
       </p>
       {subtitle && (
         <p className="text-[10px] sm:text-xs text-[#64748b] font-medium leading-tight">{subtitle}</p>
       )}
-      <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none">
+      <div className="absolute -right-6 -bottom-6 opacity-[0.05] pointer-events-none transition-opacity group-hover:opacity-[0.08]">
         <Icon size={80} className="text-[#0f766e]" />
       </div>
     </div>
@@ -89,6 +97,7 @@ export default function Dashboard() {
   const { data, loading, error } = useDashboard()
   const { dataLimite: prazoCadastroAlunos, bloqueado: prazoEncerrado } = usePrazoCadastroAlunos()
   const [now, setNow] = useState(() => new Date())
+  const [tabEquipesModalidade, setTabEquipesModalidade] = useState('')
   const isAdmin = ADMIN_ROLES.includes(user?.role)
 
   const restante = useMemo(
@@ -119,10 +128,66 @@ export default function Dashboard() {
   }
 
   const stats = data || {}
-  const maxEquipesModalidade = Math.max(
-    ...(stats.equipes_por_modalidade || []).map((e) => e.total),
-    1
-  )
+
+  const equipesPorEsporte = useMemo(() => {
+    const items = Array.isArray(stats.equipes_por_modalidade) ? stats.equipes_por_modalidade : []
+    const map = new Map()
+    items.forEach((it) => {
+      const key = it?.esporte_nome || 'Outros'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(it)
+    })
+
+    const groups = Array.from(map.entries()).map(([esporte_nome, arr]) => ({
+      esporte_nome,
+      itens: arr,
+      total: arr.reduce((acc, x) => acc + (Number(x?.total) || 0), 0),
+    }))
+
+    groups.sort((a, b) => b.total - a.total)
+    return groups
+  }, [stats.equipes_por_modalidade])
+
+  const tabItemsEquipesModalidade = useMemo(() => {
+    const renderLista = (itens) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {itens.map((item, idx) => (
+          <div
+            key={idx}
+            className="bg-white border border-[#f1f5f9] rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+          >
+            <div className="flex justify-between items-center text-sm mb-2">
+              <span
+                className="inline-flex items-center px-3 py-1 rounded-full bg-[#0f766e]/10 text-[#0d9488] border border-[#0f766e]/20 font-bold text-[13px] sm:text-[14px] truncate max-w-[70%]"
+                title={item?.modalidade || ''}
+              >
+                {item?.modalidade || '-'}
+              </span>
+              <span className="font-extrabold text-[#0f766e] shrink-0 whitespace-nowrap text-xl sm:text-2xl tabular-nums leading-none">
+                {new Intl.NumberFormat('pt-BR').format(item?.total ?? 0)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+
+    const groupTabs = equipesPorEsporte.map((g) => {
+      return {
+        key: `ESP-${g.esporte_nome}`,
+        label: g.esporte_nome,
+        children: renderLista(g.itens),
+      }
+    })
+
+    return groupTabs
+  }, [equipesPorEsporte])
+
+  useEffect(() => {
+    if (!tabItemsEquipesModalidade?.length) return
+    const exists = tabItemsEquipesModalidade.some((t) => t.key === tabEquipesModalidade)
+    if (!exists) setTabEquipesModalidade(tabItemsEquipesModalidade[0].key)
+  }, [tabItemsEquipesModalidade, tabEquipesModalidade])
 
   return (
     <div className="flex flex-col gap-6">
@@ -192,55 +257,55 @@ export default function Dashboard() {
       )}
 
       {/* Cards de métricas */}
-      <section className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <StatCard
-          title="Escolas Cadastradas"
-          value={loading ? '...' : stats.total_escolas ?? 0}
-          icon={Building2}
-          variant="primary"
-          to={isAdmin ? '/app/gestao?tab=escolas' : undefined}
-        />
-        <StatCard
-          title="Alunos Cadastrados"
-          value={loading ? '...' : stats.total_estudantes ?? 0}
-          subtitle="Estudantes atletas no sistema"
-          icon={Users}
-          variant="secondary"
-          to="/app/gestao?tab=alunos"
-        />
-        <StatCard
-          title="Modalidades"
-          value={loading ? '...' : stats.total_modalidades ?? 0}
-          subtitle="Esportes × categoria × naipe"
-          icon={Trophy}
-          variant="success"
-          to="/app/atividades"
-        />
-        <StatCard
-          title="Equipes"
-          value={loading ? '...' : stats.total_equipes ?? 0}
-          subtitle={`${stats.total_atletas_vinculados ?? 0} atletas vinculados`}
-          icon={UsersRound}
-          variant="info"
-          to="/app/gestao?tab=equipes"
-        />
-        <StatCard
-          title="Professores Técnicos"
-          value={loading ? '...' : stats.total_professores ?? 0}
-          icon={GraduationCap}
-          variant="primary"
-          to="/app/gestao?tab=professores"
-        />
-        {isAdmin && (
-          <StatCard
-            title="Solicitações Pendentes"
-            value={loading ? '...' : stats.solicitacoes_pendentes ?? 0}
-            subtitle="Aguardando aprovação"
-            icon={ClipboardList}
-            variant="warning"
-            to="/app/administrativo?tab=usuarios-pendentes"
-          />
-        )}
+      <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="p-6">
+          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <StatCard
+              title="Escolas Cadastradas"
+              value={loading ? '...' : stats.total_escolas ?? 0}
+              icon={Building2}
+              variant="primary"
+              to={isAdmin ? '/app/gestao?tab=escolas' : undefined}
+            />
+            <StatCard
+              title="Alunos Cadastrados"
+              value={loading ? '...' : stats.total_estudantes ?? 0}
+              icon={Users}
+              variant="secondary"
+              to="/app/gestao?tab=alunos"
+            />
+            <StatCard
+          title="Esportes"
+          value={loading ? '...' : stats.total_esportes ?? 0}
+              icon={Trophy}
+              variant="success"
+              to="/app/atividades"
+            />
+            <StatCard
+              title="Equipes"
+              value={loading ? '...' : stats.total_equipes ?? 0}
+              icon={UsersRound}
+              variant="info"
+              to="/app/gestao?tab=equipes"
+            />
+            <StatCard
+              title="Professores Técnicos"
+              value={loading ? '...' : stats.total_professores ?? 0}
+              icon={GraduationCap}
+              variant="primary"
+              to="/app/gestao?tab=professores"
+            />
+            {isAdmin && (
+              <StatCard
+                title="Solicitações Pendentes"
+                value={loading ? '...' : stats.solicitacoes_pendentes ?? 0}
+                icon={ClipboardList}
+                variant="warning"
+                to="/app/administrativo?tab=usuarios-pendentes"
+              />
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Equipes por modalidade */}
@@ -263,28 +328,12 @@ export default function Dashboard() {
               Nenhuma equipe cadastrada ainda.
             </p>
           ) : (
-            <div className="space-y-4">
-              {stats.equipes_por_modalidade.map((item, idx) => (
-                <div key={idx} className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-medium text-[#334155] truncate pr-2">
-                      {item.modalidade}
-                    </span>
-                    <span className="font-bold text-[#0f766e] shrink-0">
-                      {new Intl.NumberFormat('pt-BR').format(item.total)} equipes
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#0f766e,#0d9488)] transition-all duration-500"
-                      style={{
-                        width: `${Math.min((item.total / maxEquipesModalidade) * 100, 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Tabs
+              activeKey={tabEquipesModalidade}
+              onChange={setTabEquipesModalidade}
+              items={tabItemsEquipesModalidade}
+              type="card"
+            />
           )}
         </div>
       </section>

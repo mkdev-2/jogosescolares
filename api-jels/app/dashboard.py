@@ -36,7 +36,16 @@ async def get_dashboard_stats(
             await cur.execute("SELECT COUNT(*) AS total FROM estudantes_atletas")
             total_estudantes = (await cur.fetchone())["total"] or 0
 
-            # Total de modalidades (esporte_variantes)
+            # Total de esportes únicos com base nas variantes (equivale ao contador do /app/atividades)
+            await cur.execute(
+                """
+                SELECT COUNT(DISTINCT ev.esporte_id) AS total
+                FROM esporte_variantes ev
+                """
+            )
+            total_esportes = (await cur.fetchone())["total"] or 0
+
+            # Total de modalidades (esporte_variantes) - mantido por compatibilidade
             await cur.execute(
                 """
                 SELECT COUNT(*) AS total FROM esporte_variantes ev
@@ -137,7 +146,30 @@ async def get_dashboard_stats(
             )
             total_estudantes = (await cur.fetchone())["total"] or 0
 
-            # Modalidades disponíveis (todas, pois são catálogo)
+            # Total de esportes únicos com base nas variantes selecionadas na escola do usuário
+            await cur.execute(
+                "SELECT modalidades_adesao FROM escolas WHERE id = %s",
+                (escola_id,),
+            )
+            escola_row = await cur.fetchone()
+            variante_ids = []
+            if escola_row and isinstance(escola_row.get("modalidades_adesao"), dict):
+                variante_ids = escola_row["modalidades_adesao"].get("variante_ids") or []
+
+            if not variante_ids:
+                total_esportes = 0
+            else:
+                await cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT ev.esporte_id) AS total
+                    FROM esporte_variantes ev
+                    WHERE ev.id = ANY(%s)
+                    """,
+                    (variante_ids,),
+                )
+                total_esportes = (await cur.fetchone())["total"] or 0
+
+            # Modalidades disponíveis (variantes - todas, pois são catálogo)
             await cur.execute(
                 """
                 SELECT COUNT(*) AS total FROM esporte_variantes ev
@@ -204,6 +236,7 @@ async def get_dashboard_stats(
     return {
         "total_escolas": total_escolas,
         "total_estudantes": total_estudantes,
+        "total_esportes": total_esportes,
         "total_modalidades": total_modalidades,
         "total_equipes": total_equipes,
         "total_professores": total_professores,
