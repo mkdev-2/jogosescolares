@@ -11,6 +11,7 @@ import {
   Activity,
   Clock,
   Calendar,
+  FileText,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useDashboard } from '../hooks/useDashboard'
@@ -416,6 +417,14 @@ export default function Dashboard() {
               icon={GraduationCap}
               variant="primary"
               to="/app/gestao?tab=professores"
+            />
+            <StatCard
+              title="Sem documentação"
+              value={loading ? '...' : stats.alunos_sem_documentacao ?? 0}
+              subtitle="Alunos que não enviaram o anexo assinado"
+              icon={FileText}
+              variant="warning"
+              to="/app/gestao?tab=alunos"
             />
             {isAdmin && (
               <StatCard

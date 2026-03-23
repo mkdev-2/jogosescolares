@@ -36,6 +36,16 @@ async def get_dashboard_stats(
             await cur.execute("SELECT COUNT(*) AS total FROM estudantes_atletas")
             total_estudantes = (await cur.fetchone())["total"] or 0
 
+            # Total de estudantes sem documentação assinada enviada
+            await cur.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM estudantes_atletas
+                WHERE documentacao_assinada_url IS NULL OR documentacao_assinada_url = ''
+                """
+            )
+            alunos_sem_documentacao = (await cur.fetchone())["total"] or 0
+
             # Total de esportes únicos com base nas variantes (equivale ao contador do /app/atividades)
             await cur.execute(
                 """
@@ -165,6 +175,18 @@ async def get_dashboard_stats(
             )
             total_estudantes = (await cur.fetchone())["total"] or 0
 
+            # Total de estudantes sem documentação assinada enviada
+            await cur.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM estudantes_atletas
+                WHERE escola_id = %s
+                  AND (documentacao_assinada_url IS NULL OR documentacao_assinada_url = '')
+                """,
+                (escola_id,),
+            )
+            alunos_sem_documentacao = (await cur.fetchone())["total"] or 0
+
             # Total de esportes únicos com base nas variantes selecionadas na escola do usuário
             await cur.execute(
                 "SELECT modalidades_adesao FROM escolas WHERE id = %s",
@@ -274,6 +296,7 @@ async def get_dashboard_stats(
     return {
         "total_escolas": total_escolas,
         "total_estudantes": total_estudantes,
+        "alunos_sem_documentacao": alunos_sem_documentacao,
         "total_esportes": total_esportes,
         "total_modalidades": total_modalidades,
         "total_equipes": total_equipes,
