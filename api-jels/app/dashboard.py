@@ -95,14 +95,23 @@ async def get_dashboard_stats(
                 """
                 SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
                        ev.id AS esporte_variante_id,
-                       COUNT(e.id) AS total_equipes
+                       esp.limite_atletas AS esporte_limite_atletas,
+                       COUNT(DISTINCT e.id) AS total_equipes,
+                       COUNT(DISTINCT ee.estudante_id) AS total_atletas
                 FROM equipes e
                 JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
                 JOIN esportes esp ON esp.id = ev.esporte_id
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
-                GROUP BY ev.id, esp.nome, c.nome, n.nome
-                ORDER BY total_equipes DESC
+                LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
+                GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
+                ORDER BY COALESCE(
+                    (
+                        COUNT(DISTINCT ee.estudante_id)::numeric
+                        / NULLIF(COUNT(DISTINCT e.id) * esp.limite_atletas, 0)
+                    ) * 100,
+                    0
+                ) DESC
                 """
             )
             equipes_por_modalidade = [
@@ -111,7 +120,16 @@ async def get_dashboard_stats(
                     "categoria_nome": r["categoria_nome"],
                     "naipe_nome": r["naipe_nome"],
                     "modalidade": f"{r['esporte_nome']} - {r['categoria_nome']} ({r['naipe_nome']})",
-                    "total": r["total_equipes"],
+                    "total_equipes": r["total_equipes"] or 0,
+                    "total_atletas": r["total_atletas"] or 0,
+                    "limite_atletas": r["esporte_limite_atletas"] or 0,
+                    "ocupacao_percent": (
+                        round((r["total_atletas"] or 0) / ((r["total_equipes"] or 0) * (r["esporte_limite_atletas"] or 0)) * 100, 1)
+                        if (r["total_equipes"] or 0) > 0 and (r["esporte_limite_atletas"] or 0) > 0
+                        else 0
+                    ),
+                    # campo legada (mantém compatibilidade com UI anterior)
+                    "total": r["total_equipes"] or 0,
                 }
                 for r in await cur.fetchall()
             ]
@@ -208,15 +226,24 @@ async def get_dashboard_stats(
                 """
                 SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
                        ev.id AS esporte_variante_id,
-                       COUNT(e.id) AS total_equipes
+                       esp.limite_atletas AS esporte_limite_atletas,
+                       COUNT(DISTINCT e.id) AS total_equipes,
+                       COUNT(DISTINCT ee.estudante_id) AS total_atletas
                 FROM equipes e
                 JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
                 JOIN esportes esp ON esp.id = ev.esporte_id
                 JOIN categorias c ON c.id = ev.categoria_id
                 JOIN naipes n ON n.id = ev.naipe_id
+                LEFT JOIN equipe_estudantes ee ON ee.equipe_id = e.id
                 WHERE e.escola_id = %s
-                GROUP BY ev.id, esp.nome, c.nome, n.nome
-                ORDER BY total_equipes DESC
+                GROUP BY ev.id, esp.nome, c.nome, n.nome, esp.limite_atletas
+                ORDER BY COALESCE(
+                    (
+                        COUNT(DISTINCT ee.estudante_id)::numeric
+                        / NULLIF(COUNT(DISTINCT e.id) * esp.limite_atletas, 0)
+                    ) * 100,
+                    0
+                ) DESC
                 """,
                 (escola_id,),
             )
@@ -226,7 +253,16 @@ async def get_dashboard_stats(
                     "categoria_nome": r["categoria_nome"],
                     "naipe_nome": r["naipe_nome"],
                     "modalidade": f"{r['esporte_nome']} - {r['categoria_nome']} ({r['naipe_nome']})",
-                    "total": r["total_equipes"],
+                    "total_equipes": r["total_equipes"] or 0,
+                    "total_atletas": r["total_atletas"] or 0,
+                    "limite_atletas": r["esporte_limite_atletas"] or 0,
+                    "ocupacao_percent": (
+                        round((r["total_atletas"] or 0) / ((r["total_equipes"] or 0) * (r["esporte_limite_atletas"] or 0)) * 100, 1)
+                        if (r["total_equipes"] or 0) > 0 and (r["esporte_limite_atletas"] or 0) > 0
+                        else 0
+                    ),
+                    # campo legada (mantém compatibilidade com UI anterior)
+                    "total": r["total_equipes"] or 0,
                 }
                 for r in await cur.fetchall()
             ]

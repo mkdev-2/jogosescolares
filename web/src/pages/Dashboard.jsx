@@ -66,7 +66,7 @@ function StatCard({ title, value, subtitle, icon: Icon, variant = 'primary', to 
       <div className={`absolute inset-0 bg-gradient-to-br opacity-40 ${overlayVariants[variant] || overlayVariants.primary} transition-opacity group-hover:opacity-60`} />
 
       <div className="relative flex justify-between items-start mb-2 sm:mb-3">
-        <p className="text-[10px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
+        <p className="text-[11px] sm:text-[12px] font-bold text-[#64748b] uppercase tracking-widest truncate pr-2">
           {title}
         </p>
         <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shadow-md transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${iconBg[variant] || iconBg.primary} shrink-0`}>
@@ -141,12 +141,20 @@ export default function Dashboard() {
     const groups = Array.from(map.entries()).map(([esporte_nome, arr]) => ({
       esporte_nome,
       itens: arr,
-      total: arr.reduce((acc, x) => acc + (Number(x?.total) || 0), 0),
+      // Para admin exibimos número de equipes; para diretor/coordenador, exibimos ocupação (por atletas).
+      total: arr.reduce(
+        (acc, x) =>
+          acc +
+          (isAdmin
+            ? Number(x?.total_equipes ?? x?.total ?? 0) || 0
+            : Number(x?.total_atletas ?? 0) || 0),
+        0,
+      ),
     }))
 
     groups.sort((a, b) => b.total - a.total)
     return groups
-  }, [stats.equipes_por_modalidade])
+  }, [stats.equipes_por_modalidade, isAdmin])
 
   const tabItemsEquipesModalidade = useMemo(() => {
     const renderLista = (itens) => (
@@ -164,9 +172,25 @@ export default function Dashboard() {
                 {item?.modalidade || '-'}
               </span>
               <span className="font-extrabold text-[#0f766e] shrink-0 whitespace-nowrap text-xl sm:text-2xl tabular-nums leading-none">
-                {new Intl.NumberFormat('pt-BR').format(item?.total ?? 0)}
+                {isAdmin
+                  ? new Intl.NumberFormat('pt-BR').format(item?.total_equipes ?? item?.total ?? 0)
+                  : `${Math.round(item?.ocupacao_percent ?? 0)}%`}
               </span>
             </div>
+
+            {!isAdmin && (
+              <div className="mt-3">
+                <div className="text-[11px] sm:text-[12px] text-[#475569] font-medium">
+                  {Number(item?.total_atletas ?? 0)} atletas de capacidade {Number(item?.total_equipes ?? 0) * Number(item?.limite_atletas ?? 0)}
+                </div>
+                <div className="w-full h-2 bg-[#e2e8f0] rounded-full overflow-hidden mt-2">
+                  <div
+                    className="h-full bg-[#0d9488]"
+                    style={{ width: `${Math.min(100, Math.max(0, Number(item?.ocupacao_percent ?? 0)))}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -181,7 +205,7 @@ export default function Dashboard() {
     })
 
     return groupTabs
-  }, [equipesPorEsporte])
+  }, [equipesPorEsporte, isAdmin])
 
   useEffect(() => {
     if (!tabItemsEquipesModalidade?.length) return
@@ -259,7 +283,7 @@ export default function Dashboard() {
       {/* Cards de métricas */}
       <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
         <div className="p-6">
-          <div className="grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3">
             <StatCard
               title="Escolas Cadastradas"
               value={loading ? '...' : stats.total_escolas ?? 0}
@@ -350,14 +374,14 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="p-6">
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
               {stats.equipes_por_escola.map((item, idx) => (
                 <Link
                   key={item.escola_id}
                   to={`/app/gestao?tab=escolas`}
-                  className="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-[#f1f5f9] transition-colors no-underline"
+                  className="flex justify-between items-center py-3 px-3 rounded-xl bg-white border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-md transition-all no-underline"
                 >
-                  <span className="text-[#334155] font-medium truncate pr-2">
+                  <span className="text-[#334155] font-semibold truncate pr-2">
                     {idx + 1}. {item.escola_nome}
                   </span>
                   <span className="text-[#0f766e] font-bold shrink-0">
@@ -370,33 +394,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Escolas por status (apenas admin) */}
-      {isAdmin && stats.escolas_por_status?.length > 0 && (
-        <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
-            <h3 className="text-lg font-semibold text-[#042f2e] m-0">
-              Escolas por Status de Adesão
-            </h3>
-          </div>
-          <div className="p-6">
-            <div className="flex flex-wrap gap-4">
-              {stats.escolas_por_status.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]"
-                >
-                  <span className="text-sm font-medium text-[#64748b]">
-                    {item.status}
-                  </span>
-                  <span className="text-lg font-bold text-[#0f766e]">
-                    {new Intl.NumberFormat('pt-BR').format(item.total)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Bloco removido: Escolas por Status de Adesão */}
     </div>
   )
 }
