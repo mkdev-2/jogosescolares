@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Alert } from 'antd'
+import { useSearchParams } from 'react-router-dom'
+import { Trophy, ClipboardList } from 'lucide-react'
 import EsportesList from '../components/catalogos/EsportesList'
 import EsporteModal from '../components/catalogos/EsporteModal'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
+import Campeonatos from './Campeonatos'
 import useEsportes from '../hooks/useEsportes'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import { useAuth } from '../contexts/AuthContext'
@@ -14,6 +17,10 @@ import { configuracoesService } from '../services/configuracoesService'
 export default function Atividades() {
   const { user } = useAuth()
   const isDiretor = user?.role === 'DIRETOR'
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab') || 'esportes'
+  const activeTab = tabFromUrl === 'campeonatos' && isAdmin ? 'campeonatos' : 'esportes'
   const useEsportesState = useEsportes()
   const useVariantesState = useEsporteVariantes(null, { minhaEscola: isDiretor })
   const [modalEsporteOpen, setModalEsporteOpen] = useState(false)
@@ -147,14 +154,47 @@ export default function Atividades() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-          {isDiretor ? 'Esportes' : 'Atividades'}
+          {activeTab === 'campeonatos' ? 'Campeonatos' : (isDiretor ? 'Esportes' : 'Atividades')}
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
-          {isDiretor
+          {activeTab === 'campeonatos'
+            ? 'Gerencie a criação e geração de estruturas dos campeonatos por edição e modalidade.'
+            : isDiretor
             ? 'Modalidades em que sua escola está vinculada.'
             : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
         </p>
       </header>
+
+      {!isDiretor && (
+        <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="flex gap-0 p-2 border-b border-[#f1f5f9]">
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${activeTab === 'esportes'
+                ? 'bg-[#f1f5f9] text-[#0f766e]'
+                : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+                }`}
+            >
+              <Trophy size={20} className={activeTab === 'esportes' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
+              <span>Esportes</span>
+            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setSearchParams({ tab: 'campeonatos' })}
+                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${activeTab === 'campeonatos'
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+                  }`}
+              >
+                <ClipboardList size={20} className={activeTab === 'campeonatos' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
+                <span>Campeonatos</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {isDiretor && prazoModalidadesPagina && (
         <Alert
@@ -170,34 +210,44 @@ export default function Atividades() {
         />
       )}
 
-      <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="p-6">
-          <EsportesList
-            variantes={useVariantesState.variantes}
-            loading={useVariantesState.loading}
-            error={useVariantesState.error}
-            fetchVariantes={useVariantesState.fetchVariantes}
-            deleteVariante={isDiretor ? undefined : useVariantesState.deleteVariante}
-            deleteEsporte={isDiretor ? undefined : useEsportesState.deleteEsporte}
-            onNewEsporte={isDiretor ? undefined : handleNewEsporte}
-            onEditVariante={isDiretor ? undefined : handleEditVariante}
-            onEditModalidades={isDiretor ? handleAbrirEdicaoModalidades : undefined}
-            emptyMessageDiretor={isDiretor}
-          />
-          {!isDiretor && (
-          <EsporteModal
-            isOpen={modalEsporteOpen}
-            onClose={handleModalEsporteClose}
-            esporte={esporteSelecionado}
-            variantesForEdit={variantesDoEsporte}
-            onSuccess={handleModalEsporteSuccess}
-            createEsporte={useEsportesState.createEsporte}
-            updateEsporte={useEsportesState.updateEsporte}
-            loading={useEsportesState.loading}
-          />
-          )}
+      {activeTab === 'esportes' && (
+        <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="p-6">
+            <EsportesList
+              variantes={useVariantesState.variantes}
+              loading={useVariantesState.loading}
+              error={useVariantesState.error}
+              fetchVariantes={useVariantesState.fetchVariantes}
+              deleteVariante={isDiretor ? undefined : useVariantesState.deleteVariante}
+              deleteEsporte={isDiretor ? undefined : useEsportesState.deleteEsporte}
+              onNewEsporte={isDiretor ? undefined : handleNewEsporte}
+              onEditVariante={isDiretor ? undefined : handleEditVariante}
+              onEditModalidades={isDiretor ? handleAbrirEdicaoModalidades : undefined}
+              emptyMessageDiretor={isDiretor}
+            />
+            {!isDiretor && (
+              <EsporteModal
+                isOpen={modalEsporteOpen}
+                onClose={handleModalEsporteClose}
+                esporte={esporteSelecionado}
+                variantesForEdit={variantesDoEsporte}
+                onSuccess={handleModalEsporteSuccess}
+                createEsporte={useEsportesState.createEsporte}
+                updateEsporte={useEsportesState.updateEsporte}
+                loading={useEsportesState.loading}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'campeonatos' && isAdmin && (
+        <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="p-6">
+            <Campeonatos embedded />
+          </div>
+        </div>
+      )}
 
       {isDiretor && (
         <Modal

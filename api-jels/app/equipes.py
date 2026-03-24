@@ -307,11 +307,11 @@ async def create_equipe(
 
         # Validar variante existe
         await cur.execute(
-            "SELECT id FROM esporte_variantes WHERE id = %s",
-            (data.esporte_variante_id,),
+            "SELECT id FROM esporte_variantes WHERE id = %s AND edicao_id = %s",
+            (data.esporte_variante_id, resolved_edicao_id),
         )
         if not await cur.fetchone():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada")
 
         # Validar que a variante está entre as selecionadas no cadastro da escola
         variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)

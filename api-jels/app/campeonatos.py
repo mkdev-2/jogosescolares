@@ -7,7 +7,15 @@ import psycopg
 from app.auth import get_current_user, is_admin
 from app.database import get_db, log_audit
 from app.edicao_context import resolve_edicao_id
-from app.schemas import CampeonatoCreate, CampeonatoListItemResponse, CampeonatoResponse
+from app.schemas import (
+    CampeonatoCreate,
+    CampeonatoEstruturaResponse,
+    CampeonatoGrupoResponse,
+    CampeonatoListItemResponse,
+    CampeonatoPartidaResponse,
+    CampeonatoResponse,
+)
+from app.services.chaveamentos_service import gerar_estrutura_campeonato
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
 
@@ -83,9 +91,12 @@ async def create_campeonato(
     resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id or edicao_id)
 
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id FROM esporte_variantes WHERE id = %s", (data.esporte_variante_id,))
+        await cur.execute(
+            "SELECT id FROM esporte_variantes WHERE id = %s AND edicao_id = %s",
+            (data.esporte_variante_id, resolved_edicao_id),
+        )
         if not await cur.fetchone():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada.")
 
         try:
             await cur.execute(
@@ -283,3 +294,125 @@ async def revogar_autorizacao(
         mensagem=f"Usuário {current_user['nome']} revogou a autorização de geração do campeonato {existing['nome']}.",
     )
     return _row_to_response(dict(row))
+
+
+@router.post("/{campeonato_id}/gerar-estrutura")
+async def gerar_estrutura(
+    campeonato_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT id, nome FROM campeonatos WHERE id = %s AND edicao_id = %s", (campeonato_id, resolved_edicao_id))
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+    resultado = await gerar_estrutura_campeonato(
+        conn=conn,
+        campeonato_id=campeonato_id,
+        executor_user_id=current_user["id"],
+    )
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="CAMPEONATO",
+        recurso_id=campeonato_id,
+        detalhes_depois=resultado,
+        mensagem=f"Usuário {current_user['nome']} gerou a estrutura do campeonato {existing['nome']}.",
+    )
+    return resultado
+
+
+@router.get("/{campeonato_id}/estrutura", response_model=CampeonatoEstruturaResponse)
+async def get_estrutura(
+    campeonato_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT id FROM campeonatos WHERE id = %s AND edicao_id = %s", (campeonato_id, resolved_edicao_id))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+        await cur.execute(
+            """
+            SELECT id, campeonato_id, nome, ordem, created_at
+            FROM campeonato_grupos
+            WHERE campeonato_id = %s
+            ORDER BY ordem
+            """,
+            (campeonato_id,),
+        )
+        grupos_rows = await cur.fetchall()
+
+        await cur.execute(
+            """
+            SELECT id, campeonato_id, fase, rodada, grupo_id,
+                   mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                   is_bye, origem_slot_a, origem_slot_b, created_at, updated_at
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s
+            ORDER BY
+                CASE fase
+                    WHEN 'GRUPOS' THEN 1
+                    WHEN 'TRINTA_E_DOIS_AVOS' THEN 2
+                    WHEN 'DEZESSEIS_AVOS' THEN 3
+                    WHEN 'OITAVAS' THEN 4
+                    WHEN 'QUARTAS' THEN 5
+                    WHEN 'SEMI' THEN 6
+                    WHEN 'FINAL' THEN 7
+                    WHEN 'TERCEIRO' THEN 8
+                    ELSE 99
+                END,
+                rodada,
+                id
+            """,
+            (campeonato_id,),
+        )
+        partidas_rows = await cur.fetchall()
+
+    grupos = [
+        CampeonatoGrupoResponse(
+            id=r["id"],
+            campeonato_id=r["campeonato_id"],
+            nome=r["nome"],
+            ordem=r["ordem"],
+            created_at=r["created_at"].isoformat() if r.get("created_at") else None,
+        )
+        for r in grupos_rows
+    ]
+    partidas = [
+        CampeonatoPartidaResponse(
+            id=r["id"],
+            campeonato_id=r["campeonato_id"],
+            fase=r["fase"],
+            rodada=r["rodada"],
+            grupo_id=r.get("grupo_id"),
+            mandante_equipe_id=r.get("mandante_equipe_id"),
+            visitante_equipe_id=r.get("visitante_equipe_id"),
+            vencedor_equipe_id=r.get("vencedor_equipe_id"),
+            is_bye=bool(r.get("is_bye")),
+            origem_slot_a=r.get("origem_slot_a"),
+            origem_slot_b=r.get("origem_slot_b"),
+            created_at=r["created_at"].isoformat() if r.get("created_at") else None,
+            updated_at=r["updated_at"].isoformat() if r.get("updated_at") else None,
+        )
+        for r in partidas_rows
+    ]
+
+    return CampeonatoEstruturaResponse(
+        campeonato_id=campeonato_id,
+        grupos=grupos,
+        partidas=partidas,
+    )

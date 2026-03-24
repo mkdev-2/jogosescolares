@@ -106,6 +106,7 @@ class EsporteUpdate(BaseModel):
 class EsporteResponse(BaseModel):
     """Schema para resposta de esporte."""
     id: str
+    edicao_id: Optional[int] = None
     nome: str
     descricao: str
     icone: str = "Zap"
@@ -132,6 +133,7 @@ class EsporteVarianteCreate(BaseModel):
 class EsporteVarianteResponse(BaseModel):
     """Schema para resposta de variante."""
     id: str
+    edicao_id: Optional[int] = None
     esporte_id: str
     esporte_nome: Optional[str] = None
     esporte_icone: Optional[str] = None
@@ -672,6 +674,13 @@ class CampeonatoPartidaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CampeonatoEstruturaResponse(BaseModel):
+    """Schema de estrutura completa do campeonato."""
+    campeonato_id: int
+    grupos: list[CampeonatoGrupoResponse] = Field(default_factory=list)
+    partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
 
 
 # ---------- Ficha Coletiva JELS (impressão) ----------

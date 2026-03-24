@@ -16,8 +16,12 @@ function handleResponse(res, fallbackError = 'Erro ao processar requisição') {
 }
 
 export const esporteVariantesService = {
-  async list(esporteId = null) {
-    const url = esporteId ? `${BASE}?esporte_id=${encodeURIComponent(esporteId)}` : BASE
+  async list(esporteId = null, edicaoId = null) {
+    const params = new URLSearchParams()
+    if (esporteId) params.set('esporte_id', String(esporteId))
+    if (edicaoId) params.set('edicao_id', String(edicaoId))
+    const qs = params.toString()
+    const url = `${BASE}${qs ? `?${qs}` : ''}`
     const res = await apiFetch(url)
     const data = await handleResponse(res, 'Erro ao listar variantes')
     return Array.isArray(data) ? data : []

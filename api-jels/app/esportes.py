@@ -2,12 +2,13 @@
 Roteador de esportes: CRUD de esportes (Futebol, Judô, Voleibol, etc.).
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
 
 from app.schemas import EsporteCreate, EsporteUpdate, EsporteResponse
 from app.auth import get_current_user
 from app.database import get_db, log_audit
+from app.edicao_context import resolve_edicao_id
 
 router = APIRouter(prefix="/api/esportes", tags=["esportes"])
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ def _row_to_response(row: dict) -> EsporteResponse:
     """Converte row do banco para EsporteResponse."""
     return EsporteResponse(
         id=str(row["id"]),
+        edicao_id=row.get("edicao_id"),
         nome=row["nome"],
         descricao=row.get("descricao") or "",
         icone=row.get("icone") or "Zap",
@@ -30,16 +32,20 @@ def _row_to_response(row: dict) -> EsporteResponse:
 
 @router.get("", response_model=list[EsporteResponse])
 async def list_esportes(
+    edicao_id: int | None = Query(None, description="Filtrar pela edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
     """Lista todos os esportes."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+            SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
             FROM esportes
+            WHERE edicao_id = %s
             ORDER BY nome
-            """
+            """,
+            (resolved_edicao_id,),
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
@@ -48,17 +54,19 @@ async def list_esportes(
 @router.get("/{esporte_id}", response_model=EsporteResponse)
 async def get_esporte(
     esporte_id: str,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
     """Obtém esporte por ID."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+            SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
             FROM esportes
-            WHERE id = %s
+            WHERE id = %s AND edicao_id = %s
             """,
-            (esporte_id,),
+            (esporte_id, resolved_edicao_id),
         )
         row = await cur.fetchone()
     if not row:
@@ -90,23 +98,57 @@ async def _tem_tipo_individual(conn, tipo_modalidade_ids: list[str]) -> bool:
         return await cur.fetchone() is not None
 
 
-async def _get_tipos_das_variantes(conn, esporte_id: str) -> list[str]:
+async def _validar_tipos_modalidade_vs_limite(
+    conn: psycopg.AsyncConnection,
+    tipo_modalidade_ids: list[str],
+    limite_atletas: int,
+) -> None:
+    """Garante coerência entre limite_atletas e códigos INDIVIDUAIS/COLETIVAS nos tipos."""
+    if not tipo_modalidade_ids:
+        return
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT codigo FROM tipos_modalidade WHERE id = ANY(%s)",
+            (tipo_modalidade_ids,),
+        )
+        rows = await cur.fetchall()
+    codigos = {r["codigo"] for r in rows}
+    if "INDIVIDUAIS" in codigos and "COLETIVAS" in codigos:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Um esporte não pode combinar modalidade individual e coletiva.",
+        )
+    if limite_atletas <= 1:
+        if "COLETIVAS" in codigos:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Com limite de 1 atleta por equipe, use apenas modalidade individual, não coletiva.",
+            )
+    else:
+        if "INDIVIDUAIS" in codigos:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Com mais de um atleta por equipe, use apenas modalidade coletiva, não individual.",
+            )
+
+
+async def _get_tipos_das_variantes(conn, esporte_id: str, edicao_id: int) -> list[str]:
     """Retorna os tipo_modalidade_id das variantes existentes do esporte."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s",
-            (esporte_id,),
+            "SELECT tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s AND edicao_id = %s",
+            (esporte_id, edicao_id),
         )
         rows = await cur.fetchall()
     return [str(r["tipo_modalidade_id"]) for r in rows]
 
 
-async def _snapshot_esporte(conn, esporte_id: str) -> dict:
+async def _snapshot_esporte(conn, esporte_id: str, edicao_id: int) -> dict:
     """Captura snapshot completo do esporte com variantes (nomes legíveis) para auditoria."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s",
-            (esporte_id,),
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
+            (esporte_id, edicao_id),
         )
         esporte_row = await cur.fetchone()
         if not esporte_row:
@@ -123,13 +165,16 @@ async def _snapshot_esporte(conn, esporte_id: str) -> dict:
             JOIN naipes n ON n.id = ev.naipe_id
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
             WHERE ev.esporte_id = %s
+              AND ev.edicao_id = %s
             ORDER BY c.nome, n.nome, tm.nome
             """,
-            (esporte_id,),
+            (esporte_id, edicao_id),
         )
         variantes = await cur.fetchall()
 
     return {
+        "esporte_id": str(esporte_row["id"]),
+        "edicao_id": esporte_row.get("edicao_id"),
         "nome": esporte_row["nome"],
         "descricao": esporte_row["descricao"] or "",
         "icone": esporte_row["icone"] or "",
@@ -146,10 +191,12 @@ async def _snapshot_esporte(conn, esporte_id: str) -> dict:
 @router.post("", response_model=EsporteResponse, status_code=status.HTTP_201_CREATED)
 async def create_esporte(
     data: EsporteCreate,
+    edicao_id: int | None = Query(None, description="Edição do esporte; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Cria novo esporte e variantes em lote (requer autenticação)."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     tipo_modalidade_ids = data.tipo_modalidade_ids or []
     tem_individual = await _tem_tipo_individual(conn, tipo_modalidade_ids)
     if tem_individual:
@@ -161,6 +208,7 @@ async def create_esporte(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
         )
+    await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, limite_atletas)
     icone = (data.icone or "Zap").strip() or "Zap"
     categoria_ids = data.categoria_ids or []
     naipe_ids = data.naipe_ids or []
@@ -168,11 +216,12 @@ async def create_esporte(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO esportes (nome, descricao, icone, requisitos, limite_atletas, ativa)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+                INSERT INTO esportes (edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
             """,
             (
+                    resolved_edicao_id,
                 data.nome.strip(),
                 (data.descricao or "").strip(),
                 icone,
@@ -200,22 +249,22 @@ async def create_esporte(
             for cat_id, naipe_id, tipo_id in combos:
                 await cur.execute(
                     """
-                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id) DO NOTHING
+                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id, edicao_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id, edicao_id) DO NOTHING
                     """,
-                    (esporte_id, cat_id, naipe_id, tipo_id),
+                    (esporte_id, cat_id, naipe_id, tipo_id, resolved_edicao_id),
                 )
         await conn.commit()
 
     esporte_id_str = str(row["id"])
-    snapshot_depois = await _snapshot_esporte(conn, esporte_id_str)
+    snapshot_depois = await _snapshot_esporte(conn, esporte_id_str, resolved_edicao_id)
     await log_audit(
         conn,
         user_id=current_user["id"],
         acao="CREATE",
         tipo_recurso="ESPORTE",
-        recurso_id=int(esporte_id_str),
+        recurso_id=None,
         detalhes_depois=snapshot_depois,
         mensagem=f"Usuário {current_user['nome']} criou o Esporte {row['nome']}.",
     )
@@ -226,21 +275,23 @@ async def create_esporte(
 async def update_esporte(
     esporte_id: str,
     data: EsporteUpdate,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Atualiza esporte e sincroniza variantes (requer autenticação)."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s",
-            (esporte_id,),
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
+            (esporte_id, resolved_edicao_id),
         )
         existing = await cur.fetchone()
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
 
     # Captura snapshot ANTES para auditoria
-    snapshot_antes = await _snapshot_esporte(conn, esporte_id)
+    snapshot_antes = await _snapshot_esporte(conn, esporte_id, resolved_edicao_id)
 
     updates = []
     values = []
@@ -257,7 +308,7 @@ async def update_esporte(
         updates.append("requisitos = %s")
         values.append(data.requisitos.strip())
     if data.limite_atletas is not None:
-        tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id)
+        tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id, resolved_edicao_id)
         tem_individual = await _tem_tipo_individual(conn, tipos_para_check)
         if tem_individual and data.limite_atletas != 1:
             raise HTTPException(
@@ -272,13 +323,13 @@ async def update_esporte(
 
     if updates:
         updates.append("updated_at = NOW()")
-        values.append(esporte_id)
+        values.extend((esporte_id, resolved_edicao_id))
         async with conn.cursor() as cur:
             await cur.execute(
                 f"""
                 UPDATE esportes
                 SET {", ".join(updates)}
-                WHERE id = %s
+                WHERE id = %s AND edicao_id = %s
                 """,
                 values,
             )
@@ -287,6 +338,10 @@ async def update_esporte(
     naipe_ids = data.naipe_ids
     tipo_modalidade_ids = data.tipo_modalidade_ids
     if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
+        limite_para_tipos = data.limite_atletas if data.limite_atletas is not None else existing["limite_atletas"]
+        if await _tem_tipo_individual(conn, tipo_modalidade_ids):
+            limite_para_tipos = 1
+        await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, limite_para_tipos)
         tem_individual_novas = await _tem_tipo_individual(conn, tipo_modalidade_ids)
         if tem_individual_novas:
             if data.limite_atletas is not None and data.limite_atletas != 1:
@@ -298,14 +353,14 @@ async def update_esporte(
             if data.limite_atletas is None and not limite_ja_atualizado and existing.get("limite_atletas") != 1:
                 async with conn.cursor() as cur:
                     await cur.execute(
-                        "UPDATE esportes SET limite_atletas = 1, updated_at = NOW() WHERE id = %s",
-                        (esporte_id,),
+                        "UPDATE esportes SET limite_atletas = 1, updated_at = NOW() WHERE id = %s AND edicao_id = %s",
+                        (esporte_id, resolved_edicao_id),
                     )
         combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id, categoria_id, naipe_id, tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s",
-                (esporte_id,),
+                "SELECT id, categoria_id, naipe_id, tipo_modalidade_id FROM esporte_variantes WHERE esporte_id = %s AND edicao_id = %s",
+                (esporte_id, resolved_edicao_id),
             )
             existing_vars = await cur.fetchall()
         existing_set = {(str(r["categoria_id"]), str(r["naipe_id"]), str(r["tipo_modalidade_id"])) for r in existing_vars}
@@ -318,8 +373,8 @@ async def update_esporte(
             for cat_id, naipe_id, tipo_id in to_remove:
                 await cur.execute(
                     "SELECT COUNT(*) AS cnt FROM equipes e JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id "
-                    "WHERE ev.esporte_id = %s AND ev.categoria_id = %s AND ev.naipe_id = %s AND ev.tipo_modalidade_id = %s",
-                    (esporte_id, cat_id, naipe_id, tipo_id),
+                    "WHERE ev.esporte_id = %s AND ev.edicao_id = %s AND ev.categoria_id = %s AND ev.naipe_id = %s AND ev.tipo_modalidade_id = %s",
+                    (esporte_id, resolved_edicao_id, cat_id, naipe_id, tipo_id),
                 )
                 r = await cur.fetchone()
                 if r and r["cnt"] > 0:
@@ -329,8 +384,8 @@ async def update_esporte(
                         detail=f"Não é possível remover variante: existem equipe(s) vinculada(s)",
                     )
                 await cur.execute(
-                    "DELETE FROM esporte_variantes WHERE esporte_id = %s AND categoria_id = %s AND naipe_id = %s AND tipo_modalidade_id = %s",
-                    (esporte_id, cat_id, naipe_id, tipo_id),
+                    "DELETE FROM esporte_variantes WHERE esporte_id = %s AND edicao_id = %s AND categoria_id = %s AND naipe_id = %s AND tipo_modalidade_id = %s",
+                    (esporte_id, resolved_edicao_id, cat_id, naipe_id, tipo_id),
                 )
 
             for tbl, col, vals, name in [
@@ -351,23 +406,23 @@ async def update_esporte(
             for cat_id, naipe_id, tipo_id in to_add:
                 await cur.execute(
                     """
-                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id) DO NOTHING
+                    INSERT INTO esporte_variantes (esporte_id, categoria_id, naipe_id, tipo_modalidade_id, edicao_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (esporte_id, categoria_id, naipe_id, tipo_modalidade_id, edicao_id) DO NOTHING
                     """,
-                    (esporte_id, cat_id, naipe_id, tipo_id),
+                    (esporte_id, cat_id, naipe_id, tipo_id, resolved_edicao_id),
                 )
         await conn.commit()
     else:
         await conn.commit()
 
-    snapshot_depois = await _snapshot_esporte(conn, esporte_id)
+    snapshot_depois = await _snapshot_esporte(conn, esporte_id, resolved_edicao_id)
     await log_audit(
         conn,
         user_id=current_user["id"],
         acao="UPDATE",
         tipo_recurso="ESPORTE",
-        recurso_id=int(esporte_id),
+        recurso_id=None,
         detalhes_antes=snapshot_antes,
         detalhes_depois=snapshot_depois,
         mensagem=f"Usuário {current_user['nome']} alterou dados do Esporte {snapshot_depois['nome']}.",
@@ -375,8 +430,8 @@ async def update_esporte(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at FROM esportes WHERE id = %s",
-            (esporte_id,),
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at FROM esportes WHERE id = %s AND edicao_id = %s",
+            (esporte_id, resolved_edicao_id),
         )
         row = await cur.fetchone()
     return _row_to_response(row)
@@ -385,17 +440,19 @@ async def update_esporte(
 @router.delete("/{esporte_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_esporte(
     esporte_id: str,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Remove esporte e suas variantes em cascata (requer autenticação)."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     # Captura snapshot ANTES da exclusão para auditoria
-    snapshot_antes = await _snapshot_esporte(conn, esporte_id)
+    snapshot_antes = await _snapshot_esporte(conn, esporte_id, resolved_edicao_id)
     if not snapshot_antes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
 
     async with conn.cursor() as cur:
-        await cur.execute("DELETE FROM esportes WHERE id = %s RETURNING id", (esporte_id,))
+        await cur.execute("DELETE FROM esportes WHERE id = %s AND edicao_id = %s RETURNING id", (esporte_id, resolved_edicao_id))
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
         await conn.commit()
@@ -405,7 +462,7 @@ async def delete_esporte(
         user_id=current_user["id"],
         acao="DELETE",
         tipo_recurso="ESPORTE",
-        recurso_id=int(esporte_id),
+        recurso_id=None,
         detalhes_antes=snapshot_antes,
         mensagem=f"Usuário {current_user['nome']} excluiu o Esporte {snapshot_antes['nome']}.",
     )

@@ -15,6 +15,9 @@ from seed_utils import (
     get_connection,
     gerar_cpf_valido,
     parse_args_escolas,
+    get_edicao_ativa_id,
+    ensure_jels_esportes_e_variantes,
+    sync_escola_adesao_todas_modalidades,
 )
 
 
@@ -165,6 +168,16 @@ async def seed_escolas(quantidade_escolas: int, quantidade_coordenadores: int = 
                      esc["email"], esc["telefone"], dados_base, dados_base, escola_id)
                 )
             print(f"  -> {len(escola_ids)} solicitações ACEITAS", flush=True)
+
+            # Catálogo competitivo na edição ativa + adesão escolar (alinha com edicao_id em esportes/variantes/equipes)
+            try:
+                edicao_id = await get_edicao_ativa_id(cur)
+                n_var = await ensure_jels_esportes_e_variantes(cur, edicao_id)
+                print(f"  -> Edição ativa id={edicao_id}: {n_var} esporte_variante(s) disponíveis", flush=True)
+                await sync_escola_adesao_todas_modalidades(cur, edicao_id, escola_ids)
+                print(f"  -> Adesão escola+edição atualizada para {len(escola_ids)} escola(s) (todas as modalidades)", flush=True)
+            except RuntimeError as ex:
+                print(f"  AVISO: catálogo JELS / adesão não aplicados: {ex}", flush=True)
 
             await conn.commit()
             print("\nSeed escolas concluído com sucesso!", flush=True)
