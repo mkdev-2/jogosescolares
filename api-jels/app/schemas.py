@@ -11,6 +11,11 @@ VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO
 # Status do usuário
 VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 
+# Status/Formato/Fases do módulo de campeonatos
+CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO"]
+CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
+CAMPEONATO_FASE = Literal["GRUPOS", "OITAVAS", "QUARTAS", "SEMI", "FINAL", "TERCEIRO"]
+
 # ========== CATEGORIAS (faixa etária) ==========
 
 class CategoriaCreate(BaseModel):
@@ -577,6 +582,82 @@ class EquipeResponse(BaseModel):
     professor_tecnico_id: int
     professor_tecnico_nome: Optional[str] = None
     estudantes: list[EquipeEstudanteItem] = Field(default_factory=list)
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ========== CAMPEONATOS ==========
+
+class CampeonatoCreate(BaseModel):
+    """Schema para criação administrativa de campeonato."""
+    esporte_variante_id: str = Field(..., min_length=1, description="ID da variante do esporte")
+    nome: str = Field(..., min_length=1, max_length=160, description="Nome do campeonato")
+    edicao_id: Optional[int] = Field(None, description="ID da edição (quando não vier do contexto ativo)")
+    formato: CAMPEONATO_FORMATO = Field(default="GRUPOS_E_MATA_MATA")
+    grupo_tamanho_ideal: int = Field(default=4, ge=2)
+    classificam_por_grupo: int = Field(default=2, ge=1)
+    permite_melhores_terceiros: bool = Field(default=False)
+
+
+class CampeonatoListItemResponse(BaseModel):
+    """Schema resumido para listagem de campeonatos."""
+    id: int
+    uuid: str
+    edicao_id: int
+    esporte_variante_id: str
+    nome: str
+    status: CAMPEONATO_STATUS
+    formato: CAMPEONATO_FORMATO
+    grupo_tamanho_ideal: int
+    classificam_por_grupo: int
+    permite_melhores_terceiros: bool
+    geracao_autorizada_em: Optional[str] = None
+    geracao_autorizada_por: Optional[int] = None
+    geracao_executada_em: Optional[str] = None
+    geracao_executada_por: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CampeonatoResponse(CampeonatoListItemResponse):
+    """Schema detalhado de campeonato."""
+    esporte_nome: Optional[str] = None
+    categoria_nome: Optional[str] = None
+    naipe_nome: Optional[str] = None
+    tipo_modalidade_nome: Optional[str] = None
+
+
+class CampeonatoGrupoResponse(BaseModel):
+    """Schema de grupo do campeonato."""
+    id: int
+    campeonato_id: int
+    nome: str
+    ordem: int
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CampeonatoPartidaResponse(BaseModel):
+    """Schema de partida do campeonato."""
+    id: int
+    campeonato_id: int
+    fase: CAMPEONATO_FASE
+    rodada: int
+    grupo_id: Optional[int] = None
+    mandante_equipe_id: Optional[int] = None
+    visitante_equipe_id: Optional[int] = None
+    vencedor_equipe_id: Optional[int] = None
+    is_bye: bool = False
+    origem_slot_a: Optional[str] = None
+    origem_slot_b: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
