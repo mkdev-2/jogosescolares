@@ -14,7 +14,16 @@ VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 # Status/Formato/Fases do módulo de campeonatos
 CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO"]
 CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
-CAMPEONATO_FASE = Literal["GRUPOS", "OITAVAS", "QUARTAS", "SEMI", "FINAL", "TERCEIRO"]
+CAMPEONATO_FASE = Literal[
+    "GRUPOS",
+    "TRINTA_E_DOIS_AVOS",
+    "DEZESSEIS_AVOS",
+    "OITAVAS",
+    "QUARTAS",
+    "SEMI",
+    "FINAL",
+    "TERCEIRO",
+]
 
 # ========== CATEGORIAS (faixa etária) ==========
 
