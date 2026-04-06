@@ -416,12 +416,12 @@ export default function Dashboard() {
 
       {/* Cards de métricas */}
       <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div
             className={
               isAdmin
-                ? 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
-                : 'grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'
+                ? 'grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3'
+                : 'grid gap-3 sm:gap-6 grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4'
             }
           >
             {isAdmin && (
@@ -484,15 +484,15 @@ export default function Dashboard() {
 
       {/* Equipes por modalidade */}
       <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
-          <h3 className="text-lg font-semibold text-[#042f2e] m-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
+          <h3 className="text-[1rem] sm:text-lg font-semibold text-[#042f2e] m-0">
             Equipes por Modalidade
           </h3>
           <p className="text-sm text-[#64748b] mt-1 m-0">
             Distribuição de equipes inscritas por esporte, categoria e naipe
           </p>
         </div>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="w-8 h-8 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
@@ -515,15 +515,15 @@ export default function Dashboard() {
       {/* Equipes por escola (apenas admin) */}
       {isAdmin && stats.equipes_por_escola?.length > 0 && (
         <section className="bg-white rounded-2xl border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
-            <h3 className="text-lg font-semibold text-[#042f2e] m-0">
+          <div className="px-4 sm:px-6 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]/50">
+            <h3 className="text-[1rem] sm:text-lg font-semibold text-[#042f2e] m-0">
               Top 10 Escolas com Mais Equipes
             </h3>
             <p className="text-sm text-[#64748b] mt-1 m-0">
               Escolas com maior número de equipes inscritas
             </p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
               {stats.equipes_por_escola.map((item, idx) => (
                 <Link

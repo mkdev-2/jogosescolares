@@ -133,8 +133,8 @@ export default function ProfessoresTecnicosList({
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <table className="w-full border-collapse min-w-[400px]">
+            <div className="overflow-x-auto bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0">
+              <table className="w-full border-collapse min-w-[700px]">
                 <thead>
                   <tr>
                     {showInstituicao && (

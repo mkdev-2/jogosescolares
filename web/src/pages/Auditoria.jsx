@@ -18,6 +18,14 @@ export default function Auditoria({ embedded = false }) {
     data_inicio: undefined,
     data_fim: undefined
   })
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const fetchData = async () => {
     setLoading(true)
@@ -142,28 +150,158 @@ export default function Auditoria({ embedded = false }) {
     return changes
   }
 
+  const renderMensagemContent = (text, record, mobile = false) => {
+    const displayMsg = cleanMessage(text, record)
+    const fontSize = mobile ? '11px' : '0.9375rem'
+    const subFontSize = mobile ? '10px' : '13px'
+
+    if (record.acao === 'UPDATE') {
+      const changes = getChanges(record.detalhes_antes, record.detalhes_depois)
+      
+      const changesList = (
+        <div className={`flex flex-col gap-2 mt-2 ${mobile ? 'ml-0 pl-2' : 'ml-2 pl-4'} border-l-2 border-gray-100`}>
+          {changes.length > 0 ? changes.map((change, idx) => {
+            const isFile = ['foto_url', 'documentacao_assinada_url'].includes(change.key)
+            const isList = change.key === 'variantes'
+            
+            if (isList) {
+              const oldList = Array.isArray(change.old) ? change.old : []
+              const newList = Array.isArray(change.new) ? change.new : []
+              const removed = oldList.filter(v => !newList.includes(v))
+              const added = newList.filter(v => !oldList.includes(v))
+              return (
+                <div key={idx} className={`flex flex-col gap-1 text-[${subFontSize}] text-gray-600`}>
+                  <span className="font-bold text-orange-600">
+                    {String(idx + 1).padStart(2, '0')} — <strong>{change.label}</strong>
+                  </span>
+                  {removed.map((v, i) => (
+                    <span key={`r${i}`} className="ml-4 bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 line-through w-fit">
+                      − {v}
+                    </span>
+                  ))}
+                  {added.map((v, i) => (
+                    <span key={`a${i}`} className="ml-4 bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100 w-fit">
+                      + {v}
+                    </span>
+                  ))}
+                </div>
+              )
+            }
+
+            if (isFile) {
+              let action = 'Alterou'
+              if (!change.old) {
+                action = change.key === 'foto_url' ? 'Adicionou' : 'Anexou'
+              } else if (!change.new) {
+                action = 'Removeu'
+              }
+              
+              const objectLabel = change.key === 'foto_url' ? 'uma foto' : 'um documento'
+              
+              return (
+                <div key={idx} className={`flex flex-wrap items-center gap-x-2 text-[${subFontSize}] text-gray-600`}>
+                  <span className="font-bold text-orange-600">
+                    {String(idx + 1).padStart(2, '0')} —
+                  </span>
+                  <span>{action} {objectLabel}.</span>
+                </div>
+              )
+            }
+
+            if (mobile) {
+              return (
+                <div key={idx} className="flex flex-col gap-1 text-[10px] text-gray-600 py-1 border-b border-gray-50 last:border-0 font-medium">
+                  <span className="font-bold text-orange-600 uppercase text-[9px]">
+                    {String(idx + 1).padStart(2, '0')} — {change.label}
+                  </span>
+                  <div className="flex flex-col gap-1 pl-2">
+                    <div className="flex gap-1.5 items-start">
+                      <span className="text-[8px] text-gray-400 mt-0.5">DE:</span>
+                      <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 line-through break-all">
+                        {formatValue(change.old)}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 items-start">
+                      <span className="text-[8px] text-gray-400 mt-0.5">PARA:</span>
+                      <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-100 break-all">
+                        {formatValue(change.new)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <div key={idx} className="flex flex-wrap items-center gap-x-2 text-[13px] text-gray-600">
+                <span className="font-bold text-orange-600">
+                  {String(idx + 1).padStart(2, '0')} —
+                </span>
+                <span>Mudou o <strong>{change.label}</strong> de</span>
+                <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 strike-through line-through">
+                  {formatValue(change.old)}
+                </span>
+                <span>para</span>
+                <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100">
+                  {formatValue(change.new)}
+                </span>
+              </div>
+            )
+          }) : (
+            <Text type="secondary" italic style={{ fontSize: subFontSize }}>Nenhuma alteração detectada nos campos visíveis.</Text>
+          )}
+        </div>
+      )
+
+      if (mobile) {
+        return (
+          <div className="flex flex-col gap-1">
+            <Text style={{ fontSize: fontSize, fontWeight: 700, color: '#0f172a' }}>{displayMsg}</Text>
+            {changesList}
+          </div>
+        )
+      }
+      
+      return (
+        <Collapse ghost expandIconPosition="end" className="audit-collapse">
+          <Panel 
+            header={<Text style={{ fontSize: fontSize, fontWeight: 500 }}>{displayMsg}</Text>} 
+            key="1"
+          >
+            {changesList}
+          </Panel>
+        </Collapse>
+      )
+    }
+    return <Text style={{ fontSize: fontSize, fontWeight: 500 }}>{displayMsg}</Text>
+  }
+
   const columns = [
     {
       title: 'Momento',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (text) => dayjs(text).format('DD/MM/YYYY HH:mm:ss'),
-      width: 170,
+      render: (text) => dayjs(text).format(isMobile ? 'DD/MM HH:mm' : 'DD/MM/YYYY HH:mm:ss'),
+      width: isMobile ? 100 : 170,
     },
     {
       title: 'Usuário',
       dataIndex: 'usuario_nome',
       key: 'usuario_nome',
-      width: 180,
+      width: isMobile ? 120 : 180,
       render: (text) => (
-        <Space size="small">
-          <Avatar 
-            size={24} 
-            style={{ backgroundColor: text ? '#0f766e' : '#64748b', fontSize: '11px', fontWeight: 600 }}
-          >
-            {text ? text.charAt(0).toUpperCase() : 'S'}
-          </Avatar>
-          <Text style={{ fontSize: '13px', fontWeight: 500 }}>{text || 'Sistema'}</Text>
+        <Space size={isMobile ? 4 : "small"}>
+          {!isMobile && (
+            <Avatar 
+              size={24} 
+              style={{ backgroundColor: text ? '#0f766e' : '#64748b', fontSize: '11px', fontWeight: 600 }}
+            >
+              {text ? text.charAt(0).toUpperCase() : 'S'}
+            </Avatar>
+          )}
+          <Text style={{ fontSize: isMobile ? '12px' : '13px', fontWeight: 500 }} ellipsis={isMobile}>
+            {text || 'Sistema'}
+          </Text>
         </Space>
       )
     },
@@ -171,97 +309,14 @@ export default function Auditoria({ embedded = false }) {
       title: 'Mensagem',
       dataIndex: 'mensagem',
       key: 'mensagem',
-      render: (text, record) => {
-        const displayMsg = cleanMessage(text, record)
-        if (record.acao === 'UPDATE') {
-          const changes = getChanges(record.detalhes_antes, record.detalhes_depois)
-          
-          return (
-            <Collapse ghost expandIconPosition="end" className="audit-collapse">
-              <Panel 
-                header={<Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{displayMsg}</Text>} 
-                key="1"
-              >
-                <div className="flex flex-col gap-2 mt-2 ml-2 pl-4 border-l-2 border-gray-100">
-                  {changes.length > 0 ? changes.map((change, idx) => {
-                    const isFile = ['foto_url', 'documentacao_assinada_url'].includes(change.key)
-                    const isList = change.key === 'variantes'
-                    
-                    if (isList) {
-                      const oldList = Array.isArray(change.old) ? change.old : []
-                      const newList = Array.isArray(change.new) ? change.new : []
-                      const removed = oldList.filter(v => !newList.includes(v))
-                      const added = newList.filter(v => !oldList.includes(v))
-                      return (
-                        <div key={idx} className="flex flex-col gap-1 text-[13px] text-gray-600">
-                          <span className="font-bold text-orange-600">
-                            {String(idx + 1).padStart(2, '0')} — <strong>{change.label}</strong>
-                          </span>
-                          {removed.map((v, i) => (
-                            <span key={`r${i}`} className="ml-4 bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 line-through">
-                              − {v}
-                            </span>
-                          ))}
-                          {added.map((v, i) => (
-                            <span key={`a${i}`} className="ml-4 bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100">
-                              + {v}
-                            </span>
-                          ))}
-                        </div>
-                      )
-                    }
-
-                    if (isFile) {
-                      let action = 'Alterou'
-                      if (!change.old) {
-                        action = change.key === 'foto_url' ? 'Adicionou' : 'Anexou'
-                      } else if (!change.new) {
-                        action = 'Removeu'
-                      }
-                      
-                      const objectLabel = change.key === 'foto_url' ? 'uma foto' : 'um documento'
-                      
-                      return (
-                        <div key={idx} className="flex flex-wrap items-center gap-x-2 text-[13px] text-gray-600">
-                          <span className="font-bold text-orange-600">
-                            {String(idx + 1).padStart(2, '0')} —
-                          </span>
-                          <span>{action} {objectLabel}.</span>
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <div key={idx} className="flex flex-wrap items-center gap-x-2 text-[13px] text-gray-600">
-                        <span className="font-bold text-orange-600">
-                          {String(idx + 1).padStart(2, '0')} —
-                        </span>
-                        <span>Mudou o <strong>{change.label}</strong> de</span>
-                        <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium border border-red-100 strike-through line-through">
-                          {formatValue(change.old)}
-                        </span>
-                        <span>para</span>
-                        <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium border border-green-100">
-                          {formatValue(change.new)}
-                        </span>
-                      </div>
-                    )
-                  }) : (
-                    <Text type="secondary" italic>Nenhuma alteração detectada nos campos visíveis.</Text>
-                  )}
-                </div>
-              </Panel>
-            </Collapse>
-          )
-        }
-        return <Text style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{displayMsg}</Text>
-      }
+      responsive: ['md'],
+      render: (text, record) => renderMensagemContent(text, record, false)
     },
     {
       title: 'Ação',
       dataIndex: 'acao',
       key: 'acao',
-      width: 100,
+      width: isMobile ? 85 : 100,
       render: (acao) => {
         let color = 'blue'
         if (acao === 'CREATE') color = 'green'
@@ -269,7 +324,19 @@ export default function Auditoria({ embedded = false }) {
         if (acao === 'UPDATE') color = 'orange'
         if (acao === 'APPROVE') color = 'cyan'
         if (acao === 'REVOKE') color = 'volcano'
-        return <Tag color={color} style={{ fontWeight: 600 }}>{acao}</Tag>
+        return (
+          <Tag 
+            color={color} 
+            style={{ 
+              fontWeight: 600, 
+              fontSize: isMobile ? '10px' : '12px',
+              padding: isMobile ? '0 4px' : '0 7px',
+              margin: 0
+            }}
+          >
+            {acao}
+          </Tag>
+        )
       }
     },
   ]
@@ -321,12 +388,29 @@ export default function Auditoria({ embedded = false }) {
         columns={columns}
         rowKey="id"
         loading={loading}
+        expandable={isMobile ? {
+          expandedRowRender: record => (
+            <div className="bg-gray-50/50 p-3 rounded-lg border border-gray-100 flex flex-col gap-2">
+              <div className="flex items-center gap-2 mb-1">
+                <History size={14} className="text-[#0f766e]" />
+                <span className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">Histórico de Alterações</span>
+              </div>
+              <div className="bg-white p-2 rounded border border-gray-100 shadow-sm">
+                {renderMensagemContent(record.mensagem, record, true)}
+              </div>
+            </div>
+          ),
+          rowExpandable: () => true,
+          expandRowByClick: true,
+          showExpandColumn: false
+        } : undefined}
         pagination={{ 
           pageSize: 15, 
-          showSizeChanger: true,
-          hideOnSinglePage: false
+          showSizeChanger: !isMobile,
+          hideOnSinglePage: false,
+          size: isMobile ? 'small' : 'default'
         }}
-        size="middle"
+        size={isMobile ? "small" : "middle"}
         className="rounded-lg overflow-hidden border border-gray-100"
       />
 

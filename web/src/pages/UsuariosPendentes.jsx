@@ -45,8 +45,8 @@ function SectionCard({ icon: Icon, title, children, className = '' }) {
 function InfoRow({ label, value }) {
   return (
     <div className="flex gap-2">
-      <span className="text-[#64748b] shrink-0">{label}:</span>
-      <span className="text-[#1e293b]">{value || '-'}</span>
+      <span className="text-[#64748b] font-medium shrink-0">{label}:</span>
+      <span className="text-[#1e293b] break-words break-all sm:break-normal">{value || '-'}</span>
     </div>
   )
 }
@@ -165,27 +165,39 @@ export default function UsuariosPendentes({ embedded }) {
         </header>
       )}
 
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Solicitações pendentes</p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">{solicitacoes.length}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 flex-1 min-w-0">
+        <div className="flex items-center justify-center sm:justify-between px-2 sm:px-5 py-3 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-center sm:text-left">
+          <div className="flex-1 overflow-hidden">
+            <p className="text-[9px] min-[375px]:text-[10px] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider truncate w-full" title="Solicitações pendentes">
+              Pendentes
+            </p>
+            <p className="text-[1.125rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0 leading-tight">{solicitacoes.length}</p>
           </div>
-          <School size={28} className="text-[#0f766e]" />
+          <div className="shrink-0 p-1.5 sm:p-3 bg-teal-50 rounded-lg sm:rounded-xl hidden sm:block">
+            <School className="w-5 h-5 sm:w-7 sm:h-7 text-[#0f766e]" />
+          </div>
         </div>
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Solicitações aprovadas</p>
-            <p className="text-[1.5rem] font-bold text-[#16a34a] m-0">{solicitacoesAprovadas.length}</p>
+        <div className="flex items-center justify-center sm:justify-between px-2 sm:px-5 py-3 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-center sm:text-left">
+          <div className="flex-1 overflow-hidden">
+            <p className="text-[9px] min-[375px]:text-[10px] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider truncate w-full" title="Solicitações aprovadas">
+              Aprovadas
+            </p>
+            <p className="text-[1.125rem] sm:text-[1.5rem] font-extrabold text-[#16a34a] m-0 leading-tight">{solicitacoesAprovadas.length}</p>
           </div>
-          <CheckCircle2 size={28} className="text-[#16a34a]" />
+          <div className="shrink-0 p-1.5 sm:p-3 bg-green-50 rounded-lg sm:rounded-xl hidden sm:block">
+            <CheckCircle2 className="w-5 h-5 sm:w-7 sm:h-7 text-[#16a34a]" />
+          </div>
         </div>
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">Solicitações recusadas</p>
-            <p className="text-[1.5rem] font-bold text-[#dc2626] m-0">{solicitacoesNegadas.length}</p>
+        <div className="flex items-center justify-center sm:justify-between px-2 sm:px-5 py-3 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-center sm:text-left">
+          <div className="flex-1 overflow-hidden">
+            <p className="text-[9px] min-[375px]:text-[10px] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider truncate w-full" title="Solicitações recusadas">
+              Recusadas
+            </p>
+            <p className="text-[1.125rem] sm:text-[1.5rem] font-extrabold text-[#dc2626] m-0 leading-tight">{solicitacoesNegadas.length}</p>
           </div>
-          <XOctagon size={28} className="text-[#dc2626]" />
+          <div className="shrink-0 p-1.5 sm:p-3 bg-red-50 rounded-lg sm:rounded-xl hidden sm:block">
+            <XOctagon className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc2626]" />
+          </div>
         </div>
       </div>
 
@@ -227,8 +239,8 @@ export default function UsuariosPendentes({ embedded }) {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-                <table className="w-full text-left text-[0.9375rem]">
+              <div className="overflow-x-auto bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0">
+                <table className="w-full text-left text-[0.9375rem] min-w-[900px]">
                   <thead>
                     <tr className="border-b-2 border-[#f1f5f9] bg-[#f8fafc]">
                       <th className="py-3 px-4 font-semibold text-[#334155]">Escola</th>
@@ -285,8 +297,8 @@ export default function UsuariosPendentes({ embedded }) {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-                <table className="w-full text-left text-[0.9375rem]">
+              <div className="overflow-x-auto bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0">
+                <table className="w-full text-left text-[0.9375rem] min-w-[900px]">
                   <thead>
                     <tr className="border-b-2 border-[#f1f5f9] bg-[#f8fafc]">
                       <th className="py-3 px-4 font-semibold text-[#334155]">Status</th>
@@ -363,7 +375,7 @@ export default function UsuariosPendentes({ embedded }) {
         size="xl"
         footer={
           modalSolicitacao && (
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 w-full">
               <Popconfirm
                 title="Negar solicitação"
                 description="Confirma que deseja negar esta solicitação? Os dados não serão cadastrados no sistema."
@@ -375,7 +387,7 @@ export default function UsuariosPendentes({ embedded }) {
                 <button
                   type="button"
                   disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {negandoId === modalSolicitacao.id ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -389,7 +401,7 @@ export default function UsuariosPendentes({ embedded }) {
                 type="button"
                 disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
                 onClick={handleAprovarNoModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {aprovandoId === modalSolicitacao.id ? (
                   <Loader2 size={16} className="animate-spin" />

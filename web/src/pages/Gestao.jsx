@@ -85,7 +85,7 @@ export default function Gestao() {
         </p>
       </header>
 
-      <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+      <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden -mx-4 sm:mx-0">
         <div className="flex gap-0 p-1 sm:p-2 border-b border-[#f1f5f9] overflow-x-auto overflow-y-hidden scrollbar-hide whitespace-nowrap">
           {TABS.map((tab) => {
             const Icon = tab.icon
@@ -110,7 +110,7 @@ export default function Gestao() {
           })}
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="px-4 py-4 sm:p-6">
           {activeTab === 'alunos' && (
             <>
               {!cadastroAlunosBloqueado && prazoCadastroAlunos && (
