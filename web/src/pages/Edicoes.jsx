@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Input, Select, DatePicker, Table, Tag, message } from 'antd'
+import { Button, Input, Select, DatePicker, Table, Tag, message, Modal } from 'antd'
 import dayjs from 'dayjs'
 import { edicoesService } from '../services/edicoesService'
 
@@ -18,6 +18,7 @@ const statusColor = {
 export default function Edicoes({ embedded = false }) {
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [form, setForm] = useState({
     nome: '',
     ano: String(new Date().getFullYear()),
@@ -56,6 +57,7 @@ export default function Edicoes({ embedded = false }) {
       })
       message.success('Edição criada com sucesso')
       setForm((prev) => ({ ...prev, nome: '', status: 'PLANEJAMENTO' }))
+      setIsModalOpen(false)
       fetchData()
     } catch (err) {
       message.error(err.message || 'Erro ao criar edição')
@@ -134,24 +136,57 @@ export default function Edicoes({ embedded = false }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <Input placeholder="Nome (ex.: Edição 2026)" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
-        <Input placeholder="Ano" value={form.ano} onChange={(e) => setForm((p) => ({ ...p, ano: e.target.value }))} />
-        <Select options={STATUS_OPTIONS} value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} />
-        <DatePicker placeholder="Data início" format="DD/MM/YYYY" value={form.data_inicio ? dayjs(form.data_inicio) : null} onChange={(d) => setForm((p) => ({ ...p, data_inicio: d }))} />
-        <DatePicker placeholder="Data fim" format="DD/MM/YYYY" value={form.data_fim ? dayjs(form.data_fim) : null} onChange={(d) => setForm((p) => ({ ...p, data_fim: d }))} />
-      </div>
-      <div>
-        <Button type="primary" onClick={handleCreate}>Criar edição</Button>
+      <div className="flex justify-end">
+        <Button type="primary" size="large" onClick={() => setIsModalOpen(true)}>Nova Edição</Button>
       </div>
 
-      <Table
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={items}
-        pagination={false}
-      />
+      <Modal
+        title={<span className="text-[1.125rem] font-bold text-[#042f2e]">Criar Nova Edição</span>}
+        open={isModalOpen}
+        onOk={handleCreate}
+        onCancel={() => setIsModalOpen(false)}
+        okText="Salvar edição"
+        cancelText="Cancelar"
+        destroyOnClose
+      >
+        <div className="flex flex-col gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 text-[#334155]">Nome da Edição</label>
+            <Input size="large" placeholder="ex.: JELS 2026" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[#334155]">Ano</label>
+              <Input size="large" placeholder="Ano (ex: 2026)" value={form.ano} onChange={(e) => setForm((p) => ({ ...p, ano: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[#334155]">Status Inicial</label>
+              <Select size="large" options={STATUS_OPTIONS} className="w-full" value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[#334155]">Data de Início</label>
+              <DatePicker size="large" className="w-full" placeholder="Selecionar" format="DD/MM/YYYY" value={form.data_inicio ? dayjs(form.data_inicio) : null} onChange={(d) => setForm((p) => ({ ...p, data_inicio: d }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[#334155]">Data de Fim</label>
+              <DatePicker size="large" className="w-full" placeholder="Selecionar" format="DD/MM/YYYY" value={form.data_fim ? dayjs(form.data_fim) : null} onChange={(d) => setForm((p) => ({ ...p, data_fim: d }))} />
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <div className="-mx-4 sm:mx-0 border-y sm:border sm:rounded-lg overflow-hidden border-[#f1f5f9] shadow-none sm:shadow-sm mt-2">
+        <Table
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={items}
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+        />
+      </div>
     </div>
   )
 }

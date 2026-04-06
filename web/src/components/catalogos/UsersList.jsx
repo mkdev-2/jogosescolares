@@ -77,17 +77,19 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
           Atualmente: {usersInSchool.length} de {maxPerEscola}.
         </div>
       )}
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-        <div className="flex items-center justify-between px-5 py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex-1">
-            <p className="text-[0.875rem] text-[#64748b] m-0 mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="flex items-center justify-between px-3 sm:px-5 py-4 sm:py-5 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex-1 overflow-hidden pr-2">
+            <p className="text-[10px] sm:text-[0.875rem] text-[#64748b] m-0 mb-0.5 sm:mb-1 uppercase font-bold tracking-wider truncate w-full" title="Total de Usuários">
               Total de Usuários
             </p>
-            <p className="text-[1.5rem] font-bold text-[#042f2e] m-0">
+            <p className="text-[1.125rem] sm:text-[1.5rem] font-extrabold text-[#042f2e] m-0">
               {users.length}
             </p>
           </div>
-          <Users size={28} className="text-[#0f766e]" />
+          <div className="shrink-0 p-1.5 sm:p-3 bg-[#f0fdfa] rounded-lg sm:rounded-xl">
+            <Users className="w-5 h-5 sm:w-7 sm:h-7 text-[#0f766e]" />
+          </div>
         </div>
       </div>
 
@@ -149,8 +151,8 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <table className="w-full border-collapse">
+            <div className="overflow-x-auto bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0">
+              <table className="w-full border-collapse min-w-[700px]">
                 <thead>
                   <tr>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">

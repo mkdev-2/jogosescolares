@@ -230,7 +230,7 @@ export default function AppLayout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-8 bg-[#f8fafc] min-h-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 bg-[#f8fafc] min-h-0">
           <div className="max-w-[1200px] w-full mx-auto">{children}</div>
         </main>
       </div>

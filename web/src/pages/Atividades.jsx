@@ -170,8 +170,8 @@ export default function Atividades() {
         />
       )}
 
-      <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="p-6">
+      <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden -mx-4 sm:mx-0">
+        <div className="px-4 py-4 sm:p-6">
           <EsportesList
             variantes={useVariantesState.variantes}
             loading={useVariantesState.loading}

@@ -379,7 +379,7 @@ export default function Credenciais() {
     }
 
     return (
-        <Card bordered={false} className="shadow-sm sm:rounded-xl">
+        <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0 p-4 sm:p-6">
             <Spin spinning={loadingEscolas || loadingEstudantes}>
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <div className="flex flex-col gap-2">
@@ -498,6 +498,8 @@ export default function Credenciais() {
                                     ? `Estudantes sem credencial gerada (${estudantesExibidosNaTabela.length})`
                                     : `Estudantes Encontrados (${estudantesExibidosNaTabela.length})`
                             }
+                            className="shadow-sm sm:rounded-xl -mx-4 sm:mx-0 border-x-0 sm:border-x border-[#f1f5f9]"
+                            bodyStyle={{ padding: 0 }}
                         >
                             <Table
                                 dataSource={estudantesExibidosNaTabela}
@@ -584,6 +586,6 @@ export default function Credenciais() {
                 </div>,
                 document.body
             )}
-        </Card>
+        </div>
     )
 }
