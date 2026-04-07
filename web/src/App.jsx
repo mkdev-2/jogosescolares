@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { ConfigProvider } from 'antd'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -32,6 +33,7 @@ import MinhaConta from './pages/MinhaConta'
 function App() {
   return (
     <ConfigProvider theme={antdTheme}>
+      <Analytics />
       <AuthProvider>
         <BrowserRouter>
         <Routes>
