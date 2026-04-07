@@ -106,7 +106,7 @@ export default function FooterInstitucional() {
         <div className="container-portal px-4 sm:px-6">
           <div className="flex flex-col items-center justify-center space-y-4">
             <p className="font-sans text-[10px] sm:text-xs text-emerald-100/50 uppercase tracking-[0.2em] text-center">
-              © 2026 PREFEITURA MUNICIPAL DE PAÇO DO LUMIAR — TODOS OS DIREITOS RESERVADOS
+              © 2026 SEMITUR - Secretaria Municipal de Desenvolvimento Econômico, Empreendedorismo, Turismo e Inovação. — TODOS OS DIREITOS RESERVADOS
             </p>
             <div className="flex items-center gap-6">
               <Link to="/politica-privacidade" className="text-[10px] uppercase font-bold text-white/30 hover:text-white transition-colors">Privacidade</Link>

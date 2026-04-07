@@ -1,7 +1,7 @@
 /**
  * Configuração de API e cliente HTTP.
  * Em desenvolvimento: sempre usa proxy (/api-service, /api-postgrest) para evitar CORS.
- * O target do proxy é definido no setupProxy.js via VITE_API_SERVICE_URL, VITE_POSTGREST_URL.
+ * O target do proxy é definido no vite.config.js (server.proxy) via VITE_API_SERVICE_URL, VITE_POSTGREST_URL.
  * Em produção: usa URLs diretas das variáveis de ambiente.
  */
 const isDev = import.meta.env.DEV
@@ -41,12 +41,17 @@ export async function apiFetch(url, options = {}) {
   const baseUrl = url.startsWith('/api-service') || url.startsWith('/api-postgrest') ? '' : API_SERVICE_URL
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
 
+  const method = (options.method || 'GET').toUpperCase()
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   }
   // Para FormData, o browser deve definir Content-Type com boundary automaticamente
   if (options.body instanceof FormData) {
+    delete headers['Content-Type']
+  }
+  // GET/HEAD sem body: não enviar Content-Type JSON (alguns gateways tratam melhor arquivos/binários)
+  if ((method === 'GET' || method === 'HEAD') && !options.body) {
     delete headers['Content-Type']
   }
 

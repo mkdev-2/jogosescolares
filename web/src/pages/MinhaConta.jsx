@@ -19,7 +19,7 @@ import {
 import { User, Mail, Lock, Save, Edit, X, Camera, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
-import { uploadFotoPerfil, getStorageUrl } from '../services/storageService'
+import { uploadFotoPerfil, fetchStorageBlob } from '../services/storageService'
 
 const { Title, Text } = Typography
 
@@ -54,6 +54,8 @@ export default function MinhaConta() {
   const [photoPreview, setPhotoPreview] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState(null)
+  const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
+  const avatarBlobRef = useRef(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -65,6 +67,43 @@ export default function MinhaConta() {
       setCurrentPhotoUrl(user.foto_url || null)
     }
   }, [user, profileForm])
+
+  useEffect(() => {
+    if (!currentPhotoUrl || photoPreview) {
+      if (avatarBlobRef.current) {
+        URL.revokeObjectURL(avatarBlobRef.current)
+        avatarBlobRef.current = null
+      }
+      setAvatarBlobUrl(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const blob = await fetchStorageBlob(currentPhotoUrl)
+        if (cancelled) return
+        const u = URL.createObjectURL(blob)
+        if (cancelled) {
+          URL.revokeObjectURL(u)
+          return
+        }
+        if (avatarBlobRef.current) {
+          URL.revokeObjectURL(avatarBlobRef.current)
+        }
+        avatarBlobRef.current = u
+        setAvatarBlobUrl(u)
+      } catch {
+        if (!cancelled) setAvatarBlobUrl(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (avatarBlobRef.current) {
+        URL.revokeObjectURL(avatarBlobRef.current)
+        avatarBlobRef.current = null
+      }
+    }
+  }, [currentPhotoUrl, photoPreview])
 
   const handleSaveProfile = async (values) => {
     setLoading(true)
@@ -206,7 +245,7 @@ export default function MinhaConta() {
     )
   }
 
-  const avatarSrc = photoPreview || (currentPhotoUrl ? getStorageUrl(currentPhotoUrl) : null)
+  const avatarSrc = photoPreview || avatarBlobUrl
 
   return (
     <>

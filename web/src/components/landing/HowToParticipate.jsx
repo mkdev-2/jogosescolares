@@ -1,125 +1,67 @@
 import { Fragment, useState } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, LayoutGrid, CheckCircle2 } from "lucide-react";
+import { ArrowRight, UserPlus, LayoutGrid, CheckCircle2 } from "lucide-react";
 
 const steps = [
-  {
-    icon: UserPlus,
-    title: "Cadastre sua escola",
-    description: "Informe os dados da escola"
-  },
-  {
-    icon: LayoutGrid,
-    title: "Escolha as modalidades",
-    description: "Defina em quais esportes sua escola vai competir"
-  },
-  {
-    icon: CheckCircle2,
-    title: "Aguarde confirmação",
-    description: "Pronto! Agora é só aguardar a validação"
-  }
+  { icon: UserPlus, title: "Cadastre sua escola" },
+  { icon: LayoutGrid, title: "Escolha as modalidades" },
+  { icon: CheckCircle2, title: "Aguarde confirmação" },
 ];
+
+function StepConnector() {
+  return (
+    <>
+      <div className="flex justify-center py-1 md:hidden" aria-hidden>
+        <div className="h-8 w-1 rounded-full bg-gradient-to-b from-emerald-300 via-emerald-400 to-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.35)]" />
+      </div>
+      <div
+        className="hidden min-h-[3.5rem] min-w-0 flex-1 items-center gap-1.5 px-1 md:flex"
+        aria-hidden
+      >
+        <div className="h-1.5 min-w-[8px] flex-1 rounded-full bg-emerald-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]" />
+        <ArrowRight className="h-5 w-5 shrink-0 text-emerald-700" strokeWidth={2.5} />
+        <div className="h-1.5 min-w-[8px] flex-1 rounded-full bg-emerald-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]" />
+      </div>
+    </>
+  );
+}
 
 export default function HowToParticipate() {
   const [activeStep, setActiveStep] = useState(0);
 
   return (
-    <section className="container-portal py-3 md:py-6">
-      <div className="text-center mb-8 px-4">
-        <h2 className="text-base sm:text-xl font-black text-primary uppercase tracking-[0.2em] mb-2 px-2">PARTICIPE DOS JOGOS ESCOLARES</h2>
-      </div>
-
-      <div className="relative max-w-5xl mx-auto mt-6 px-4 md:px-0">
-        {/* Desktop: linha e ícones centralizados (linha com highlight até o passo atual) */}
-        <div className="hidden md:block">
-          <div className="flex items-center justify-center w-full">
-            {steps.map((step, idx) => (
-              <Fragment key={idx}>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.12 }}
-                  onMouseEnter={() => setActiveStep(idx)}
-                  onFocus={() => setActiveStep(idx)}
-                  tabIndex={0}
-                  className="flex-shrink-0 group relative flex items-center justify-center"
-                >
-                  <div className="relative w-[68px] h-[68px] rounded-full bg-slate-50 border border-emerald-100 flex items-center justify-center shadow-[0_18px_40px_-18px_rgba(4,47,46,0.45)] z-10 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_26px_70px_-28px_rgba(4,47,46,0.65)]">
-                    <step.icon className="w-8 h-8 text-emerald-800 transition-all duration-300 group-hover:scale-110" />
-
-                    <div className="absolute -top-2 -right-2 w-11 h-11 rounded-full bg-yellow-400 border-2 border-white shadow-[0_14px_28px_-18px_rgba(0,0,0,0.45)] flex items-center justify-center text-[16px] font-black text-black transition-all duration-300 group-hover:scale-105">
-                      {idx + 1}
-                    </div>
-                  </div>
-                </motion.div>
-
-                {idx < steps.length - 1 && (
-                  <div className="flex-1 h-[4px] mx-4 relative rounded-full">
-                    {/* Linha base */}
-                    <div className="absolute inset-0 rounded-full bg-emerald-200/80 shadow-[0_0_18px_rgba(16,185,129,0.25)]" />
-                    {/* Highlight até o passo atual */}
-                    <div
-                      className="absolute inset-0 rounded-full bg-emerald-500 shadow-[0_0_26px_rgba(16,185,129,0.6)] transition-transform duration-300"
-                      style={{
-                        transformOrigin: "left",
-                        transform: activeStep >= idx + 1 ? "scaleX(1)" : "scaleX(0)",
-                      }}
-                    />
-                  </div>
-                )}
-              </Fragment>
-            ))}
-          </div>
-
-          {/* Textos (alinhados aos ícones) */}
-          <div className="grid grid-cols-3 gap-6 mt-6">
-            {steps.map((step, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.12 + 0.05 }}
-                onMouseEnter={() => setActiveStep(idx)}
-                onFocus={() => setActiveStep(idx)}
-                tabIndex={0}
-                className="text-center cursor-default"
-              >
-                <h4 className="text-[15px] font-black text-[#014737] uppercase tracking-tight mb-0.5">{step.title}</h4>
-                <p className="text-[14px] text-slate-500 font-medium leading-snug">{step.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile: mantém cards em coluna (sem linha/escala de conectores) */}
-        <div className="md:hidden flex flex-col gap-4">
-          {steps.map((step, idx) => (
+    <section className="container-portal shrink-0 py-2 md:py-3">
+      <div className="relative mx-auto flex max-w-5xl flex-col px-4 md:flex-row md:items-stretch md:px-0">
+        {steps.map((step, idx) => (
+          <Fragment key={idx}>
             <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: idx * 0.15 }}
+              transition={{ delay: idx * 0.08 }}
               onMouseEnter={() => setActiveStep(idx)}
-              className="bg-white p-4 rounded-[16px] border border-emerald-50/50 shadow-lg shadow-emerald-900/10"
+              className={`min-w-0 flex-1 rounded-xl border bg-white p-3 shadow-sm transition-all sm:p-4 ${
+                activeStep === idx
+                  ? "border-emerald-400 shadow-emerald-900/20 ring-1 ring-emerald-200/80"
+                  : "border-emerald-100/80 shadow-emerald-900/10"
+              }`}
             >
-              <div className="flex items-center gap-4">
-                <div className="relative w-[60px] h-[60px] rounded-full bg-slate-50 border border-emerald-100 flex items-center justify-center shadow-[0_18px_40px_-18px_rgba(4,47,46,0.45)] shrink-0">
-                  <step.icon className="w-7 h-7 text-emerald-800" />
-                  <div className="absolute -top-2 -right-2 w-11 h-11 rounded-full bg-yellow-400 border-2 border-white shadow-[0_14px_28px_-18px_rgba(0,0,0,0.45)] flex items-center justify-center text-[15px] font-black text-black">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-emerald-100 bg-slate-50 sm:h-14 sm:w-14">
+                  <step.icon className="h-6 w-6 text-emerald-800 sm:h-7 sm:w-7" />
+                  <div className="absolute -right-0.5 -top-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-yellow-400 text-xs font-black text-black shadow-sm sm:h-8 sm:w-8 sm:text-sm">
                     {idx + 1}
                   </div>
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-[14px] font-black text-[#014737] uppercase tracking-tight mb-1">{step.title}</h4>
-                  <p className="text-[13px] text-slate-500 font-medium leading-snug">{step.description}</p>
-                </div>
+                <h4 className="text-[11px] font-black uppercase leading-tight tracking-tight text-[#014737] sm:text-xs md:text-sm">
+                  {step.title}
+                </h4>
               </div>
             </motion.div>
-          ))}
-        </div>
+
+            {idx < steps.length - 1 && <StepConnector />}
+          </Fragment>
+        ))}
       </div>
     </section>
   );

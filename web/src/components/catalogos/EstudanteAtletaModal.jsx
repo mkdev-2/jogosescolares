@@ -7,6 +7,7 @@ import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
 import { estudantesService } from '../../services/estudantesService'
 import { uploadFotoEstudante, uploadDocumentacaoAssinada, getStorageUrl } from '../../services/storageService'
+import StorageImage from '../StorageImage'
 import FichaIndividualPrint from './FichaIndividualPrint'
 
 const SEXO_OPCOES = [
@@ -405,7 +406,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       >
                         {form.fotoUrl ? (
                           <>
-                            <img src={getStorageUrl(form.fotoUrl)} alt="Foto do Estudante" className="w-full h-full object-cover" />
+                            <StorageImage path={form.fotoUrl} alt="Foto do Estudante" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <Camera className="w-6 h-6 text-white" />
                             </div>

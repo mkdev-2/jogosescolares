@@ -1,6 +1,21 @@
 import { apiFetch, API_SERVICE_URL } from '../config/api'
 
 const BUCKET = 'jogosescolares'
+const STORAGE_PUBLIC_BASE = (import.meta.env.VITE_MINIO_URL || '').trim().replace(/\/$/, '')
+
+function buildStorageFileUrl(relativePath) {
+  const clean = String(relativePath || '').trim().replace(/^\/+/, '')
+  if (!clean) return ''
+  const base = API_SERVICE_URL.replace(/\/$/, '')
+  const prefix = base ? `${base}/api/storage/file` : '/api/storage/file'
+  return `${prefix}/${clean}`
+}
+
+function buildDirectStorageUrl(relativePath) {
+  const clean = String(relativePath || '').trim().replace(/^\/+/, '')
+  if (!clean || !STORAGE_PUBLIC_BASE) return ''
+  return `${STORAGE_PUBLIC_BASE}/${clean}`
+}
 const FOTOS_PATH = 'estudantes'
 const DOCUMENTACAO_PATH = 'estudantes/documentacao'
 const PERFIL_PATH = 'perfil'
@@ -48,17 +63,134 @@ async function uploadToStoragePublic(file, bucket, path) {
 
 /**
  * Retorna URL para exibir arquivo do storage (via GET /api/storage/file/).
- * path pode ser relativo (bucket/path) ou URL absoluta (retornada como está).
+ * path pode ser relativo (bucket/path) ou URL absoluta (API ou MinIO); sempre
+ * normaliza para o endpoint atual (proxy em dev) para buckets privados.
  */
 export function getStorageUrl(path) {
   if (!path) return ''
   if (typeof path !== 'string') return ''
   const trimmed = path.trim()
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
-  const base = API_SERVICE_URL.replace(/\/$/, '')
-  const prefix = base ? `${base}/api/storage/file` : '/api/storage/file'
-  const clean = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed
-  return `${prefix}/${clean}`
+  const marker = '/api/storage/file/'
+
+  const extractAfterMarker = (value) => {
+    const i = value.indexOf(marker)
+    if (i < 0) return null
+    return value.slice(i + marker.length).split(/[?#]/)[0].replace(/^\/+/, '')
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const fromApi = extractAfterMarker(trimmed)
+    if (fromApi) return buildStorageFileUrl(fromApi)
+
+    try {
+      const u = new URL(trimmed)
+      // URL direta do MinIO/S3: /jogosescolares/chave/do/objeto → servir via API (bucket privado).
+      if (u.pathname.startsWith(`/${BUCKET}/`)) {
+        return buildStorageFileUrl(u.pathname.replace(/^\//, ''))
+      }
+    } catch {
+      return trimmed
+    }
+    // URL externa genuína (ex.: CDN de terceiros)
+    return trimmed
+  }
+
+  let rel = extractAfterMarker(trimmed) ?? trimmed.replace(/^\/+/, '')
+  rel = rel.split(/[?#]/)[0].replace(/^\/+/, '')
+  if (!rel) return ''
+
+  // Legado: chave sem prefixo do bucket (ex.: só "midias/..." ou "hero/...")
+  if (!rel.startsWith(`${BUCKET}/`)) {
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    if (legacyPrefixes.some((p) => rel.startsWith(p))) {
+      rel = `${BUCKET}/${rel}`
+    }
+  }
+
+  return buildStorageFileUrl(rel)
+}
+
+function getStorageRelativePath(path) {
+  if (!path || typeof path !== 'string') return ''
+  const trimmed = path.trim()
+  const marker = '/api/storage/file/'
+  const extractAfterMarker = (value) => {
+    const i = value.indexOf(marker)
+    if (i < 0) return null
+    return value.slice(i + marker.length).split(/[?#]/)[0].replace(/^\/+/, '')
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const fromApi = extractAfterMarker(trimmed)
+    if (fromApi) return fromApi
+    try {
+      const u = new URL(trimmed)
+      if (u.pathname.startsWith(`/${BUCKET}/`)) {
+        return u.pathname.replace(/^\//, '')
+      }
+      return ''
+    } catch {
+      return ''
+    }
+  }
+
+  let rel = extractAfterMarker(trimmed) ?? trimmed.replace(/^\/+/, '')
+  rel = rel.split(/[?#]/)[0].replace(/^\/+/, '')
+  if (!rel) return ''
+  if (!rel.startsWith(`${BUCKET}/`)) {
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    if (legacyPrefixes.some((p) => rel.startsWith(p))) {
+      rel = `${BUCKET}/${rel}`
+    }
+  }
+  return rel
+}
+
+export function getDirectStorageUrl(path) {
+  const rel = getStorageRelativePath(path)
+  if (!rel) return ''
+  return buildDirectStorageUrl(rel)
+}
+
+/**
+ * Baixa o arquivo do storage com Authorization (Bearer) — necessário quando o gateway
+ * exige JWT em /api/storage/file/...; `<img src>` não envia cabeçalhos.
+ * Aceita path relativo (bucket/chave) ou o mesmo valor aceito por getStorageUrl.
+ */
+export async function fetchStorageBlob(path) {
+  const rel = getStorageRelativePath(path)
+  const url = rel ? buildStorageFileUrl(rel) : getStorageUrl(path)
+  if (!url) throw new Error('Caminho inválido')
+  // 1) Tenta sem Authorization (rota de arquivo costuma ser pública).
+  // 2) Se o gateway bloquear (401/403), tenta autenticado via apiFetch.
+  const direct = await fetch(url)
+  if (direct.ok) {
+    const ct = (direct.headers.get('content-type') || '').toLowerCase()
+    // Proteção: evita usar HTML de fallback como imagem.
+    if (!ct.includes('text/html')) {
+      return direct.blob()
+    }
+  }
+
+  const authRes = await apiFetch(url)
+  if (!authRes.ok) {
+    // Fallback para leitura direta do host de storage (quando /api/storage/file
+    // é bloqueado por regra de gateway em alguns ambientes).
+    const directUrl = rel ? buildDirectStorageUrl(rel) : ''
+    if (directUrl) {
+      const directPublic = await fetch(directUrl)
+      if (directPublic.ok) {
+        const ct = (directPublic.headers.get('content-type') || '').toLowerCase()
+        if (!ct.includes('text/html')) return directPublic.blob()
+      }
+    }
+    throw new Error(`Erro ${authRes.status} ao carregar arquivo`)
+  }
+  const authCt = (authRes.headers.get('content-type') || '').toLowerCase()
+  if (authCt.includes('text/html')) {
+    throw new Error('Resposta inesperada HTML no endpoint de arquivo')
+  }
+  return authRes.blob()
 }
 
 /**

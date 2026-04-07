@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, forwardRef } from 'react'
 import { estudantesService } from '../../services/estudantesService'
 import { configuracoesService } from '../../services/configuracoesService'
-import { getStorageUrl } from '../../services/storageService'
+import StorageImage from '../StorageImage'
 import { User, Medal } from 'lucide-react'
 import ModalidadeIcon from './ModalidadeIcon'
 
@@ -54,7 +54,6 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
     window.print()
   }
 
-  const fotoUrl = estudante?.foto_url ? getStorageUrl(estudante.foto_url) : null
   const nome = estudante?.nome || '–'
   const instituicao = estudante?.escola_nome || '–'
   const cpf = estudantesService.formatCpf(estudante?.cpf) || '–'
@@ -203,8 +202,8 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
                 className="rounded-full overflow-hidden border-2 border-[#e2e8f0] bg-[#f1f5f9] flex items-center justify-center"
                 style={{ width: '42mm', height: '42mm' }}
               >
-                {fotoUrl ? (
-                  <img src={fotoUrl} alt={nome} className="w-full h-full object-cover" />
+                {estudante?.foto_url ? (
+                  <StorageImage path={estudante.foto_url} alt={nome} className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-14 h-14 text-[#94a3b8]" />
                 )}
@@ -258,10 +257,10 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
             <p className="text-[11px] text-[#64748b] m-0 mb-1.5 uppercase tracking-wide font-semibold text-center">Realização</p>
             <div className="flex items-center justify-center gap-6">
               {logos.logo_secretaria ? (
-                <img src={getStorageUrl(logos.logo_secretaria)} alt="Secretaria" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
+                <StorageImage path={logos.logo_secretaria} alt="Secretaria" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
               ) : null}
               {logos.logo_jels ? (
-                <img src={getStorageUrl(logos.logo_jels)} alt="JELS" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
+                <StorageImage path={logos.logo_jels} alt="JELS" className="max-h-14 max-w-[80px] w-auto h-auto object-contain object-center" />
               ) : null}
               {!logos.logo_secretaria && !logos.logo_jels ? (
                 <span className="text-[12px] text-[#94a3b8]">Logos em Comunicação → Mídias</span>

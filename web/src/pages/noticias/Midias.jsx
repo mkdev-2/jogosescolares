@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Image as ImageIcon, ImagePlus, Trash2, Plus } from 'lucide-react'
 import { notification, Modal, Empty } from 'antd'
 import { configuracoesService } from '../../services/configuracoesService'
-import { uploadLogoMidias, uploadBannerHero, getStorageUrl } from '../../services/storageService'
+import { uploadLogoMidias, uploadBannerHero } from '../../services/storageService'
+import StorageImage from '../../components/StorageImage'
 
 const ACCEPT_IMAGES = 'image/png,image/jpeg,image/jpg,image/webp'
 
@@ -183,8 +184,8 @@ export default function Midias({ embedded }) {
             
             <div className="w-full h-32 bg-[#f8fafc] rounded-lg border border-dashed border-[#cbd5e1] flex items-center justify-center overflow-hidden mb-4 relative">
               {item.value ? (
-                <img
-                  src={getStorageUrl(item.value)}
+                <StorageImage
+                  path={item.value}
                   alt={item.label}
                   className="w-full h-full object-contain p-2 transition-transform group-hover:scale-105 duration-500"
                 />
@@ -238,10 +239,10 @@ export default function Midias({ embedded }) {
         {config.banners_hero.length > 0 ? (
           config.banners_hero.map((path, idx) => (
             <div key={path} className="relative group rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white aspect-[1900/460] md:aspect-[16/9] lg:aspect-[1900/460]">
-               <img 
-                 src={getStorageUrl(path)} 
-                 alt={`Banner ${idx + 1}`} 
-                 className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700" 
+               <StorageImage
+                 path={path}
+                 alt={`Banner ${idx + 1}`}
+                 className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700"
                />
                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                   <button 

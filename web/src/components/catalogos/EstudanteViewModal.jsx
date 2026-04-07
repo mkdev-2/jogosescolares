@@ -1,33 +1,72 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User, UserCircle, School, FileSignature, Check, X, Pencil, Paperclip, FileText, ShieldCheck, ShieldOff } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { estudantesService } from '../../services/estudantesService'
-import { getStorageUrl } from '../../services/storageService'
+import { fetchStorageBlob } from '../../services/storageService'
+import StorageImage from '../StorageImage'
 import { useAuth } from '../../contexts/AuthContext'
 import { message } from 'antd'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
 
 function DocPreviewCard({ url }) {
+  const [previewSrc, setPreviewSrc] = useState(null)
   const [imgError, setImgError] = useState(false)
   const isPdf = /\.pdf$/i.test(url || '')
-  const fullUrl = getStorageUrl(url)
-  const showImg = !isPdf && !imgError
+  const showImg = !isPdf && !imgError && previewSrc
+
+  useEffect(() => {
+    setImgError(false)
+    if (!url || isPdf) {
+      setPreviewSrc(null)
+      return
+    }
+    let cancelled = false
+    const blobUrlRef = { current: null }
+    ;(async () => {
+      try {
+        const blob = await fetchStorageBlob(url)
+        if (cancelled) return
+        blobUrlRef.current = URL.createObjectURL(blob)
+        setPreviewSrc(blobUrlRef.current)
+      } catch {
+        setImgError(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
+    }
+  }, [url, isPdf])
+
+  const handleOpen = async (e) => {
+    e.preventDefault()
+    if (!url) return
+    try {
+      const blob = await fetchStorageBlob(url)
+      const u = URL.createObjectURL(blob)
+      window.open(u, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(u), 120000)
+    } catch {
+      setImgError(true)
+    }
+  }
 
   return (
     <a
-      href={fullUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex flex-col items-center gap-2 no-underline group"
+      href="#"
+      onClick={handleOpen}
+      className="inline-flex flex-col items-center gap-2 no-underline group cursor-pointer"
     >
       <div className="w-[104px] h-[104px] rounded-lg border-2 border-[#e2e8f0] overflow-hidden bg-[#f8fafc] flex items-center justify-center hover:border-[#0f766e] transition-colors relative">
         {showImg ? (
           <img
-            src={fullUrl}
+            src={previewSrc}
             alt="Documento assinado"
             className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
           />
         ) : (
           <FileText size={40} className="text-[#94a3b8] group-hover:text-[#0f766e]" />
@@ -101,8 +140,8 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
   }
 
   const fotoOuIcone = aluno.foto_url ? (
-    <img
-      src={getStorageUrl(aluno.foto_url)}
+    <StorageImage
+      path={aluno.foto_url}
       alt={aluno.nome}
       className="w-16 h-16 rounded-full object-cover border-2 border-[#e2e8f0]"
     />

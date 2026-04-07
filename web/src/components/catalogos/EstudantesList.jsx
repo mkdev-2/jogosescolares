@@ -3,7 +3,7 @@ import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical, IdCard } from 
 import { Input, Button, Popconfirm, Popover, Pagination } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
 import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
-import { getStorageUrl } from '../../services/storageService'
+import StorageImage from '../StorageImage'
 
 function SexoBadge({ sexo }) {
   if (!sexo) return <span className="text-[#94a3b8]">-</span>
@@ -204,7 +204,7 @@ export default function EstudantesList({
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full overflow-hidden bg-[#e2e8f0] flex items-center justify-center shrink-0">
                             {item.foto_url ? (
-                              <img src={getStorageUrl(item.foto_url)} alt={item.nome} className="w-full h-full object-cover" />
+                              <StorageImage path={item.foto_url} alt={item.nome} className="w-full h-full object-cover" />
                             ) : (
                               <User size={16} className="text-[#94a3b8]" />
                             )}

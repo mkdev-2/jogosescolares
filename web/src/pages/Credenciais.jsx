@@ -5,7 +5,7 @@ import { Download, IdCard, Building2, User } from 'lucide-react'
 import { estudantesService } from '../services/estudantesService'
 import useEscolas from '../hooks/useEscolas'
 import { configuracoesService } from '../services/configuracoesService'
-import { getStorageUrl } from '../services/storageService'
+import { fetchStorageBlob } from '../services/storageService'
 import jsPDF from 'jspdf'
 
 export default function Credenciais() {
@@ -97,19 +97,24 @@ export default function Credenciais() {
 
             // 1. Carregar mídias (logos e fundo)
             const midias = await configuracoesService.getLogos()
-            const bgUrl = midias?.bg_credencial ? getStorageUrl(midias.bg_credencial) : null
-            const logoSecUrl = midias?.logo_secretaria ? getStorageUrl(midias.logo_secretaria) : null
-            const logoJelsUrl = midias?.logo_jels ? getStorageUrl(midias.logo_jels) : null
 
             // Cores originais dos badges (Substituído Laranja por Roxo)
             const BADGE_COLORS = ['#0f766e', '#6b21a8', '#0369a1', '#0d9488']
 
-            // Helper para carregar imagem e retornar dados (Preserva transparência e dimensões)
-            const loadImg = (url, rounded = false) => new Promise((resolve) => {
-                if (!url) { resolve(null); return; }
-                const img = new Image()
-                img.crossOrigin = 'Anonymous'
-                img.onload = () => {
+            // Carrega via fetch com JWT (gateway pode bloquear <img src> sem Authorization)
+            const loadImg = async (storagePath, rounded = false) => {
+                if (!storagePath) return null
+                let blobUrl = null
+                try {
+                    const blob = await fetchStorageBlob(storagePath)
+                    blobUrl = URL.createObjectURL(blob)
+                    const img = new Image()
+                    img.crossOrigin = 'anonymous'
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve
+                        img.onerror = reject
+                        img.src = blobUrl
+                    })
                     const canvas = document.createElement('canvas')
                     const ratio = img.width / img.height
                     const size = rounded ? Math.min(img.width, img.height) : null
@@ -128,20 +133,22 @@ export default function Credenciais() {
                         ctx.clearRect(0, 0, canvas.width, canvas.height)
                         ctx.drawImage(img, 0, 0)
                     }
-                    resolve({
+                    return {
                         data: canvas.toDataURL('image/png'),
                         ratio: ratio,
                         w: img.width,
                         h: img.height
-                    })
+                    }
+                } catch {
+                    return null
+                } finally {
+                    if (blobUrl) URL.revokeObjectURL(blobUrl)
                 }
-                img.onerror = () => resolve(null)
-                img.src = url
-            })
+            }
 
-            const bgBase64 = bgUrl ? await loadImg(bgUrl) : null
-            const logoSec = await loadImg(logoSecUrl)
-            const logoJels = await loadImg(logoJelsUrl)
+            const bgBase64 = midias?.bg_credencial ? await loadImg(midias.bg_credencial) : null
+            const logoSec = await loadImg(midias?.logo_secretaria)
+            const logoJels = await loadImg(midias?.logo_jels)
 
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
             const mainFont = 'helvetica'; // Revertendo para helvetica para evitar erros de cmap/unicode
@@ -175,7 +182,7 @@ export default function Credenciais() {
 
                 // == 3. FOTO REDONDA (TAMANHO AJUSTADO) ==
                 if (aluno.foto_url) {
-                    const fotoRes = await loadImg(getStorageUrl(aluno.foto_url), true)
+                    const fotoRes = await loadImg(aluno.foto_url, true)
                     if (fotoRes) {
                         // Anel Externo
                         doc.setDrawColor(226, 232, 240)

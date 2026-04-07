@@ -1,24 +1,55 @@
 import { useRef, useState, useEffect } from 'react'
 import { configuracoesService } from '../../services/configuracoesService'
-import { getStorageUrl } from '../../services/storageService'
+import { fetchStorageBlob } from '../../services/storageService'
 
 export default function FichaColetivaPrint({ dados, ano = new Date().getFullYear(), onClose }) {
   const printRef = useRef(null)
-  const [logos, setLogos] = useState({ logo_jels: null, logo_secretaria: null })
+  const [logos, setLogos] = useState({
+    logo_jels: '/Jels-2026-horizontal.png',
+    logo_secretaria: '/logo-semcej.png',
+  })
+
+  const logoBlobUrlsRef = useRef([])
 
   useEffect(() => {
+    logoBlobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+    logoBlobUrlsRef.current = []
+
     const fetchLogos = async () => {
       try {
         const data = await configuracoesService.getLogos()
-        setLogos({
-          logo_jels: data?.logo_jels ? getStorageUrl(data.logo_jels) : '/Jels-2026-horizontal.png',
-          logo_secretaria: data?.logo_secretaria ? getStorageUrl(data.logo_secretaria) : '/logo-semcej.png'
-        })
+        let logoJels = '/Jels-2026-horizontal.png'
+        let logoSec = '/logo-semcej.png'
+        if (data?.logo_jels) {
+          try {
+            const b = await fetchStorageBlob(data.logo_jels)
+            const u = URL.createObjectURL(b)
+            logoBlobUrlsRef.current.push(u)
+            logoJels = u
+          } catch {
+            /* fallback default */
+          }
+        }
+        if (data?.logo_secretaria) {
+          try {
+            const b = await fetchStorageBlob(data.logo_secretaria)
+            const u = URL.createObjectURL(b)
+            logoBlobUrlsRef.current.push(u)
+            logoSec = u
+          } catch {
+            /* fallback default */
+          }
+        }
+        setLogos({ logo_jels: logoJels, logo_secretaria: logoSec })
       } catch (err) {
         console.error('Erro ao carregar logos para ficha coletiva:', err)
       }
     }
     fetchLogos()
+    return () => {
+      logoBlobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+      logoBlobUrlsRef.current = []
+    }
   }, [])
 
   const handlePrint = () => {
