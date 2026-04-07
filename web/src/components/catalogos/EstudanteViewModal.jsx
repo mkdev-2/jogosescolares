@@ -9,7 +9,7 @@ import { message } from 'antd'
 
 const SEXO_LABEL = { M: 'Masculino', F: 'Feminino' }
 
-function DocPreviewCard({ url }) {
+function DocPreviewCard({ url, label = 'Documento' }) {
   const [previewSrc, setPreviewSrc] = useState(null)
   const [imgError, setImgError] = useState(false)
   const isPdf = /\.pdf$/i.test(url || '')
@@ -65,7 +65,7 @@ function DocPreviewCard({ url }) {
         {showImg ? (
           <img
             src={previewSrc}
-            alt="Documento assinado"
+            alt={label}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -73,7 +73,7 @@ function DocPreviewCard({ url }) {
         )}
       </div>
       <span className="text-xs font-medium text-[#0f766e] group-hover:underline text-center max-w-[104px] truncate">
-        Documento assinado
+        {label}
       </span>
     </a>
   )
@@ -155,6 +155,7 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
   const validadoPor = aluno.documentos_validados_por_nome
   const validadoEm = aluno.documentos_validados_em
   const temFicha = !!aluno.documentacao_assinada_url
+  const temRgAluno = !!aluno.documentacao_rg_url
 
   return (
     <Modal
@@ -331,19 +332,26 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
             </div>
           )}
 
-          {/* Preview do documento ou botão de anexar */}
-          {temFicha ? (
-            <DocPreviewCard url={aluno.documentacao_assinada_url} />
-          ) : onEdit && (
-            <button
-              type="button"
-              onClick={() => { onClose(); onEdit(aluno, { openAtStep: 2 }) }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0fdfa] text-[#0f766e] border border-[#0f766e]/30 hover:bg-[#ccfbf1] transition-colors"
-            >
-              <Paperclip size={14} />
-              Anexar Ficha
-            </button>
-          )}
+          {/* Preview dos anexos */}
+          <div className="flex flex-wrap gap-4">
+            {temFicha ? (
+              <DocPreviewCard url={aluno.documentacao_assinada_url} label="Documento assinado" />
+            ) : onEdit && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onEdit(aluno, { openAtStep: 2 }) }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f0fdfa] text-[#0f766e] border border-[#0f766e]/30 hover:bg-[#ccfbf1] transition-colors"
+              >
+                <Paperclip size={14} />
+                Anexar Ficha
+              </button>
+            )}
+            {temRgAluno ? (
+              <DocPreviewCard url={aluno.documentacao_rg_url} label="RG do aluno" />
+            ) : (
+              <span className="text-sm text-[#94a3b8] self-center">RG do aluno não anexado</span>
+            )}
+          </div>
         </div>
       </div>
     </Modal>

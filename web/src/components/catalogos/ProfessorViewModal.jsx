@@ -1,6 +1,7 @@
-import { User, School } from 'lucide-react'
+import { User, School, Paperclip } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
+import { getStorageUrl } from '../../services/storageService'
 
 const InfoRow = ({ label, value }) => (
   <div className="flex flex-col gap-0.5">
@@ -49,6 +50,22 @@ export default function ProfessorViewModal({ open, onClose, professor }) {
             <InfoRow label="Nome" value={professor.nome} />
             <InfoRow label="CPF" value={professoresTecnicosService.formatCpf(professor.cpf)} />
             <InfoRow label="CREF" value={professor.cref} />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-[#64748b] uppercase tracking-wide">Documento anexado</span>
+              {professor.documentacao_url ? (
+                <a
+                  href={getStorageUrl(professor.documentacao_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[0.9375rem] text-[#0f766e] hover:underline"
+                >
+                  <Paperclip size={14} />
+                  Abrir documento
+                </a>
+              ) : (
+                <span className="text-[0.9375rem] text-[#94a3b8]">Não anexado</span>
+              )}
+            </div>
           </div>
         </div>
       </div>

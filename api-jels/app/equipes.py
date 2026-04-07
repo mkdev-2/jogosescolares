@@ -376,16 +376,18 @@ async def create_equipe(
                     detail="A equipe só pode ser formada por alunos com documentação assinada.",
                 )
 
-        # Validar se a escola já possui equipe nesta variante
-        await cur.execute(
-            "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND edicao_id = %s",
-            (escola_id, data.esporte_variante_id, resolved_edicao_id),
-        )
-        if await cur.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.",
+        # Em modalidade coletiva: só pode existir 1 equipe por escola/variante/edição.
+        # Em modalidade individual: permite múltiplas equipes/inscrições por escola.
+        if tipo_modalidade_codigo == "COLETIVAS":
+            await cur.execute(
+                "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND edicao_id = %s",
+                (escola_id, data.esporte_variante_id, resolved_edicao_id),
             )
+            if await cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.",
+                )
 
         # Inserir equipe
         await cur.execute(
@@ -570,8 +572,8 @@ async def update_equipe(
                 "UPDATE equipes SET professor_auxiliar_id = %s, updated_at = NOW() WHERE id = %s",
                 (final_auxiliar_id, equipe_id),
             )
-        if "esporte_variante_id" in updates:
-            # Validar se já existe outra equipe com esta variante
+        if "esporte_variante_id" in updates and final_tipo_codigo == "COLETIVAS":
+            # Em modalidade coletiva, ao trocar variante, mantém regra de unicidade por escola.
             await cur.execute(
                 "SELECT id FROM equipes WHERE escola_id = %s AND esporte_variante_id = %s AND edicao_id = %s AND id <> %s",
                 (escola_id, updates["esporte_variante_id"], resolved_edicao_id, equipe_id),
