@@ -462,6 +462,7 @@ class EstudanteAtletaCreate(BaseModel):
     # Confirmação de assinaturas e anexo da documentação assinada
     ficha_assinada: bool = Field(default=False, description="Assinaturas de Médico, Aluno, Responsável e Escola coletadas")
     documentacao_assinada_url: Optional[str] = Field(None, max_length=500, description="URL do anexo da documentação assinada")
+    documentacao_rg_url: Optional[str] = Field(None, max_length=500, description="URL do anexo do RG do aluno")
 
 
 class EstudanteAtletaUpdate(BaseModel):
@@ -485,6 +486,7 @@ class EstudanteAtletaUpdate(BaseModel):
     responsavel_nis: Optional[str] = Field(None, min_length=1)
     ficha_assinada: Optional[bool] = None
     documentacao_assinada_url: Optional[str] = Field(None, max_length=500)
+    documentacao_rg_url: Optional[str] = Field(None, max_length=500)
 
 
 class EstudanteAtletaResponse(BaseModel):
@@ -512,6 +514,7 @@ class EstudanteAtletaResponse(BaseModel):
     responsavel_nis: str
     ficha_assinada: bool = False
     documentacao_assinada_url: Optional[str] = None
+    documentacao_rg_url: Optional[str] = None
     # Validação de documentos pelo ADMIN
     documentos_validados: bool = False
     documentos_validados_por: Optional[int] = None
@@ -536,6 +539,7 @@ class ProfessorTecnicoCreate(BaseModel):
     nome: str = Field(..., min_length=1)
     cpf: str = Field(..., min_length=11, max_length=14)
     cref: str = Field(..., min_length=1)
+    documentacao_url: Optional[str] = Field(None, max_length=500)
 
 
 class ProfessorTecnicoUpdate(BaseModel):
@@ -543,6 +547,7 @@ class ProfessorTecnicoUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=1)
     cpf: Optional[str] = Field(None, min_length=11, max_length=14)
     cref: Optional[str] = Field(None, min_length=1)
+    documentacao_url: Optional[str] = Field(None, max_length=500)
 
 
 class ProfessorTecnicoResponse(BaseModel):
@@ -553,6 +558,7 @@ class ProfessorTecnicoResponse(BaseModel):
     nome: str
     cpf: str
     cref: str
+    documentacao_url: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

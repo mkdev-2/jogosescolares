@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { User } from 'lucide-react'
-import { Input, Button } from 'antd'
+import { Input, Button, Upload } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import Modal from '../ui/Modal'
 import { professoresTecnicosService } from '../../services/professoresTecnicosService'
+import { uploadDocumentacaoProfessor, getStorageUrl } from '../../services/storageService'
 
-const INITIAL_FORM = { nome: '', cpf: '', cref: '' }
+const INITIAL_FORM = { nome: '', cpf: '', cref: '', documentacaoUrl: '' }
 
 function onlyDigits(s) {
   return (s || '').replace(/\D/g, '')
@@ -44,6 +46,7 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess, profes
         nome: professor.nome || '',
         cpf: professoresTecnicosService.formatCpf(professor.cpf) || '',
         cref: professor.cref || '',
+        documentacaoUrl: professor.documentacao_url || '',
       })
     } else if (open && !professor) {
       setForm(INITIAL_FORM)
@@ -52,6 +55,8 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess, profes
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -81,6 +86,7 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess, profes
         nome: form.nome.trim(),
         cpf: onlyDigits(form.cpf),
         cref: form.cref.trim(),
+        documentacao_url: form.documentacaoUrl?.trim() || null,
       }
       if (professor?.id) {
         await professoresTecnicosService.atualizar(professor.id, payload)
@@ -106,6 +112,47 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess, profes
       </Button>
     </div>
   )
+
+  const ACCEPT_DOC = '.pdf,.jpg,.jpeg,.png'
+  const MAX_DOC_MB = 10
+  const docFileList = [
+    ...(form.documentacaoUrl
+      ? [{ uid: 'doc-prof', name: 'Documento do professor', status: 'done', url: getStorageUrl(form.documentacaoUrl) }]
+      : []),
+    ...(uploadingFileInfo ? [{ uid: uploadingFileInfo.uid, name: uploadingFileInfo.name, status: 'uploading' }] : []),
+  ]
+  const handleDocCustomRequest = async ({ file, onSuccess, onError }) => {
+    const isPdf = file.type === 'application/pdf'
+    const isImage = file.type?.startsWith('image/')
+    if (!isPdf && !isImage) {
+      setSubmitError('Envie um arquivo PDF ou imagem (JPG, PNG).')
+      onError(new Error('Tipo de arquivo inválido'))
+      setUploadingFileInfo(null)
+      return
+    }
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setSubmitError(`O arquivo excede o limite de ${MAX_DOC_MB}MB.`)
+      onError(new Error('Arquivo muito grande'))
+      setUploadingFileInfo(null)
+      return
+    }
+    setUploadingDoc(true)
+    setUploadingFileInfo({ uid: file.uid, name: file.name })
+    try {
+      const url = await uploadDocumentacaoProfessor(file)
+      updateField('documentacaoUrl', url)
+      onSuccess(url)
+    } catch (err) {
+      setSubmitError(err.message || 'Erro ao enviar documentação')
+      onError(err)
+    } finally {
+      setUploadingDoc(false)
+      setUploadingFileInfo(null)
+    }
+  }
+  const handleDocChange = ({ fileList }) => {
+    if (fileList.length === 0) updateField('documentacaoUrl', '')
+  }
 
   return (
     <Modal
@@ -165,6 +212,37 @@ export default function ProfessorTecnicoModal({ open, onClose, onSuccess, profes
                 status={errors.cref ? 'error' : undefined}
               />
               {errors.cref && <p className={errorClass}>{errors.cref}</p>}
+            </div>
+            <div className="sm:col-span-2 border-t border-[#e2e8f0] pt-4">
+              <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo de documento do professor</h4>
+              <p className="text-sm text-[#64748b] mb-3 m-0">
+                {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
+              </p>
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                accept={ACCEPT_DOC}
+                fileList={docFileList}
+                customRequest={handleDocCustomRequest}
+                onChange={handleDocChange}
+                onPreview={(file) => {
+                  if (file.url) window.open(file.url, '_blank')
+                  else if (file.originFileObj) {
+                    const url = URL.createObjectURL(file.originFileObj)
+                    window.open(url, '_blank')
+                  }
+                }}
+                showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+              >
+                {docFileList.length >= 1 ? null : (
+                  <div className="flex flex-col items-center justify-center gap-1 py-2">
+                    <PlusOutlined className="text-2xl text-[#94a3b8]" />
+                    <span className="text-xs text-[#64748b]">
+                      {uploadingDoc ? 'Enviando...' : 'Selecionar arquivo'}
+                    </span>
+                  </div>
+                )}
+              </Upload>
             </div>
           </div>
         </div>

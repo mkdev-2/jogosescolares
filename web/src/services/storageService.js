@@ -18,6 +18,8 @@ function buildDirectStorageUrl(relativePath) {
 }
 const FOTOS_PATH = 'estudantes'
 const DOCUMENTACAO_PATH = 'estudantes/documentacao'
+const DOCUMENTACAO_RG_PATH = 'estudantes/documentacao-rg'
+const DOCUMENTACAO_PROFESSORES_PATH = 'professores/documentacao'
 const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
 const MIDIAS_PATH = 'midias'
@@ -213,6 +215,28 @@ export async function uploadFotoEstudante(file) {
 export async function uploadDocumentacaoAssinada(file) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
   const path = `${DOCUMENTACAO_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload da documentação de identidade (RG) do estudante-atleta (PDF ou imagem).
+ * @param {File} file - Arquivo (PDF, JPG, PNG)
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadDocumentacaoRg(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
+  const path = `${DOCUMENTACAO_RG_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload da documentação do professor-técnico (PDF ou imagem).
+ * @param {File} file - Arquivo (PDF, JPG, PNG)
+ * @returns {Promise<string>} Path relativo (bucket/path) para uso com getStorageUrl
+ */
+export async function uploadDocumentacaoProfessor(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
+  const path = `${DOCUMENTACAO_PROFESSORES_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }
 

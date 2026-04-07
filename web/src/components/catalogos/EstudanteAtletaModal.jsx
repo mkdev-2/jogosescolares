@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
 import { useAuth } from '../../contexts/AuthContext'
 import { estudantesService } from '../../services/estudantesService'
-import { uploadFotoEstudante, uploadDocumentacaoAssinada, getStorageUrl } from '../../services/storageService'
+import { uploadFotoEstudante, uploadDocumentacaoAssinada, uploadDocumentacaoRg, getStorageUrl } from '../../services/storageService'
 import StorageImage from '../StorageImage'
 import FichaIndividualPrint from './FichaIndividualPrint'
 
@@ -35,6 +35,7 @@ const INITIAL_FORM = {
   responsavelNis: '',
   fichaAssinada: false,
   documentacaoAssinadaUrl: '',
+  documentacaoRgUrl: '',
 }
 
 function onlyDigits(s) {
@@ -138,7 +139,9 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [loading, setLoading] = useState(false)
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [uploadingRgDoc, setUploadingRgDoc] = useState(false)
   const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
+  const [uploadingRgFileInfo, setUploadingRgFileInfo] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
   const [fichaPreviewOpen, setFichaPreviewOpen] = useState(false)
@@ -195,6 +198,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             responsavelNis: full.responsavel_nis || '',
             fichaAssinada: Boolean(full.ficha_assinada),
             documentacaoAssinadaUrl: full.documentacao_assinada_url || '',
+            documentacaoRgUrl: full.documentacao_rg_url || '',
           })
           setCurrentStep(initialStep)
         })
@@ -299,6 +303,44 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const handleDocChange = ({ fileList }) => {
     if (fileList.length === 0) updateField('documentacaoAssinadaUrl', '')
   }
+  const rgDocFileList = [
+    ...(form.documentacaoRgUrl
+      ? [{ uid: 'doc-rg', name: 'Documento RG', status: 'done', url: getStorageUrl(form.documentacaoRgUrl) }]
+      : []),
+    ...(uploadingRgFileInfo ? [{ uid: uploadingRgFileInfo.uid, name: uploadingRgFileInfo.name, status: 'uploading' }] : []),
+  ]
+  const handleRgDocCustomRequest = async ({ file, onSuccess, onError }) => {
+    const isPdf = file.type === 'application/pdf'
+    const isImage = file.type?.startsWith('image/')
+    if (!isPdf && !isImage) {
+      setSubmitError('Envie um arquivo PDF ou imagem (JPG, PNG).')
+      onError(new Error('Tipo de arquivo inválido'))
+      setUploadingRgFileInfo(null)
+      return
+    }
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setSubmitError(`O arquivo excede o limite de ${MAX_DOC_MB}MB.`)
+      onError(new Error('Arquivo muito grande'))
+      setUploadingRgFileInfo(null)
+      return
+    }
+    setUploadingRgDoc(true)
+    setUploadingRgFileInfo({ uid: file.uid, name: file.name })
+    try {
+      const url = await uploadDocumentacaoRg(file)
+      updateField('documentacaoRgUrl', url)
+      onSuccess(url)
+    } catch (err) {
+      setSubmitError(err.message || 'Erro ao enviar documentação do RG')
+      onError(err)
+    } finally {
+      setUploadingRgDoc(false)
+      setUploadingRgFileInfo(null)
+    }
+  }
+  const handleRgDocChange = ({ fileList }) => {
+    if (fileList.length === 0) updateField('documentacaoRgUrl', '')
+  }
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
@@ -332,6 +374,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         inep_instituicao: (inepInstituicao && String(inepInstituicao).trim()) || undefined,
         ficha_assinada: Boolean(form.documentacaoAssinadaUrl?.trim()),
         documentacao_assinada_url: form.documentacaoAssinadaUrl?.trim() || null,
+        documentacao_rg_url: form.documentacaoRgUrl?.trim() || null,
       }
       if (estudante?.id) {
         const { inep_instituicao, ...updatePayload } = payload
@@ -638,6 +681,39 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                         </div>
                       )}
                     </Upload> 
+                  </div>
+
+                  <div className="border-t border-[#e2e8f0] pt-6 mt-6">
+                    <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação do aluno (RG)</h4>
+                    <p className="text-sm text-[#64748b] mb-4 m-0">
+                      {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
+                    </p>
+
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
+                      accept={ACCEPT_DOC}
+                      fileList={rgDocFileList}
+                      customRequest={handleRgDocCustomRequest}
+                      onChange={handleRgDocChange}
+                      onPreview={(file) => {
+                        if (file.url) window.open(file.url, '_blank')
+                        else if (file.originFileObj) {
+                          const url = URL.createObjectURL(file.originFileObj)
+                          window.open(url, '_blank')
+                        }
+                      }}
+                      showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+                    >
+                      {rgDocFileList.length >= 1 ? null : (
+                        <div className="flex flex-col items-center justify-center gap-1 py-2">
+                          <PlusOutlined className="text-2xl text-[#94a3b8]" />
+                          <span className="text-xs text-[#64748b]">
+                            {uploadingRgDoc ? 'Enviando...' : 'Selecionar arquivo'}
+                          </span>
+                        </div>
+                      )}
+                    </Upload>
                   </div>
                 </div>
               )}

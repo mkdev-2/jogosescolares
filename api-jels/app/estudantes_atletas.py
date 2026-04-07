@@ -70,6 +70,7 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
         responsavel_nis=r["responsavel_nis"],
         ficha_assinada=r.get("ficha_assinada", False),
         documentacao_assinada_url=r.get("documentacao_assinada_url"),
+        documentacao_rg_url=r.get("documentacao_rg_url"),
         documentos_validados=r.get("documentos_validados", False),
         documentos_validados_por=r.get("documentos_validados_por"),
         documentos_validados_por_nome=r.get("documentos_validados_por_nome"),
@@ -92,7 +93,7 @@ async def list_estudantes_atletas(
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                        e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                        e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
                        u.nome AS documentos_validados_por_nome,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
@@ -116,7 +117,7 @@ async def list_estudantes_atletas(
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                        e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                        e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
                        u.nome AS documentos_validados_por_nome,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
@@ -335,7 +336,7 @@ async def get_estudante_atleta(
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                    e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
                    u.nome AS documentos_validados_por_nome,
                    e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
@@ -403,15 +404,15 @@ async def create_estudante_atleta(
                 escola_id, nome, cpf, rg, data_nascimento, sexo, email, endereco, cep,
                 peso, numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
                 responsavel_celular, responsavel_email, responsavel_nis,
-                ficha_assinada, documentacao_assinada_url
+                ficha_assinada, documentacao_assinada_url, documentacao_rg_url
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s
+                %s, %s, %s
             )
             RETURNING id, escola_id, nome, cpf, rg, data_nascimento, sexo, email, endereco, cep,
                       peso, numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
                       responsavel_celular, responsavel_email, responsavel_nis,
-                      ficha_assinada, documentacao_assinada_url, created_at, updated_at
+                      ficha_assinada, documentacao_assinada_url, documentacao_rg_url, created_at, updated_at
             """,
             (
                 escola_id,
@@ -434,6 +435,7 @@ async def create_estudante_atleta(
                 data.responsavel_nis.strip(),
                 data.ficha_assinada,
                 data.documentacao_assinada_url,
+                data.documentacao_rg_url,
             ),
             )
             row = await cur.fetchone()
@@ -486,7 +488,7 @@ async def update_estudante_atleta(
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                        e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                       e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
                 FROM estudantes_atletas e
                 LEFT JOIN escolas s ON s.id = e.escola_id
@@ -517,6 +519,7 @@ async def update_estudante_atleta(
         "responsavel_email": "responsavel_email", "responsavel_nis": "responsavel_nis",
         "ficha_assinada": "ficha_assinada",
         "documentacao_assinada_url": "documentacao_assinada_url",
+        "documentacao_rg_url": "documentacao_rg_url",
     }
     set_parts = []
     vals = []
@@ -557,7 +560,7 @@ async def update_estudante_atleta(
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                    e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
                    u.nome AS documentos_validados_por_nome,
                    e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
@@ -692,7 +695,7 @@ async def validar_documentos_estudante(
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
                    e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
-                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
+                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
                    u.nome AS documentos_validados_por_nome,
                    e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep

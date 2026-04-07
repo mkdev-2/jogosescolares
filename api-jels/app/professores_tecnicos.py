@@ -22,6 +22,7 @@ def _row_to_response(row: dict) -> ProfessorTecnicoResponse:
         nome=row["nome"],
         cpf=row.get("cpf", ""),
         cref=row["cref"],
+        documentacao_url=row.get("documentacao_url"),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
     )
@@ -37,7 +38,7 @@ async def list_professores_tecnicos(
         async with conn.cursor() as cur:
             await cur.execute(
                 """
-                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url, p.created_at, p.updated_at,
                        s.nome_escola AS escola_nome
                 FROM professores_tecnicos p
                 LEFT JOIN escolas s ON s.id = p.escola_id
@@ -55,7 +56,7 @@ async def list_professores_tecnicos(
         async with conn.cursor() as cur:
             await cur.execute(
                 """
-                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+                SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url, p.created_at, p.updated_at,
                        s.nome_escola AS escola_nome
                 FROM professores_tecnicos p
                 LEFT JOIN escolas s ON s.id = p.escola_id
@@ -90,7 +91,7 @@ async def get_professor_tecnico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url, p.created_at, p.updated_at,
                    s.nome_escola AS escola_nome
             FROM professores_tecnicos p
             LEFT JOIN escolas s ON s.id = p.escola_id
@@ -120,11 +121,11 @@ async def create_professor_tecnico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO professores_tecnicos (escola_id, nome, cpf, cref)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, escola_id, nome, cpf, cref, created_at, updated_at
+            INSERT INTO professores_tecnicos (escola_id, nome, cpf, cref, documentacao_url)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, escola_id, nome, cpf, cref, documentacao_url, created_at, updated_at
             """,
-            (escola_id, data.nome.strip(), cpf_clean, data.cref.strip()),
+            (escola_id, data.nome.strip(), cpf_clean, data.cref.strip(), data.documentacao_url),
         )
         row = await cur.fetchone()
         await conn.commit()
@@ -156,7 +157,7 @@ async def update_professor_tecnico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url, p.created_at, p.updated_at,
                    s.nome_escola AS escola_nome
             FROM professores_tecnicos p
             LEFT JOIN escolas s ON s.id = p.escola_id
@@ -182,7 +183,7 @@ async def update_professor_tecnico(
 
     set_parts = []
     vals = []
-    for k in ["nome", "cpf", "cref"]:
+    for k in ["nome", "cpf", "cref", "documentacao_url"]:
         if k in updates:
             set_parts.append(f"{k} = %s")
             vals.append(updates[k].strip() if isinstance(updates[k], str) else updates[k])
@@ -200,7 +201,7 @@ async def update_professor_tecnico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.created_at, p.updated_at,
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url, p.created_at, p.updated_at,
                    s.nome_escola AS escola_nome
             FROM professores_tecnicos p
             LEFT JOIN escolas s ON s.id = p.escola_id
@@ -235,7 +236,7 @@ async def delete_professor_tecnico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref,
+            SELECT p.id, p.escola_id, p.nome, p.cpf, p.cref, p.documentacao_url,
                    s.nome_escola AS escola_nome
             FROM professores_tecnicos p
             LEFT JOIN escolas s ON s.id = p.escola_id
