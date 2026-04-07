@@ -253,7 +253,7 @@ export default function EsportesList({
                       Nome
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Máx. Atletas
+                      Atletas (Min/Máx)
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Requisitos
@@ -299,7 +299,7 @@ export default function EsportesList({
                         </span>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {v.esporte_limite_atletas ?? '-'}
+                        {v.esporte_minimo_atletas ?? '-'} / {v.esporte_limite_atletas ?? '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <span className="block max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">

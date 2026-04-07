@@ -83,6 +83,7 @@ class EsporteCreate(BaseModel):
     descricao: Optional[str] = Field("", description="Descrição")
     icone: Optional[str] = Field("Zap", description="Nome do ícone (lucide-react)")
     requisitos: Optional[str] = Field("", description="Requisitos para participação")
+    minimo_atletas: Optional[int] = Field(1, description="Mínimo de atletas por equipe")
     limite_atletas: Optional[int] = Field(3, description="Limite de atletas por equipe")
     ativa: bool = Field(default=True, description="Se o esporte está ativo")
     categoria_ids: Optional[list[str]] = Field(default_factory=list, description="IDs das categorias para variantes")
@@ -96,6 +97,7 @@ class EsporteUpdate(BaseModel):
     descricao: Optional[str] = None
     icone: Optional[str] = None
     requisitos: Optional[str] = None
+    minimo_atletas: Optional[int] = None
     limite_atletas: Optional[int] = None
     ativa: Optional[bool] = None
     categoria_ids: Optional[list[str]] = None
@@ -111,6 +113,7 @@ class EsporteResponse(BaseModel):
     descricao: str
     icone: str = "Zap"
     requisitos: str
+    minimo_atletas: int = 1
     limite_atletas: int = 3
     ativa: bool
     created_at: Optional[str] = None
@@ -137,6 +140,7 @@ class EsporteVarianteResponse(BaseModel):
     esporte_id: str
     esporte_nome: Optional[str] = None
     esporte_icone: Optional[str] = None
+    esporte_minimo_atletas: int = 1
     esporte_limite_atletas: int = 3
     esporte_requisitos: Optional[str] = None
     esporte_ativa: bool = True

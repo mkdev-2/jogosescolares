@@ -23,6 +23,7 @@ def _row_to_response(row: dict) -> EsporteResponse:
         descricao=row.get("descricao") or "",
         icone=row.get("icone") or "Zap",
         requisitos=row.get("requisitos") or "",
+        minimo_atletas=row.get("minimo_atletas", 1),
         limite_atletas=row.get("limite_atletas", 3),
         ativa=row.get("ativa", True),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
@@ -40,7 +41,7 @@ async def list_esportes(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+            SELECT id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa, created_at, updated_at
             FROM esportes
             WHERE edicao_id = %s
             ORDER BY nome
@@ -62,7 +63,7 @@ async def get_esporte(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+            SELECT id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa, created_at, updated_at
             FROM esportes
             WHERE id = %s AND edicao_id = %s
             """,
@@ -101,9 +102,25 @@ async def _tem_tipo_individual(conn, tipo_modalidade_ids: list[str]) -> bool:
 async def _validar_tipos_modalidade_vs_limite(
     conn: psycopg.AsyncConnection,
     tipo_modalidade_ids: list[str],
+    minimo_atletas: int,
     limite_atletas: int,
 ) -> None:
-    """Garante coerência entre limite_atletas e códigos INDIVIDUAIS/COLETIVAS nos tipos."""
+    """Garante coerência entre faixa de atletas e códigos INDIVIDUAIS/COLETIVAS nos tipos."""
+    if minimo_atletas < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mínimo de atletas deve ser maior ou igual a 1.",
+        )
+    if limite_atletas < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Máximo de atletas deve ser maior ou igual a 1.",
+        )
+    if minimo_atletas > limite_atletas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mínimo de atletas não pode ser maior que o máximo.",
+        )
     if not tipo_modalidade_ids:
         return
     async with conn.cursor() as cur:
@@ -130,6 +147,11 @@ async def _validar_tipos_modalidade_vs_limite(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Com mais de um atleta por equipe, use apenas modalidade coletiva, não individual.",
             )
+    if "INDIVIDUAIS" in codigos and (minimo_atletas != 1 or limite_atletas != 1):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
+        )
 
 
 async def _get_tipos_das_variantes(conn, esporte_id: str, edicao_id: int) -> list[str]:
@@ -147,7 +169,7 @@ async def _snapshot_esporte(conn, esporte_id: str, edicao_id: int) -> dict:
     """Captura snapshot completo do esporte com variantes (nomes legíveis) para auditoria."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
             (esporte_id, edicao_id),
         )
         esporte_row = await cur.fetchone()
@@ -179,6 +201,7 @@ async def _snapshot_esporte(conn, esporte_id: str, edicao_id: int) -> dict:
         "descricao": esporte_row["descricao"] or "",
         "icone": esporte_row["icone"] or "",
         "requisitos": esporte_row["requisitos"] or "",
+        "minimo_atletas": esporte_row["minimo_atletas"],
         "limite_atletas": esporte_row["limite_atletas"],
         "ativa": esporte_row["ativa"],
         "variantes": [
@@ -200,15 +223,22 @@ async def create_esporte(
     tipo_modalidade_ids = data.tipo_modalidade_ids or []
     tem_individual = await _tem_tipo_individual(conn, tipo_modalidade_ids)
     if tem_individual:
+        minimo_atletas = 1
         limite_atletas = 1
     else:
+        minimo_atletas = data.minimo_atletas if data.minimo_atletas is not None else 1
         limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
     if tem_individual and data.limite_atletas is not None and data.limite_atletas != 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
         )
-    await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, limite_atletas)
+    if tem_individual and data.minimo_atletas is not None and data.minimo_atletas != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
+        )
+    await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, minimo_atletas, limite_atletas)
     icone = (data.icone or "Zap").strip() or "Zap"
     categoria_ids = data.categoria_ids or []
     naipe_ids = data.naipe_ids or []
@@ -216,9 +246,9 @@ async def create_esporte(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-                INSERT INTO esportes (edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at
+                INSERT INTO esportes (edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa, created_at, updated_at
             """,
             (
                     resolved_edicao_id,
@@ -226,6 +256,7 @@ async def create_esporte(
                 (data.descricao or "").strip(),
                 icone,
                 (data.requisitos or "").strip(),
+                minimo_atletas,
                 limite_atletas,
                 data.ativa if data.ativa is not None else True,
             ),
@@ -283,7 +314,7 @@ async def update_esporte(
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa FROM esportes WHERE id = %s AND edicao_id = %s",
             (esporte_id, resolved_edicao_id),
         )
         existing = await cur.fetchone()
@@ -292,6 +323,13 @@ async def update_esporte(
 
     # Captura snapshot ANTES para auditoria
     snapshot_antes = await _snapshot_esporte(conn, esporte_id, resolved_edicao_id)
+
+    minimo_final = existing["minimo_atletas"]
+    limite_final = existing["limite_atletas"]
+    if data.minimo_atletas is not None:
+        minimo_final = data.minimo_atletas
+    if data.limite_atletas is not None:
+        limite_final = data.limite_atletas
 
     updates = []
     values = []
@@ -307,6 +345,9 @@ async def update_esporte(
     if data.requisitos is not None:
         updates.append("requisitos = %s")
         values.append(data.requisitos.strip())
+    if data.minimo_atletas is not None:
+        updates.append("minimo_atletas = %s")
+        values.append(data.minimo_atletas)
     if data.limite_atletas is not None:
         tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id, resolved_edicao_id)
         tem_individual = await _tem_tipo_individual(conn, tipos_para_check)
@@ -338,24 +379,55 @@ async def update_esporte(
     naipe_ids = data.naipe_ids
     tipo_modalidade_ids = data.tipo_modalidade_ids
     if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
-        limite_para_tipos = data.limite_atletas if data.limite_atletas is not None else existing["limite_atletas"]
+        minimo_para_tipos = minimo_final
+        limite_para_tipos = limite_final
         if await _tem_tipo_individual(conn, tipo_modalidade_ids):
+            minimo_para_tipos = 1
             limite_para_tipos = 1
-        await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, limite_para_tipos)
+        await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, minimo_para_tipos, limite_para_tipos)
         tem_individual_novas = await _tem_tipo_individual(conn, tipo_modalidade_ids)
         if tem_individual_novas:
+            if data.minimo_atletas is not None and data.minimo_atletas != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
+                )
             if data.limite_atletas is not None and data.limite_atletas != 1:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
                 )
+            minimo_ja_atualizado = any("minimo_atletas" in u for u in updates)
             limite_ja_atualizado = any("limite_atletas" in u for u in updates)
-            if data.limite_atletas is None and not limite_ja_atualizado and existing.get("limite_atletas") != 1:
+            if (
+                data.minimo_atletas is None
+                and data.limite_atletas is None
+                and not minimo_ja_atualizado
+                and not limite_ja_atualizado
+                and (existing.get("minimo_atletas") != 1 or existing.get("limite_atletas") != 1)
+            ):
                 async with conn.cursor() as cur:
                     await cur.execute(
-                        "UPDATE esportes SET limite_atletas = 1, updated_at = NOW() WHERE id = %s AND edicao_id = %s",
+                        "UPDATE esportes SET minimo_atletas = 1, limite_atletas = 1, updated_at = NOW() WHERE id = %s AND edicao_id = %s",
                         (esporte_id, resolved_edicao_id),
                     )
+    else:
+        tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id, resolved_edicao_id)
+        await _validar_tipos_modalidade_vs_limite(conn, tipos_para_check, minimo_final, limite_final)
+
+    if data.tipo_modalidade_ids is not None and await _tem_tipo_individual(conn, data.tipo_modalidade_ids):
+        if data.minimo_atletas is not None and data.minimo_atletas != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
+            )
+        if data.limite_atletas is not None and data.limite_atletas != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
+            )
+
+    if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
         combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)
         async with conn.cursor() as cur:
             await cur.execute(
@@ -430,7 +502,7 @@ async def update_esporte(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa, created_at, updated_at FROM esportes WHERE id = %s AND edicao_id = %s",
+            "SELECT id, edicao_id, nome, descricao, icone, requisitos, minimo_atletas, limite_atletas, ativa, created_at, updated_at FROM esportes WHERE id = %s AND edicao_id = %s",
             (esporte_id, resolved_edicao_id),
         )
         row = await cur.fetchone()

@@ -24,6 +24,7 @@ def _row_to_response(row: dict) -> EsporteVarianteResponse:
         esporte_id=str(row["esporte_id"]),
         esporte_nome=row.get("esporte_nome"),
         esporte_icone=row.get("esporte_icone"),
+        esporte_minimo_atletas=row.get("esporte_minimo_atletas", 1),
         esporte_limite_atletas=row.get("esporte_limite_atletas", 3),
         esporte_requisitos=row.get("esporte_requisitos"),
         esporte_ativa=row.get("esporte_ativa", True),
@@ -52,7 +53,7 @@ async def list_esporte_variantes(
     if esporte_id:
         sql = """
             SELECT ev.id, ev.edicao_id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
-                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.minimo_atletas AS esporte_minimo_atletas, e.limite_atletas AS esporte_limite_atletas,
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
@@ -69,7 +70,7 @@ async def list_esporte_variantes(
     else:
         sql = """
             SELECT ev.id, ev.edicao_id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
-                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.minimo_atletas AS esporte_minimo_atletas, e.limite_atletas AS esporte_limite_atletas,
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
@@ -112,7 +113,7 @@ async def list_variantes_minha_escola(
 
     sql = """
         SELECT ev.id, ev.edicao_id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
-               e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+               e.nome AS esporte_nome, e.icone AS esporte_icone, e.minimo_atletas AS esporte_minimo_atletas, e.limite_atletas AS esporte_limite_atletas,
                e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                n.codigo AS naipe_codigo, n.nome AS naipe_nome,
@@ -144,7 +145,7 @@ async def get_esporte_variante(
         await cur.execute(
             """
             SELECT ev.id, ev.edicao_id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
-                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.minimo_atletas AS esporte_minimo_atletas, e.limite_atletas AS esporte_limite_atletas,
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
@@ -222,7 +223,7 @@ async def create_esporte_variante(
         await cur.execute(
             """
             SELECT ev.id, ev.edicao_id, ev.esporte_id, ev.categoria_id, ev.naipe_id, ev.tipo_modalidade_id, ev.created_at,
-                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.limite_atletas AS esporte_limite_atletas,
+                   e.nome AS esporte_nome, e.icone AS esporte_icone, e.minimo_atletas AS esporte_minimo_atletas, e.limite_atletas AS esporte_limite_atletas,
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,

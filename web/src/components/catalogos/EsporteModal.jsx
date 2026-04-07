@@ -28,6 +28,7 @@ export default function EsporteModal({
     descricao: '',
     icone: 'Zap',
     requisitos: '',
+    minimo_atletas: 1,
     limite_atletas: 3,
     ativa: true,
     categoria_ids: [],
@@ -42,12 +43,14 @@ export default function EsporteModal({
       const naipeIds = [...new Set(variantesForEdit.map((v) => v.naipe_id).filter(Boolean))]
       const tipoIds = [...new Set(variantesForEdit.map((v) => v.tipo_modalidade_id).filter(Boolean))]
       const tipoIndividual = tipos.find((t) => t.id === tipoIds[0] && (t.codigo === 'INDIVIDUAIS' || t.nome?.toUpperCase().includes('INDIVIDUAL')))
+      const minimoAtletas = tipoIndividual ? 1 : (esporte.minimo_atletas ?? 1)
       const limiteAtletas = tipoIndividual ? 1 : (esporte.limite_atletas ?? 3)
       setFormData({
         nome: esporte.nome || '',
         descricao: esporte.descricao || '',
         icone: esporte.icone ?? 'Zap',
         requisitos: esporte.requisitos || '',
+        minimo_atletas: minimoAtletas,
         limite_atletas: limiteAtletas,
         ativa: esporte.ativa !== undefined ? esporte.ativa : true,
         categoria_ids: catIds,
@@ -62,6 +65,7 @@ export default function EsporteModal({
         descricao: '',
         icone: 'Zap',
         requisitos: '',
+        minimo_atletas: 1,
         limite_atletas: 3,
         ativa: true,
         categoria_ids: allCatIds,
@@ -90,7 +94,7 @@ export default function EsporteModal({
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    if (name === 'limite_atletas' && isTipoIndividual) return
+    if ((name === 'limite_atletas' || name === 'minimo_atletas') && isTipoIndividual) return
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -116,8 +120,13 @@ export default function EsporteModal({
   const validateForm = () => {
     const newErrors = {}
     if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
+    const minimo = Number(formData.minimo_atletas)
     const limite = Number(formData.limite_atletas)
+    if (Number.isNaN(minimo) || minimo < 1) newErrors.minimo_atletas = 'Informe o mínimo de atletas (mín. 1)'
     if (Number.isNaN(limite) || limite < 1) newErrors.limite_atletas = 'Informe o máximo de atletas (mín. 1)'
+    if (!newErrors.minimo_atletas && !newErrors.limite_atletas && minimo > limite) {
+      newErrors.minimo_atletas = 'O mínimo não pode ser maior que o máximo'
+    }
     if (!formData.categoria_ids?.length) newErrors.categoria_ids = 'Selecione ao menos uma categoria'
     if (!formData.naipe_ids?.length) newErrors.naipe_ids = 'Selecione ao menos um naipe'
     if (!formData.tipo_modalidade_ids?.length) newErrors.tipo_modalidade_ids = 'Selecione ao menos um tipo de modalidade'
@@ -130,11 +139,13 @@ export default function EsporteModal({
     if (!validateForm()) return
 
     try {
+      const minimoFinal = isTipoIndividual ? 1 : (Number(formData.minimo_atletas) || 1)
       const limiteFinal = isTipoIndividual ? 1 : (Number(formData.limite_atletas) || 3)
       const dataToSubmit = {
         ...formData,
         icone: formData.icone || 'Zap',
         requisitos: formData.requisitos?.trim() || '',
+        minimo_atletas: minimoFinal,
         limite_atletas: limiteFinal,
         categoria_ids: formData.categoria_ids || [],
         naipe_ids: formData.naipe_ids || [],
@@ -269,7 +280,7 @@ export default function EsporteModal({
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="tipo_modalidade">
               Tipo de modalidade <span className="text-[#dc2626]">*</span>
@@ -284,6 +295,7 @@ export default function EsporteModal({
                 setFormData((p) => ({
                   ...p,
                   tipo_modalidade_ids: v ? [v] : [],
+                  minimo_atletas: isIndividual ? 1 : p.minimo_atletas,
                   limite_atletas: isIndividual ? 1 : (p.limite_atletas === 1 ? 3 : p.limite_atletas),
                 }))
               }}
@@ -293,6 +305,25 @@ export default function EsporteModal({
             />
             {errors.tipo_modalidade_ids && (
               <span className="text-[0.8rem] text-[#dc2626] block mt-1">{errors.tipo_modalidade_ids}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="minimo_atletas">
+              Mín. atletas por equipe <span className="text-[#dc2626]">*</span>
+            </label>
+            <Input
+              id="minimo_atletas"
+              type="number"
+              min={1}
+              value={isTipoIndividual ? 1 : formData.minimo_atletas}
+              onChange={(e) => handleChange({ target: { name: 'minimo_atletas', value: e.target.value, type: 'text' } })}
+              placeholder="Ex: 7"
+              status={errors.minimo_atletas ? 'error' : undefined}
+              disabled={isTipoIndividual}
+            />
+            {errors.minimo_atletas && (
+              <span className="text-[0.8rem] text-[#dc2626]">{errors.minimo_atletas}</span>
             )}
           </div>
 

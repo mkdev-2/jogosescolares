@@ -34,6 +34,7 @@ export const esportesService = {
       descricao: data.descricao?.trim() || '',
       icone: data.icone || 'Zap',
       requisitos: data.requisitos?.trim() || '',
+      minimo_atletas: data.minimo_atletas != null ? Number(data.minimo_atletas) : 1,
       limite_atletas: data.limite_atletas != null ? Number(data.limite_atletas) : 3,
       ativa: data.ativa !== undefined ? data.ativa : true,
       categoria_ids: Array.isArray(data.categoria_ids) ? data.categoria_ids : [],
@@ -53,6 +54,7 @@ export const esportesService = {
     if (data.descricao !== undefined) payload.descricao = data.descricao?.trim() ?? ''
     if (data.icone !== undefined) payload.icone = data.icone || 'Zap'
     if (data.requisitos !== undefined) payload.requisitos = data.requisitos?.trim() ?? ''
+    if (data.minimo_atletas !== undefined) payload.minimo_atletas = Number(data.minimo_atletas) ?? 1
     if (data.limite_atletas !== undefined) payload.limite_atletas = Number(data.limite_atletas) ?? 3
     if (data.ativa !== undefined) payload.ativa = data.ativa
     if (data.categoria_ids !== undefined) payload.categoria_ids = data.categoria_ids
