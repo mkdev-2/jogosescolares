@@ -76,9 +76,14 @@ export default function EquipeViewModal({ open, onClose, equipe }) {
         <div className="space-y-2 border-t border-[#e2e8f0] pt-4">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-[#64748b]" />
-            <h3 className="text-sm font-semibold text-[#042f2e] m-0">Professor-Técnico</h3>
+            <h3 className="text-sm font-semibold text-[#042f2e] m-0">Comissão Técnica</h3>
           </div>
-          <InfoRow label="Nome" value={equipe.professor_tecnico_nome} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InfoRow label="Técnico" value={equipe.professor_tecnico_nome} />
+            {equipe.professor_auxiliar_nome && (
+              <InfoRow label="Auxiliar" value={equipe.professor_auxiliar_nome} />
+            )}
+          </div>
         </div>
 
         <div className="space-y-2 border-t border-[#e2e8f0] pt-4">

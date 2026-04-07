@@ -63,6 +63,8 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
         tipo_modalidade_nome=row.get("tipo_modalidade_nome"),
         professor_tecnico_id=row["professor_tecnico_id"],
         professor_tecnico_nome=row.get("professor_tecnico_nome"),
+        professor_auxiliar_id=row.get("professor_auxiliar_id"),
+        professor_auxiliar_nome=row.get("professor_auxiliar_nome"),
         estudantes=estudantes or [],
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
@@ -71,13 +73,13 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
 
 def _get_equipes_sql(where_clause: str = "") -> str:
     return f"""
-        SELECT e.id, e.edicao_id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id,
+        SELECT e.id, e.edicao_id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id, e.professor_auxiliar_id,
                e.created_at, e.updated_at,
                esp.nome AS esporte_nome, esp.icone AS esporte_icone,
                esp.limite_atletas AS esporte_limite_atletas,
                c.nome AS categoria_nome, n.nome AS naipe_nome,
                tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
-               p.nome AS professor_tecnico_nome, s.nome_escola AS escola_nome
+               p.nome AS professor_tecnico_nome, pa.nome AS professor_auxiliar_nome, s.nome_escola AS escola_nome
         FROM equipes e
         JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
         JOIN esportes esp ON esp.id = ev.esporte_id
@@ -85,6 +87,7 @@ def _get_equipes_sql(where_clause: str = "") -> str:
         JOIN naipes n ON n.id = ev.naipe_id
         JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
         LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+        LEFT JOIN professores_tecnicos pa ON pa.id = e.professor_auxiliar_id
         LEFT JOIN escolas s ON s.id = e.escola_id
         {where_clause}
         ORDER BY s.nome_escola NULLS LAST, e.id
@@ -164,10 +167,12 @@ async def get_ficha_coletiva(
         await cur.execute(
             """
             SELECT e.id, e.escola_id, e.professor_tecnico_id,
+                   e.professor_auxiliar_id,
                    esp.nome AS esporte_nome, c.nome AS categoria_nome, n.nome AS naipe_nome,
                    tm.codigo AS tipo_modalidade_codigo,
                    s.nome_escola AS escola_nome, s.dados_coordenador AS dados_coordenador,
-                   p.nome AS professor_tecnico_nome, p.cref AS professor_tecnico_cref
+                   p.nome AS professor_tecnico_nome, p.cref AS professor_tecnico_cref,
+                   pa.nome AS professor_auxiliar_nome, pa.cref AS professor_auxiliar_cref
             FROM equipes e
             JOIN esporte_variantes ev ON ev.id = e.esporte_variante_id
             JOIN esportes esp ON esp.id = ev.esporte_id
@@ -175,6 +180,7 @@ async def get_ficha_coletiva(
             JOIN naipes n ON n.id = ev.naipe_id
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
             LEFT JOIN professores_tecnicos p ON p.id = e.professor_tecnico_id
+            LEFT JOIN professores_tecnicos pa ON pa.id = e.professor_auxiliar_id
             LEFT JOIN escolas s ON s.id = e.escola_id
             WHERE e.id = %s AND e.edicao_id = %s
             """,
@@ -222,11 +228,13 @@ async def get_ficha_coletiva(
     ]
     professor_nome = row.get("professor_tecnico_nome")
     professor_cref = row.get("professor_tecnico_cref")
-    professores_tecnicos = (
-        [FichaColetivaProfessorItem(nome=professor_nome or "", cref=professor_cref)]
-        if professor_nome or professor_cref
-        else []
-    )
+    auxiliar_nome = row.get("professor_auxiliar_nome")
+    auxiliar_cref = row.get("professor_auxiliar_cref")
+    professores_tecnicos = []
+    if professor_nome or professor_cref:
+        professores_tecnicos.append(FichaColetivaProfessorItem(nome=professor_nome or "", cref=professor_cref))
+    if auxiliar_nome or auxiliar_cref:
+        professores_tecnicos.append(FichaColetivaProfessorItem(nome=auxiliar_nome or "", cref=auxiliar_cref))
 
     return FichaColetivaResponse(
         instituicao=row.get("escola_nome"),
@@ -307,11 +315,35 @@ async def create_equipe(
 
         # Validar variante existe
         await cur.execute(
-            "SELECT id FROM esporte_variantes WHERE id = %s AND edicao_id = %s",
+            """
+            SELECT ev.id, tm.codigo AS tipo_modalidade_codigo
+            FROM esporte_variantes ev
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ev.id = %s AND ev.edicao_id = %s
+            """,
             (data.esporte_variante_id, resolved_edicao_id),
         )
-        if not await cur.fetchone():
+        variante_row = await cur.fetchone()
+        if not variante_row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada")
+        tipo_modalidade_codigo = variante_row.get("tipo_modalidade_codigo")
+
+        professor_auxiliar_id = data.professor_auxiliar_id
+        if tipo_modalidade_codigo != "COLETIVAS":
+            professor_auxiliar_id = None
+
+        if professor_auxiliar_id is not None:
+            if professor_auxiliar_id == data.professor_tecnico_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Técnico e auxiliar devem ser profissionais diferentes.")
+            await cur.execute(
+                "SELECT id, escola_id FROM professores_tecnicos WHERE id = %s",
+                (professor_auxiliar_id,),
+            )
+            pa = await cur.fetchone()
+            if not pa:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor auxiliar não encontrado")
+            if pa["escola_id"] != escola_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor auxiliar deve pertencer à sua escola")
 
         # Validar que a variante está entre as selecionadas no cadastro da escola
         variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)
@@ -358,11 +390,11 @@ async def create_equipe(
         # Inserir equipe
         await cur.execute(
             """
-            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id, edicao_id)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, escola_id, esporte_variante_id, professor_tecnico_id, edicao_id, created_at, updated_at
+            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id, professor_auxiliar_id, edicao_id)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, escola_id, esporte_variante_id, professor_tecnico_id, professor_auxiliar_id, edicao_id, created_at, updated_at
             """,
-            (escola_id, data.esporte_variante_id, data.professor_tecnico_id, resolved_edicao_id),
+            (escola_id, data.esporte_variante_id, data.professor_tecnico_id, professor_auxiliar_id, resolved_edicao_id),
         )
         equipe_row = await cur.fetchone()
         if not equipe_row:
@@ -478,6 +510,36 @@ async def update_equipe(
             if not pt or pt["escola_id"] != escola_id:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor-técnico deve pertencer à sua escola")
 
+        final_variante_id = updates.get("esporte_variante_id", existing["esporte_variante_id"])
+        await cur.execute(
+            """
+            SELECT tm.codigo AS tipo_modalidade_codigo
+            FROM esporte_variantes ev
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ev.id = %s AND ev.edicao_id = %s
+            """,
+            (final_variante_id, resolved_edicao_id),
+        )
+        final_variante_tipo = await cur.fetchone()
+        if not final_variante_tipo:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada")
+        final_tipo_codigo = final_variante_tipo.get("tipo_modalidade_codigo")
+        final_tecnico_id = updates.get("professor_tecnico_id", existing["professor_tecnico_id"])
+        final_auxiliar_id = updates.get("professor_auxiliar_id", existing.get("professor_auxiliar_id"))
+        if final_tipo_codigo != "COLETIVAS":
+            final_auxiliar_id = None
+
+        if "professor_auxiliar_id" in updates and updates["professor_auxiliar_id"] is not None:
+            await cur.execute(
+                "SELECT id, escola_id FROM professores_tecnicos WHERE id = %s",
+                (updates["professor_auxiliar_id"],),
+            )
+            pa = await cur.fetchone()
+            if not pa or pa["escola_id"] != escola_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Professor auxiliar deve pertencer à sua escola")
+        if final_auxiliar_id is not None and final_auxiliar_id == final_tecnico_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Técnico e auxiliar devem ser profissionais diferentes.")
+
         if "esporte_variante_id" in updates:
             variante_ids = await get_escola_modalidades_adesao(conn, escola_id, resolved_edicao_id)
             if variante_ids and updates["esporte_variante_id"] not in variante_ids:
@@ -502,6 +564,11 @@ async def update_equipe(
             await cur.execute(
                 "UPDATE equipes SET professor_tecnico_id = %s, updated_at = NOW() WHERE id = %s",
                 (updates["professor_tecnico_id"], equipe_id),
+            )
+        if "professor_auxiliar_id" in updates or final_tipo_codigo != "COLETIVAS":
+            await cur.execute(
+                "UPDATE equipes SET professor_auxiliar_id = %s, updated_at = NOW() WHERE id = %s",
+                (final_auxiliar_id, equipe_id),
             )
         if "esporte_variante_id" in updates:
             # Validar se já existe outra equipe com esta variante

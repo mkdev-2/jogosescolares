@@ -567,6 +567,7 @@ class EquipeCreate(BaseModel):
     esporte_variante_id: str = Field(..., min_length=1, description="ID da variante (esporte+categoria+naipe+tipo)")
     estudante_ids: list[int] = Field(..., min_length=1, description="IDs dos estudantes da equipe")
     professor_tecnico_id: int = Field(..., description="ID do professor-técnico")
+    professor_auxiliar_id: Optional[int] = Field(None, description="ID do professor auxiliar (apenas modalidades coletivas)")
 
 
 class EquipeUpdate(BaseModel):
@@ -574,6 +575,7 @@ class EquipeUpdate(BaseModel):
     esporte_variante_id: Optional[str] = Field(None, min_length=1)
     estudante_ids: Optional[list[int]] = Field(None, min_length=1)
     professor_tecnico_id: Optional[int] = None
+    professor_auxiliar_id: Optional[int] = None
 
 
 class EquipeEstudanteItem(BaseModel):
@@ -599,6 +601,8 @@ class EquipeResponse(BaseModel):
     tipo_modalidade_nome: Optional[str] = None
     professor_tecnico_id: int
     professor_tecnico_nome: Optional[str] = None
+    professor_auxiliar_id: Optional[int] = None
+    professor_auxiliar_nome: Optional[str] = None
     estudantes: list[EquipeEstudanteItem] = Field(default_factory=list)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None

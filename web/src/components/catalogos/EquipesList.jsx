@@ -12,6 +12,7 @@ export default function EquipesList({
   onDeleteEquipe,
   onViewEquipe,
   onFichaColetiva,
+  onFichaIndividual,
   showInstituicao = false,
   showFilters = true,
   showTotalEquipes = true,
@@ -68,7 +69,12 @@ export default function EquipesList({
   const getEsporteIcone = (item) => item.esporte_icone || 'Zap'
   const getCategoriaNome = (item) => item.categoria_nome || '-'
   const getNaipeNome = (item) => item.naipe_nome || '-'
-  const getTecnicoNome = (item) => item.professor_tecnico_nome || item.professor_tecnico?.nome || '-'
+  const getTecnicoNome = (item) => {
+    const tecnico = item.professor_tecnico_nome || item.professor_tecnico?.nome
+    const auxiliar = item.professor_auxiliar_nome || item.professor_auxiliar?.nome
+    if (tecnico && auxiliar) return `${tecnico} / Aux: ${auxiliar}`
+    return tecnico || '-'
+  }
   const getQtdAlunos = (item) => (item.estudantes && item.estudantes.length) || item.estudante_ids?.length || 0
 
   const isModalidadeColetiva = (item) => {
@@ -221,7 +227,7 @@ export default function EquipesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
-                    {onFichaColetiva && (
+                    {(onFichaColetiva || onFichaIndividual) && (
                       <th className="w-[80px] text-center px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ficha
                       </th>
@@ -263,7 +269,7 @@ export default function EquipesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getQtdAlunos(item)}/{item.esporte_limite_atletas || '-'} membros
                       </td>
-                      {(onEditEquipe || onDeleteEquipe || onFichaColetiva) && (
+                      {(onEditEquipe || onDeleteEquipe || onFichaColetiva || onFichaIndividual) && (
                         <td
                           className="px-5 py-3 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
@@ -281,6 +287,16 @@ export default function EquipesList({
                                   >
                                     <FileText size={16} />
                                     Ficha Coletiva
+                                  </button>
+                                )}
+                                {onFichaIndividual && !isModalidadeColetiva(item) && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onFichaIndividual(item)}
+                                  >
+                                    <FileText size={16} />
+                                    Ficha Individual
                                   </button>
                                 )}
                                 {onEditEquipe && (

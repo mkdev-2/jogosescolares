@@ -214,12 +214,6 @@ export default function FichaColetivaPrint({ dados, ano = new Date().getFullYear
             </p>
             <div className="border-b border-[#334155] h-14 mx-auto" />
           </div>
-          <div className="text-center w-56">
-            <p className="text-[#64748b] text-xs mb-1">
-              Assinatura e carimbo do médico com CRM
-            </p>
-            <div className="border-b border-[#334155] h-14 mx-auto" />
-          </div>
         </div>
       </div>
     </div>

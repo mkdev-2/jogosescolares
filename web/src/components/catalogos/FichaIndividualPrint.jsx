@@ -255,23 +255,6 @@ export default function FichaIndividualPrint({ dados, ano = new Date().getFullYe
           </div>
         </div>
 
-        {/* Declaração Médica */}
-        <div className="border border-[#e2e8f0] p-2 mb-4">
-          <p className="text-[9px] mb-4">
-            Declaro para os devidos fins que o menor acima citado está em pleno gozo de saúde e em condições físicas de participar do Evento, não havendo qualquer tipo de impedimento ou restrição à prática de atividades físicas e esportivas.
-          </p>
-          <div className="grid grid-cols-2 gap-8">
-            <div className="text-center">
-              <div className="border-b border-black h-8 mb-1" />
-              <p className="font-bold text-[9px]">Carimbo do Médico com CRM</p>
-            </div>
-            <div className="text-center">
-              <div className="border-b border-black h-8 mb-1" />
-              <p className="font-bold text-[9px]">Assinatura do Médico</p>
-            </div>
-          </div>
-        </div>
-
         {/* Declaração Instituição */}
         <div className="border border-[#e2e8f0] p-2">
           <p className="text-[9px] mb-4 uppercase">

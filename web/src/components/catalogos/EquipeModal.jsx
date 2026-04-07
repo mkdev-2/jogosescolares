@@ -46,6 +46,7 @@ export default function EquipeModal({
   const [varianteId, setVarianteId] = useState('')
   const [estudanteIds, setEstudanteIds] = useState([])
   const [professorTecnicoId, setProfessorTecnicoId] = useState('')
+  const [professorAuxiliarId, setProfessorAuxiliarId] = useState('')
   const formTopRef = useRef(null)
 
   useEffect(() => {
@@ -53,10 +54,12 @@ export default function EquipeModal({
       setVarianteId(equipe.esporte_variante_id || '')
       setEstudanteIds(equipe.estudantes?.map((e) => e.id) || [])
       setProfessorTecnicoId(equipe.professor_tecnico_id ? String(equipe.professor_tecnico_id) : '')
+      setProfessorAuxiliarId(equipe.professor_auxiliar_id ? String(equipe.professor_auxiliar_id) : '')
     } else if (open && !equipe) {
       setVarianteId('')
       setEstudanteIds([])
       setProfessorTecnicoId('')
+      setProfessorAuxiliarId('')
     }
   }, [open, equipe])
   const [errors, setErrors] = useState({})
@@ -65,6 +68,11 @@ export default function EquipeModal({
   const [alunoSearch, setAlunoSearch] = useState('')
 
   const selectedVariante = variantes.find((v) => v.id === varianteId)
+  const isModalidadeColetiva = (() => {
+    const codigo = String(selectedVariante?.tipo_modalidade_codigo || '').trim().toUpperCase()
+    const nome = String(selectedVariante?.tipo_modalidade_nome || '').trim().toUpperCase()
+    return codigo === 'COLETIVAS' || nome === 'COLETIVAS'
+  })()
   const limiteAtletas = selectedVariante?.esporte_limite_atletas != null ? Number(selectedVariante.esporte_limite_atletas) : null
 
   const filteredEstudantes = estudantes.filter((e) => {
@@ -104,6 +112,7 @@ export default function EquipeModal({
     setVarianteId('')
     setEstudanteIds([])
     setProfessorTecnicoId('')
+    setProfessorAuxiliarId('')
     setErrors({})
     setSubmitError(null)
     setAlunoSearch('')
@@ -114,6 +123,9 @@ export default function EquipeModal({
     const err = {}
     if (!varianteId?.trim()) err.esporte_variante_id = 'Selecione a variante (esporte + categoria + naipe + tipo)'
     if (!professorTecnicoId) err.professor_tecnico_id = 'Selecione o professor-técnico'
+    if (isModalidadeColetiva && professorAuxiliarId && professorAuxiliarId === professorTecnicoId) {
+      err.professor_auxiliar_id = 'O auxiliar deve ser diferente do técnico'
+    }
     if (estudanteIds.length === 0) err.estudante_ids = 'Selecione pelo menos um aluno'
     if (limiteAtletas != null && estudanteIds.length > limiteAtletas) {
       err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta variante.`
@@ -149,6 +161,7 @@ export default function EquipeModal({
         esporte_variante_id: varianteId.trim(),
         estudante_ids: estudanteIds,
         professor_tecnico_id: Number(professorTecnicoId),
+        professor_auxiliar_id: isModalidadeColetiva && professorAuxiliarId ? Number(professorAuxiliarId) : null,
       }
       if (equipe?.id) {
         await equipesService.atualizar(equipe.id, payload, edicaoId)
@@ -181,7 +194,7 @@ export default function EquipeModal({
       isOpen={open}
       onClose={handleClose}
       title={equipe ? 'Editar equipe' : 'Nova equipe'}
-      subtitle="Selecione a variante (esporte + categoria + naipe + tipo), alunos e técnico"
+      subtitle="Selecione a variante (esporte + categoria + naipe + tipo), alunos e técnicos"
       size="lg"
       footer={footer}
     >
@@ -263,6 +276,24 @@ export default function EquipeModal({
               />
               {errors.professor_tecnico_id && <p className={errorClass}>{errors.professor_tecnico_id}</p>}
             </div>
+            {isModalidadeColetiva && (
+              <div className="mt-4">
+                <label htmlFor="eq-auxiliar" className={labelClass}>Auxiliar (opcional)</label>
+                <Select
+                  id="eq-auxiliar"
+                  value={professorAuxiliarId || undefined}
+                  onChange={(v) => {
+                    setProfessorAuxiliarId(v || '')
+                    if (errors.professor_auxiliar_id) setErrors((x) => ({ ...x, professor_auxiliar_id: undefined }))
+                  }}
+                  placeholder="Selecione o auxiliar"
+                  options={professoresTecnicos.map((p) => ({ value: String(p.id), label: `${p.nome}${p.cref ? ` (CREF: ${p.cref})` : ''}` }))}
+                  className="w-full"
+                  status={errors.professor_auxiliar_id ? 'error' : undefined}
+                />
+                {errors.professor_auxiliar_id && <p className={errorClass}>{errors.professor_auxiliar_id}</p>}
+              </div>
+            )}
           </div>
 
           {/* Alunos */}

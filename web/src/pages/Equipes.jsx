@@ -6,8 +6,10 @@ import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import EquipesList from '../components/catalogos/EquipesList'
 import EquipeModal from '../components/catalogos/EquipeModal'
 import FichaColetivaPrint from '../components/catalogos/FichaColetivaPrint'
+import FichaIndividualPrint from '../components/catalogos/FichaIndividualPrint'
 import Modal from '../components/ui/Modal'
 import { equipesService } from '../services/equipesService'
+import { estudantesService } from '../services/estudantesService'
 
 export default function Equipes() {
   const { lista, loading, error, fetchLista } = useEquipes()
@@ -18,6 +20,9 @@ export default function Equipes() {
   const [fichaColetivaOpen, setFichaColetivaOpen] = useState(false)
   const [fichaColetivaDados, setFichaColetivaDados] = useState(null)
   const [fichaColetivaLoading, setFichaColetivaLoading] = useState(false)
+  const [fichaIndividualOpen, setFichaIndividualOpen] = useState(false)
+  const [fichaIndividualDados, setFichaIndividualDados] = useState(null)
+  const [fichaIndividualLoading, setFichaIndividualLoading] = useState(false)
 
   const handleNewEquipe = () => {
     setModalOpen(true)
@@ -52,6 +57,53 @@ export default function Equipes() {
     setFichaColetivaDados(null)
   }
 
+  const handleFichaIndividual = async (equipe) => {
+    let detalheEquipe = equipe
+    try {
+      detalheEquipe = await equipesService.getById(equipe.id)
+    } catch {
+      // fallback para objeto da lista, se a leitura detalhada falhar
+    }
+    const primeiroAlunoId = (
+      (Array.isArray(detalheEquipe?.estudantes) && detalheEquipe.estudantes[0]?.id) ||
+      (Array.isArray(detalheEquipe?.estudante_ids) && detalheEquipe.estudante_ids[0]) ||
+      (Array.isArray(equipe?.estudantes) && equipe.estudantes[0]?.id) ||
+      (Array.isArray(equipe?.estudante_ids) && equipe.estudante_ids[0]) ||
+      null
+    )
+    if (!primeiroAlunoId) {
+      alert('Equipe individual sem aluno vinculado para gerar ficha.')
+      return
+    }
+    setFichaIndividualOpen(true)
+    setFichaIndividualDados(null)
+    setFichaIndividualLoading(true)
+    try {
+      const full = await estudantesService.getById(primeiroAlunoId)
+      const modalidades = await estudantesService.getModalidades(primeiroAlunoId)
+      const modalidade = Array.isArray(modalidades) && modalidades.length > 0
+        ? `${modalidades[0].esporte_nome || ''} • ${modalidades[0].categoria_nome || ''} • ${modalidades[0].naipe_nome || ''}`.trim()
+        : '—'
+      setFichaIndividualDados({
+        estudante: full,
+        responsavel: {
+          nome: full?.responsavel_nome,
+          cpf: estudantesService.formatCpf(full?.responsavel_cpf),
+          rg: full?.responsavel_rg,
+          celular: full?.responsavel_celular,
+          email: full?.responsavel_email,
+          nis: full?.responsavel_nis,
+        },
+        modalidade,
+      })
+    } catch (err) {
+      setFichaIndividualOpen(false)
+      alert(err.message || 'Erro ao carregar dados da ficha individual.')
+    } finally {
+      setFichaIndividualLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -70,6 +122,7 @@ export default function Equipes() {
           error={error}
           onNewEquipe={handleNewEquipe}
           onFichaColetiva={handleFichaColetiva}
+          onFichaIndividual={handleFichaIndividual}
         />
       </div>
 
@@ -101,6 +154,29 @@ export default function Equipes() {
             <FichaColetivaPrint
               dados={fichaColetivaDados}
               onClose={handleFichaColetivaClose}
+            />
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={fichaIndividualOpen}
+        onClose={() => { setFichaIndividualOpen(false); setFichaIndividualDados(null) }}
+        title="Ficha Individual – JELS"
+        subtitle={fichaIndividualDados?.estudante?.nome || ''}
+        size="xl"
+        footer={null}
+      >
+        <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+          {fichaIndividualLoading && (
+            <div className="flex justify-center py-8">
+              <div className="w-10 h-10 border-[3px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
+            </div>
+          )}
+          {!fichaIndividualLoading && fichaIndividualDados && (
+            <FichaIndividualPrint
+              dados={fichaIndividualDados}
+              onClose={() => { setFichaIndividualOpen(false); setFichaIndividualDados(null) }}
             />
           )}
         </div>

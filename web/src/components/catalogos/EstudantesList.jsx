@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical, IdCard } from 'lucide-react'
+import { Users, Search, Plus, Pencil, Trash2, User, MoreVertical, IdCard, FileText } from 'lucide-react'
 import { Input, Button, Popconfirm, Popover, Pagination } from 'antd'
 import { estudantesService } from '../../services/estudantesService'
 import EscolaFilterAutoComplete from './EscolaFilterAutoComplete'
