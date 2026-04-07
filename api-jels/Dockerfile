@@ -19,6 +19,7 @@ ENV PATH=/root/.local/bin:$PATH
 
 COPY app/ ./app/
 COPY services/ ./services/
+COPY scripts/ ./scripts/
 
 EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
