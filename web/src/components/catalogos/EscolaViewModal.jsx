@@ -264,9 +264,9 @@ export default function EscolaViewModal({ open, onClose, escolaId, edicaoId = nu
                     const nocacheUrl = url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now()
                     
                     if (isImage) {
-                      return <img src={nocacheUrl} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" />
+                      return <img src={nocacheUrl} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" referrerPolicy="no-referrer" />
                     }
-                    return <iframe src={nocacheUrl} className="w-full h-[500px] border-0" title="Termo de Adesão" />
+                    return <iframe src={nocacheUrl} className="w-full h-[500px] border-0" title="Termo de Adesão" referrerPolicy="no-referrer" />
                   })()}
                 </div>
               </div>

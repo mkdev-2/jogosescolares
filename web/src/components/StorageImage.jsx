@@ -51,5 +51,5 @@ export default function StorageImage({ path, alt, className, loadingClassName, .
       />
     )
   }
-  return <img src={src} alt={alt || ''} className={className} onError={handleError} {...rest} />
+  return <img src={src} alt={alt || ''} className={className} referrerPolicy="no-referrer" onError={handleError} {...rest} />
 }

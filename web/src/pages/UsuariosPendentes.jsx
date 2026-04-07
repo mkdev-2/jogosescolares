@@ -535,9 +535,9 @@ export default function UsuariosPendentes({ embedded }) {
                           const url = getStorageUrl(modalSolicitacao.termo_assinatura_url)
                           const isImage = url.toLowerCase().match(/\.(jpeg|jpg|gif|png|webp|bmp)(?:\?|$)/)
                           if (isImage) {
-                            return <img src={url} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" />
+                            return <img src={url} alt="Termo de Adesão" className="max-w-full max-h-[500px] object-contain" referrerPolicy="no-referrer" />
                           }
-                          return <iframe src={url} className="w-full h-[500px] border-0" title="Termo de Adesão" />
+                          return <iframe src={url} className="w-full h-[500px] border-0" title="Termo de Adesão" referrerPolicy="no-referrer" />
                         })()}
                       </div>
                     </div>

@@ -52,6 +52,7 @@ async function uploadToStoragePublic(file, bucket, path) {
   const res = await fetch(url, {
     method: 'POST',
     body: formData,
+    referrerPolicy: 'no-referrer',
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
@@ -163,7 +164,7 @@ export async function fetchStorageBlob(path) {
   if (!url) throw new Error('Caminho inválido')
   // 1) Tenta sem Authorization (rota de arquivo costuma ser pública).
   // 2) Se o gateway bloquear (401/403), tenta autenticado via apiFetch.
-  const direct = await fetch(url)
+  const direct = await fetch(url, { referrerPolicy: 'no-referrer' })
   if (direct.ok) {
     const ct = (direct.headers.get('content-type') || '').toLowerCase()
     // Proteção: evita usar HTML de fallback como imagem.
@@ -178,7 +179,7 @@ export async function fetchStorageBlob(path) {
     // é bloqueado por regra de gateway em alguns ambientes).
     const directUrl = rel ? buildDirectStorageUrl(rel) : ''
     if (directUrl) {
-      const directPublic = await fetch(directUrl)
+      const directPublic = await fetch(directUrl, { referrerPolicy: 'no-referrer' })
       if (directPublic.ok) {
         const ct = (directPublic.headers.get('content-type') || '').toLowerCase()
         if (!ct.includes('text/html')) return directPublic.blob()

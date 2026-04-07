@@ -60,13 +60,13 @@ export async function apiFetch(url, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
-  let res = await fetch(fullUrl, { ...options, headers })
+  let res = await fetch(fullUrl, { ...options, headers, referrerPolicy: 'no-referrer' })
 
   if (res.status === 401 && getRefreshToken()) {
     const refreshed = await refreshAccessToken()
     if (refreshed) {
       headers.Authorization = `Bearer ${getAccessToken()}`
-      res = await fetch(fullUrl, { ...options, headers })
+      res = await fetch(fullUrl, { ...options, headers, referrerPolicy: 'no-referrer' })
     }
   }
 
@@ -83,6 +83,7 @@ async function refreshAccessToken() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
+      referrerPolicy: 'no-referrer',
     })
 
     if (!res.ok) {
