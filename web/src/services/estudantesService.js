@@ -69,6 +69,14 @@ export const estudantesService = {
    * @param {string} payload.responsavel_nis
    * @param {string} [payload.inep_instituicao] - Opcional; backend pode usar o INEP do coordenador logado
    */
+  async buscarPorCpf(cpf) {
+    const digits = String(cpf).replace(/\D/g, '')
+    const res = await apiFetch(`/estudantes-atletas/cpf/${digits}`)
+    if (res.status === 404) return null
+    if (!res.ok) return null
+    return res.json().catch(() => null)
+  },
+
   async getById(id) {
     const res = await apiFetch(`/estudantes-atletas/${id}`)
     if (!res.ok) {

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { User, UserCircle, School, Camera, TriangleAlert, FileSignature } from 'lucide-react'
-import { DatePicker, Input, Select, Button, Steps, Upload } from 'antd'
+import { DatePicker, Input, Select, Button, Steps, Upload, message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Modal from '../ui/Modal'
@@ -65,7 +65,14 @@ const STEP_KEYS = {
   assinaturas: 2,
 }
 
+function validateStepAssinaturas(form) {
+  const err = {}
+  if (!form.documentacaoRgUrl?.trim()) err.documentacaoRgUrl = 'Documento de Identidade é obrigatório'
+  return err
+}
+
 function validateStep(step, form) {
+  if (step === STEP_KEYS.assinaturas) return validateStepAssinaturas(form)
   const err = {}
   if (step === STEP_KEYS.estudante) {
     if (!form.nome?.trim() || form.nome.trim().length < 3) err.nome = 'Nome deve ter pelo menos 3 caracteres'
@@ -101,7 +108,8 @@ function validateStep(step, form) {
 function validateForm(form) {
   const err1 = validateStep(STEP_KEYS.estudante, form)
   const err2 = validateStep(STEP_KEYS.responsavel, form)
-  return { ...err1, ...err2 }
+  const err3 = validateStep(STEP_KEYS.assinaturas, form)
+  return { ...err1, ...err2, ...err3 }
 }
 
 const labelClass = 'block text-sm font-medium text-[#334155] mb-1.5'
@@ -140,6 +148,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
   const [uploadingFoto, setUploadingFoto] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [uploadingRgDoc, setUploadingRgDoc] = useState(false)
+  const [checkingCpf, setCheckingCpf] = useState(false)
   const [uploadingFileInfo, setUploadingFileInfo] = useState(null)
   const [uploadingRgFileInfo, setUploadingRgFileInfo] = useState(null)
   const [submitError, setSubmitError] = useState(null)
@@ -216,6 +225,27 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     setForm((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
     setSubmitError(null)
+  }
+
+  const handleCpfBlur = async () => {
+    const digits = onlyDigits(form.cpf)
+    if (digits.length !== 11 || !isValidCpf(form.cpf)) return
+    // Edição: pula se o CPF não mudou
+    if (estudante?.id && onlyDigits(estudante.cpf || '') === digits) return
+    setCheckingCpf(true)
+    try {
+      const found = await estudantesService.buscarPorCpf(digits)
+      if (found) {
+        setErrors((prev) => ({
+          ...prev,
+          cpf: `CPF já cadastrado: ${found.nome}${found.escola_nome ? ` — ${found.escola_nome}` : ''}`,
+        }))
+      }
+    } catch {
+      // 404 = não encontrado, tudo certo
+    } finally {
+      setCheckingCpf(false)
+    }
   }
 
   const handleClose = () => {
@@ -347,6 +377,14 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     const errs = validateForm(form)
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
+      const errs0 = validateStep(STEP_KEYS.estudante, form)
+      const errs1 = validateStep(STEP_KEYS.responsavel, form)
+      if (Object.keys(errs0).length > 0) {
+        setCurrentStep(STEP_KEYS.estudante)
+      } else if (Object.keys(errs1).length > 0) {
+        setCurrentStep(STEP_KEYS.responsavel)
+      }
+      message.error('Há campos obrigatórios não preenchidos. Verifique os dados antes de salvar.')
       return
     }
     setErrors({})
@@ -491,7 +529,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                         </div>
                         <div className="sm:col-span-4">
                           <label htmlFor="modal-cpf" className={labelClass}>CPF *</label>
-                          <Input id="modal-cpf" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" maxLength={14} status={errors.cpf ? 'error' : undefined} />
+                          <Input id="modal-cpf" inputMode="numeric" value={form.cpf} onChange={(e) => updateField('cpf', maskCpf(e.target.value))} onBlur={handleCpfBlur} placeholder="000.000.000-00" maxLength={14} status={errors.cpf ? 'error' : undefined} suffix={checkingCpf ? <span className="text-xs text-[#64748b]">Verificando...</span> : null} />
                           {errors.cpf && <p className={errorClass}>{errors.cpf}</p>}
                         </div>
                         <div className="sm:col-span-4">
@@ -529,9 +567,13 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                           <label htmlFor="modal-peso" className={labelClass}>Peso (kg) *</label>
                           <Input
                             id="modal-peso"
+                            type="number"
                             inputMode="decimal"
+                            min={0.1}
+                            max={500}
+                            step={0.1}
                             value={form.peso}
-                            onChange={(e) => updateField('peso', e.target.value.replace(',', '.'))}
+                            onChange={(e) => updateField('peso', e.target.value)}
                             placeholder="Ex: 62.5"
                             status={errors.peso ? 'error' : undefined}
                           />
@@ -653,67 +695,76 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                   </div>
 
                   <div className="border-t border-[#e2e8f0] pt-6 mt-6">
-                    <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação assinada</h4>
-                    <p className="text-sm text-[#64748b] mb-4 m-0">
-                      {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
-                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {/* Ficha de Inscrição Individual Assinada */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-[#334155] mb-2">Ficha de Inscrição Individual Assinada</h4>
+                        <p className="text-sm text-[#64748b] mb-4 m-0">
+                          {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
+                        </p>
+                        <Upload
+                          listType="picture-card"
+                          maxCount={1}
+                          accept={ACCEPT_DOC}
+                          fileList={docFileList}
+                          customRequest={handleDocCustomRequest}
+                          onChange={handleDocChange}
+                          onPreview={(file) => {
+                            if (file.url) window.open(file.url, '_blank')
+                            else if (file.originFileObj) {
+                              const url = URL.createObjectURL(file.originFileObj)
+                              window.open(url, '_blank')
+                            }
+                          }}
+                          showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+                        >
+                          {docFileList.length >= 1 ? null : (
+                            <div className="flex flex-col items-center justify-center gap-1 py-2">
+                              <PlusOutlined className="text-2xl text-[#94a3b8]" />
+                              <span className="text-xs text-[#64748b]">Selecionar arquivo</span>
+                            </div>
+                          )}
+                        </Upload>
+                      </div>
 
-                    <Upload
-                      listType="picture-card"
-                      maxCount={1}
-                      accept={ACCEPT_DOC}
-                      fileList={docFileList}
-                      customRequest={handleDocCustomRequest}
-                      onChange={handleDocChange}
-                      onPreview={(file) => {
-                        if (file.url) window.open(file.url, '_blank')
-                        else if (file.originFileObj) {
-                          const url = URL.createObjectURL(file.originFileObj)
-                          window.open(url, '_blank')
-                        }
-                      }}
-                      showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
-                    >
-                      {docFileList.length >= 1 ? null : (
-                        <div className="flex flex-col items-center justify-center gap-1 py-2">
-                          <PlusOutlined className="text-2xl text-[#94a3b8]" />
-                          <span className="text-xs text-[#64748b]">Selecionar arquivo</span>
-                        </div>
-                      )}
-                    </Upload> 
-                  </div>
-
-                  <div className="border-t border-[#e2e8f0] pt-6 mt-6">
-                    <h4 className="text-sm font-semibold text-[#334155] mb-2">Anexo da documentação do aluno (RG)</h4>
-                    <p className="text-sm text-[#64748b] mb-4 m-0">
-                      {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
-                    </p>
-
-                    <Upload
-                      listType="picture-card"
-                      maxCount={1}
-                      accept={ACCEPT_DOC}
-                      fileList={rgDocFileList}
-                      customRequest={handleRgDocCustomRequest}
-                      onChange={handleRgDocChange}
-                      onPreview={(file) => {
-                        if (file.url) window.open(file.url, '_blank')
-                        else if (file.originFileObj) {
-                          const url = URL.createObjectURL(file.originFileObj)
-                          window.open(url, '_blank')
-                        }
-                      }}
-                      showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
-                    >
-                      {rgDocFileList.length >= 1 ? null : (
-                        <div className="flex flex-col items-center justify-center gap-1 py-2">
-                          <PlusOutlined className="text-2xl text-[#94a3b8]" />
-                          <span className="text-xs text-[#64748b]">
-                            {uploadingRgDoc ? 'Enviando...' : 'Selecionar arquivo'}
-                          </span>
-                        </div>
-                      )}
-                    </Upload>
+                      {/* Documento de Identidade do Aluno (RG) — obrigatório */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-[#334155] mb-2">
+                          Documento de Identidade do Aluno (RG) <span className="text-[#dc2626]">*</span>
+                        </h4>
+                        <p className="text-sm text-[#64748b] mb-4 m-0">
+                          {`PDF ou imagem (JPG, PNG), até ${MAX_DOC_MB}MB.`}
+                        </p>
+                        <Upload
+                          listType="picture-card"
+                          maxCount={1}
+                          accept={ACCEPT_DOC}
+                          fileList={rgDocFileList}
+                          customRequest={handleRgDocCustomRequest}
+                          onChange={handleRgDocChange}
+                          onPreview={(file) => {
+                            if (file.url) window.open(file.url, '_blank')
+                            else if (file.originFileObj) {
+                              const url = URL.createObjectURL(file.originFileObj)
+                              window.open(url, '_blank')
+                            }
+                          }}
+                          showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+                        >
+                          {rgDocFileList.length >= 1 ? null : (
+                            <div className="flex flex-col items-center justify-center gap-1 py-2">
+                              <PlusOutlined className={`text-2xl ${errors.documentacaoRgUrl ? 'text-[#dc2626]' : 'text-[#94a3b8]'}`} />
+                              <span className="text-xs text-[#64748b]">
+                                {uploadingRgDoc ? 'Enviando...' : 'Selecionar arquivo'}
+                              </span>
+                            </div>
+                          )}
+                        </Upload>
+                        {errors.documentacaoRgUrl && (
+                          <p className={errorClass}>{errors.documentacaoRgUrl}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

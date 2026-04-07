@@ -68,23 +68,23 @@ export default function ProfessoresTecnicosList({
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-        {showInstituicao && escolas?.length > 0 && (
-          <EscolaFilterAutoComplete
-            escolas={escolas}
-            value={escolaFilterId}
-            onChange={setEscolaFilterId}
-            className="w-full sm:min-w-[280px]"
-          />
-        )}
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, CPF ou CREF..."
+            placeholder="Buscar por nome ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
             className="w-full"
           />
         </div>
+        {showInstituicao && escolas?.length > 0 && (
+          <EscolaFilterAutoComplete
+            escolas={escolas}
+            value={escolaFilterId}
+            onChange={setEscolaFilterId}
+            className="w-full sm:w-[220px]"
+          />
+        )}
         {onNewProfessor && (
           <Button 
             type="primary" 
@@ -137,14 +137,14 @@ export default function ProfessoresTecnicosList({
               <table className="w-full border-collapse min-w-[700px]">
                 <thead>
                   <tr>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Nome
+                    </th>
                     {showInstituicao && (
                       <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Instituição
                       </th>
                     )}
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Nome
-                    </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       CPF
                     </th>
@@ -165,14 +165,14 @@ export default function ProfessoresTecnicosList({
                       className={`hover:bg-[#f8fafc] ${onViewProfessor ? 'cursor-pointer' : ''}`}
                       onClick={() => onViewProfessor?.(item)}
                     >
+                      <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
+                        {item.nome}
+                      </td>
                       {showInstituicao && (
                         <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                           {item.escola_nome || '-'}
                         </td>
                       )}
-                      <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
-                        {item.nome}
-                      </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {professoresTecnicosService.formatCpf(item.cpf)}
                       </td>

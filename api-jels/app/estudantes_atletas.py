@@ -323,6 +323,36 @@ async def auditar_geracao_credenciais(
     return {"ok": True}
 
 
+@router.get("/cpf/{cpf}")
+async def check_cpf_estudante(
+    cpf: str,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Verifica se já existe um estudante cadastrado com este CPF (busca global)."""
+    cpf_clean = "".join(filter(str.isdigit, cpf))
+    if len(cpf_clean) != 11:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CPF inválido")
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.nome, s.nome_escola
+            FROM estudantes_atletas e
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            WHERE e.cpf = %s
+            LIMIT 1
+            """,
+            (cpf_clean,),
+        )
+        row = await cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum estudante encontrado com este CPF")
+
+    return {"id": row["id"], "nome": row["nome"], "escola_nome": row.get("nome_escola")}
+
+
 @router.get("/{estudante_id}", response_model=EstudanteAtletaResponse)
 async def get_estudante_atleta(
     estudante_id: int,

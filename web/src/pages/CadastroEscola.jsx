@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Input, Select, Checkbox, Button, Spin } from 'antd'
-import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle } from 'lucide-react'
+import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle, Download } from 'lucide-react'
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
@@ -368,6 +368,47 @@ export default function CadastroEscola() {
             <p className="text-gray-600 mb-6">
               Sua solicitação de cadastro foi recebida. Um administrador analisará os dados e, em caso de aprovação, sua escola e o acesso do diretor serão liberados no sistema.
             </p>
+            <p className="text-gray-600 mb-6">
+              Enquanto isso, você pode baixar o regulamento oficial dos Jogos Escolares Luminenses 2026.
+            </p>
+            <div className="mb-6 text-left">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Regulamento Oficial — JELS 2026
+              </p>
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                {/* Prévia do PDF */}
+                <div className="relative w-full bg-gray-100" style={{ height: 220 }}>
+                  <iframe
+                    src="/REGULAMENTO_GERAL_JELS_2026.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH"
+                    title="Prévia do Regulamento JELS 2026"
+                    className="absolute inset-0 w-full h-full border-0 pointer-events-none"
+                  />
+                  {/* overlay clicável que abre o PDF em nova aba */}
+                  <a
+                    href="/REGULAMENTO_GERAL_JELS_2026.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0"
+                    aria-label="Abrir regulamento"
+                  />
+                </div>
+                {/* Rodapé do card */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white border-t border-gray-200">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">Regulamento Geral JELS 2026</p>
+                    <p className="text-xs text-gray-400">Documento oficial · PDF</p>
+                  </div>
+                  <a
+                    href="/REGULAMENTO_GERAL_JELS_2026.pdf"
+                    download="REGULAMENTO_GERAL_JELS_2026.pdf"
+                    className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition"
+                  >
+                    <Download size={15} />
+                    Baixar
+                  </a>
+                </div>
+              </div>
+            </div>
             <Link
               to="/"
               className="inline-flex items-center gap-2 rounded-lg px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/90 transition"

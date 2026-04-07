@@ -98,23 +98,23 @@ export default function EstudantesList({
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-        {showInstituicao && escolas?.length > 0 && (
-          <EscolaFilterAutoComplete
-            escolas={escolas}
-            value={escolaFilterId}
-            onChange={setEscolaFilterId}
-            className="w-full sm:min-w-[280px]"
-          />
-        )}
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome, e-mail, CPF..."
+            placeholder="Buscar por nome ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             prefix={<Search size={18} className="text-[#64748b]" />}
             className="w-full"
           />
         </div>
+        {showInstituicao && escolas?.length > 0 && (
+          <EscolaFilterAutoComplete
+            escolas={escolas}
+            value={escolaFilterId}
+            onChange={setEscolaFilterId}
+            className="w-full sm:w-[220px]"
+          />
+        )}
         {onNewAluno && (
           <Button 
             type="primary" 

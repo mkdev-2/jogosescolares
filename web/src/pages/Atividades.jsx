@@ -16,7 +16,7 @@ import { configuracoesService } from '../services/configuracoesService'
 
 export default function Atividades() {
   const { user } = useAuth()
-  const isDiretor = user?.role === 'DIRETOR'
+  const isDiretor = ['DIRETOR', 'COORDENADOR'].includes(user?.role)
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') || 'esportes'
