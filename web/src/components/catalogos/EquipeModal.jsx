@@ -13,16 +13,10 @@ function formatVarianteLabel(v) {
   return `${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome} • ${v.tipo_modalidade_nome}`
 }
 
-function calcularIdade(dataNasc) {
+function calcularIdadePorAnoCalendario(dataNasc) {
   if (!dataNasc) return null
-  const hoje = new Date()
   const nasc = new Date(dataNasc)
-  let idade = hoje.getFullYear() - nasc.getFullYear()
-  const m = hoje.getMonth() - nasc.getMonth()
-  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
-    idade--
-  }
-  return idade
+  return new Date().getFullYear() - nasc.getFullYear()
 }
 
 function temDocumentoAssinado(estudante) {
@@ -283,6 +277,7 @@ export default function EquipeModal({
             {errors.estudante_ids && <p className={errorClass}>{errors.estudante_ids}</p>}
             <p className="text-sm text-[#64748b] mb-3">
               Selecione os alunos já cadastrados em Alunos com documentação assinada. O sistema valida idade e naipe automaticamente.
+              <span className="block mt-1">Idade exibida considera o ano calendário (ano atual - ano de nascimento).</span>
               {limiteAtletas != null && (
                 <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe.</span>
               )}
@@ -320,7 +315,7 @@ export default function EquipeModal({
                           <div className="flex items-center gap-2 text-[0.75rem] text-[#64748b]">
                             <span className="font-mono">{estudantesService.formatCpf(est.cpf)}</span>
                             <span>•</span>
-                            <span>{calcularIdade(est.data_nascimento)} anos</span>
+                            <span>{calcularIdadePorAnoCalendario(est.data_nascimento)} anos</span>
                             <span>•</span>
                             <span>{est.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
                             <span>•</span>

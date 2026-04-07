@@ -22,6 +22,7 @@ const INITIAL_FORM = {
   rg: '',
   dataNascimento: '',
   sexo: '',
+  peso: '',
   email: '',
   endereco: '',
   cep: '',
@@ -73,6 +74,11 @@ function validateStep(step, form) {
     else if (onlyDigits(form.rg).length > 15) err.rg = 'RG deve ter no máximo 15 caracteres'
     if (!form.dataNascimento?.trim()) err.dataNascimento = 'Data de nascimento é obrigatória'
     if (!form.sexo) err.sexo = 'Selecione o sexo'
+    if (!form.peso?.toString().trim()) err.peso = 'Peso é obrigatório'
+    else {
+      const peso = Number(form.peso)
+      if (Number.isNaN(peso) || peso <= 0 || peso > 500) err.peso = 'Peso deve estar entre 0,1 e 500 kg'
+    }
     if (!form.email?.trim() || !emailRe.test(form.email)) err.email = 'E-mail inválido'
     if (!form.endereco?.trim() || form.endereco.trim().length < 5) err.endereco = 'Endereço deve ter pelo menos 5 caracteres'
     if (!form.cep?.trim() || onlyDigits(form.cep).length !== 8) err.cep = 'CEP deve conter 8 dígitos'
@@ -176,6 +182,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
             rg: full.rg || '',
             dataNascimento: full.data_nascimento || '',
             sexo: full.sexo || '',
+            peso: full.peso != null ? String(full.peso) : '',
             email: full.email || '',
             endereco: full.endereco || '',
             cep: full.cep ? maskCep(String(full.cep).replace(/\D/g, '')) : '',
@@ -310,6 +317,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
         rg: onlyDigits(form.rg).slice(0, 15),
         data_nascimento: form.dataNascimento,
         sexo: form.sexo,
+        peso: Number(form.peso),
         email: form.email.trim(),
         endereco: form.endereco.trim(),
         cep: onlyDigits(form.cep),
@@ -473,6 +481,18 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                             status={errors.sexo ? 'error' : undefined}
                           />
                           {errors.sexo && <p className={errorClass}>{errors.sexo}</p>}
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label htmlFor="modal-peso" className={labelClass}>Peso (kg) *</label>
+                          <Input
+                            id="modal-peso"
+                            inputMode="decimal"
+                            value={form.peso}
+                            onChange={(e) => updateField('peso', e.target.value.replace(',', '.'))}
+                            placeholder="Ex: 62.5"
+                            status={errors.peso ? 'error' : undefined}
+                          />
+                          {errors.peso && <p className={errorClass}>{errors.peso}</p>}
                         </div>
                       </div>
                     </div>

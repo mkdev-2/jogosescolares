@@ -59,6 +59,7 @@ def _row_to_response(row: dict) -> EstudanteAtletaResponse:
         email=r.get("email"),
         endereco=r.get("endereco"),
         cep=r.get("cep"),
+        peso=float(r["peso"]) if r.get("peso") is not None else None,
         numero_registro_confederacao=r.get("numero_registro_confederacao"),
         foto_url=r.get("foto_url"),
         responsavel_nome=r["responsavel_nome"],
@@ -89,7 +90,7 @@ async def list_estudantes_atletas(
             await cur.execute(
                 """
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                       e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                       e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                        e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
@@ -113,7 +114,7 @@ async def list_estudantes_atletas(
             await cur.execute(
                 """
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                       e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                       e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                        e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
@@ -332,7 +333,7 @@ async def get_estudante_atleta(
         await cur.execute(
             """
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
@@ -400,15 +401,15 @@ async def create_estudante_atleta(
                 """
                 INSERT INTO estudantes_atletas (
                 escola_id, nome, cpf, rg, data_nascimento, sexo, email, endereco, cep,
-                numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
+                peso, numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
                 responsavel_celular, responsavel_email, responsavel_nis,
                 ficha_assinada, documentacao_assinada_url
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s
             )
             RETURNING id, escola_id, nome, cpf, rg, data_nascimento, sexo, email, endereco, cep,
-                      numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
+                      peso, numero_registro_confederacao, foto_url, responsavel_nome, responsavel_cpf, responsavel_rg,
                       responsavel_celular, responsavel_email, responsavel_nis,
                       ficha_assinada, documentacao_assinada_url, created_at, updated_at
             """,
@@ -422,6 +423,7 @@ async def create_estudante_atleta(
                 data.email.strip(),
                 data.endereco.strip(),
                 data.cep.strip(),
+                data.peso,
                 data.numero_registro_confederacao.strip() if data.numero_registro_confederacao else None,
                 data.foto_url,
                 data.responsavel_nome.strip(),
@@ -482,7 +484,7 @@ async def update_estudante_atleta(
             await cur.execute(
                 """
                 SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                       e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                       e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                        e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                        e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                        e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
@@ -508,7 +510,7 @@ async def update_estudante_atleta(
 
     col_map = {
         "nome": "nome", "cpf": "cpf", "rg": "rg", "data_nascimento": "data_nascimento",
-        "sexo": "sexo", "email": "email", "endereco": "endereco", "cep": "cep",
+        "sexo": "sexo", "email": "email", "endereco": "endereco", "cep": "cep", "peso": "peso",
         "numero_registro_confederacao": "numero_registro_confederacao", "foto_url": "foto_url",
         "responsavel_nome": "responsavel_nome", "responsavel_cpf": "responsavel_cpf",
         "responsavel_rg": "responsavel_rg", "responsavel_celular": "responsavel_celular",
@@ -553,7 +555,7 @@ async def update_estudante_atleta(
         await cur.execute(
             """
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
@@ -688,7 +690,7 @@ async def validar_documentos_estudante(
         await cur.execute(
             """
             SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
-                   e.endereco, e.cep, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
                    e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
                    e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url,
                    e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,

@@ -449,6 +449,7 @@ class EstudanteAtletaCreate(BaseModel):
     email: str = Field(..., min_length=1)
     endereco: str = Field(..., min_length=1)
     cep: str = Field(..., min_length=8, max_length=9)
+    peso: Optional[float] = Field(None, ge=0, le=500, description="Peso do aluno em kg")
     numero_registro_confederacao: Optional[str] = Field(None, max_length=20)
     foto_url: Optional[str] = None
     responsavel_nome: str = Field(..., min_length=1)
@@ -473,6 +474,7 @@ class EstudanteAtletaUpdate(BaseModel):
     email: Optional[str] = Field(None, min_length=1)
     endereco: Optional[str] = Field(None, min_length=1)
     cep: Optional[str] = Field(None, min_length=8, max_length=9)
+    peso: Optional[float] = Field(None, ge=0, le=500)
     numero_registro_confederacao: Optional[str] = Field(None, max_length=20)
     foto_url: Optional[str] = None
     responsavel_nome: Optional[str] = Field(None, min_length=1)
@@ -499,6 +501,7 @@ class EstudanteAtletaResponse(BaseModel):
     email: Optional[str] = None
     endereco: Optional[str] = None
     cep: Optional[str] = None
+    peso: Optional[float] = None
     numero_registro_confederacao: Optional[str] = None
     foto_url: Optional[str] = None
     responsavel_nome: str

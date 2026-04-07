@@ -39,6 +39,7 @@ export default function EstudantesList({
   onDeleteAluno,
   onViewAluno,
   onGerarCredencial,
+  onFichaIndividual,
   showInstituicao = false,
   escolas = [],
 }) {
@@ -184,9 +185,12 @@ export default function EstudantesList({
                       Sexo
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      Peso
+                    </th>
+                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Ficha de inscrição
                     </th>
-                    {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
+                    {(onEditAluno || onDeleteAluno || onGerarCredencial || onFichaIndividual) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ações
                       </th>
@@ -227,9 +231,12 @@ export default function EstudantesList({
                         <SexoBadge sexo={item.sexo} />
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
+                        {item.peso != null ? `${item.peso} kg` : '-'}
+                      </td>
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         <FichaInscricaoBadge item={item} />
                       </td>
-                      {(onEditAluno || onDeleteAluno || onGerarCredencial) && (
+                      {(onEditAluno || onDeleteAluno || onGerarCredencial || onFichaIndividual) && (
                         <td
                           className="px-5 py-4 text-right border-b border-[#f1f5f9]"
                           onClick={(e) => e.stopPropagation()}
@@ -247,6 +254,16 @@ export default function EstudantesList({
                                   >
                                     <IdCard size={16} />
                                     Gerar credencial
+                                  </button>
+                                )}
+                                {onFichaIndividual && (
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#334155] hover:bg-[#f1f5f9] hover:text-[#0f766e] transition-colors rounded-md border-0 bg-transparent text-left cursor-pointer w-full"
+                                    onClick={() => onFichaIndividual(item)}
+                                  >
+                                    <FileText size={16} />
+                                    Ficha individual
                                   </button>
                                 )}
                                 {onEditAluno && (

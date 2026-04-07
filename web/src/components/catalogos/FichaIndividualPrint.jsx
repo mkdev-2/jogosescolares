@@ -1,7 +1,14 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { configuracoesService } from '../../services/configuracoesService'
+import { fetchStorageBlob } from '../../services/storageService'
 
-export default function FichaIndividualPrint({ dados, ano = 2026, onClose }) {
+export default function FichaIndividualPrint({ dados, ano = new Date().getFullYear(), onClose }) {
   const printRef = useRef(null)
+  const [logos, setLogos] = useState({
+    logo_jels: '/Jels-2026-horizontal.png',
+    logo_secretaria: '/logo-semcej.png',
+  })
+  const logoBlobUrlsRef = useRef([])
 
   const handlePrint = () => {
     window.print()
@@ -9,6 +16,49 @@ export default function FichaIndividualPrint({ dados, ano = 2026, onClose }) {
 
   const est = dados?.estudante || {}
   const resp = dados?.responsavel || {}
+  const estDataNascimento = est?.data_nascimento || est?.dataNascimento
+  const estRegistro = est?.numero_registro_confederacao || est?.numeroRegistroConfederacao
+
+  useEffect(() => {
+    logoBlobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+    logoBlobUrlsRef.current = []
+
+    const fetchLogos = async () => {
+      try {
+        const data = await configuracoesService.getLogos()
+        let logoJels = '/Jels-2026-horizontal.png'
+        let logoSec = '/logo-semcej.png'
+        if (data?.logo_jels) {
+          try {
+            const b = await fetchStorageBlob(data.logo_jels)
+            const u = URL.createObjectURL(b)
+            logoBlobUrlsRef.current.push(u)
+            logoJels = u
+          } catch {
+            // fallback default
+          }
+        }
+        if (data?.logo_secretaria) {
+          try {
+            const b = await fetchStorageBlob(data.logo_secretaria)
+            const u = URL.createObjectURL(b)
+            logoBlobUrlsRef.current.push(u)
+            logoSec = u
+          } catch {
+            // fallback default
+          }
+        }
+        setLogos({ logo_jels: logoJels, logo_secretaria: logoSec })
+      } catch {
+        // fallback default
+      }
+    }
+    fetchLogos()
+    return () => {
+      logoBlobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+      logoBlobUrlsRef.current = []
+    }
+  }, [])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '–'
@@ -77,8 +127,8 @@ export default function FichaIndividualPrint({ dados, ano = 2026, onClose }) {
       <div ref={printRef} data-ficha-individual className="max-w-[210mm] mx-auto p-4 text-[11px] leading-tight">
         {/* Cabeçalho */}
         <div className="flex items-center justify-center gap-8 mb-4 border-b border-[#e2e8f0] pb-2">
-          <img src="/Jels-2026-horizontal.png" alt="JELS" className="h-12 object-contain" />
-          <img src="/logo-semcej.png" alt="SEMCEJ" className="h-12 object-contain" />
+          <img src={logos.logo_jels} alt="JELS" className="h-12 object-contain" />
+          <img src={logos.logo_secretaria} alt="SEMCEJ" className="h-12 object-contain" />
         </div>
 
         <h1 className="text-center text-sm font-bold text-[#042f2e] mb-4 uppercase">
@@ -118,7 +168,7 @@ export default function FichaIndividualPrint({ dados, ano = 2026, onClose }) {
             </tr>
             <tr>
               <th className="w-1/6">Data de Nasci.</th>
-              <td className="w-2/6 font-bold">{formatDate(est?.dataNascimento)}</td>
+              <td className="w-2/6 font-bold">{formatDate(estDataNascimento)}</td>
               <th className="w-1/6">Sexo</th>
               <td className="w-2/6 font-bold">{est?.sexo === 'M' ? 'Masculino' : est?.sexo === 'F' ? 'Feminino' : '–'}</td>
             </tr>
@@ -126,7 +176,13 @@ export default function FichaIndividualPrint({ dados, ano = 2026, onClose }) {
               <th className="w-1/6">E-mail</th>
               <td className="w-2/6 font-bold">{est?.email || '–'}</td>
               <th className="w-1/6">Nº Registro Confed.</th>
-              <td className="w-2/6 font-bold">{est?.numeroRegistroConfederacao || '–'}</td>
+              <td className="w-2/6 font-bold">{estRegistro || '–'}</td>
+            </tr>
+            <tr>
+              <th className="w-1/6">Peso (kg)</th>
+              <td className="w-2/6 font-bold">{est?.peso != null ? String(est.peso) : '–'}</td>
+              <th className="w-1/6">Modalidade</th>
+              <td className="w-2/6 font-bold">{dados?.modalidade || '–'}</td>
             </tr>
             <tr>
               <th className="w-1/6">Endereço</th>

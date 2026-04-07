@@ -208,6 +208,7 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
             <InfoRow label="RG" value={aluno.rg} />
             <InfoRow label="Data de Nascimento" value={formatDate(aluno.data_nascimento)} />
             <InfoRow label="Sexo" value={SEXO_LABEL[aluno.sexo] || aluno.sexo} />
+            <InfoRow label="Peso" value={aluno.peso != null ? `${aluno.peso} kg` : '-'} />
             <InfoRow label="E-mail" value={aluno.email} />
             <InfoRow label="Endereço" value={aluno.endereco} />
             <InfoRow label="CEP" value={aluno.cep} />
