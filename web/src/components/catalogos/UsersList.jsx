@@ -14,7 +14,7 @@ const ROLE_LABELS = {
   MESARIO: 'Mesário',
 }
 
-export default function UsersList({ currentUser, onNewUser, onEditUser }) {
+export default function UsersList({ currentUser, onNewUser, onEditUser, refreshKey }) {
   const { users, loading, error, fetchUsers, deleteUser } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
   const [escolaFilterId, setEscolaFilterId] = useState(null)
@@ -34,6 +34,10 @@ export default function UsersList({ currentUser, onNewUser, onEditUser }) {
       setEscolas([])
     })
   }, [])
+
+  useEffect(() => {
+    if (refreshKey > 0) fetchUsers()
+  }, [refreshKey, fetchUsers])
 
   useEffect(() => {
     setCurrentPage(1)

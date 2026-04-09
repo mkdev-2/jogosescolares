@@ -30,10 +30,6 @@ export default function Equipes() {
 
   const handleModalClose = () => {
     setModalOpen(false)
-  }
-
-  const handleModalSuccess = () => {
-    setModalOpen(false)
     fetchLista()
   }
 
@@ -129,7 +125,6 @@ export default function Equipes() {
       <EquipeModal
         open={modalOpen}
         onClose={handleModalClose}
-        onSuccess={handleModalSuccess}
         variantes={variantes}
         estudantes={estudantes}
         professoresTecnicos={professoresTecnicos}

@@ -13,10 +13,6 @@ export default function ProfessoresTecnicos() {
 
   const handleModalClose = () => {
     setModalOpen(false)
-  }
-
-  const handleModalSuccess = () => {
-    setModalOpen(false)
     fetchLista()
   }
 
@@ -43,7 +39,6 @@ export default function ProfessoresTecnicos() {
       <ProfessorTecnicoModal
         open={modalOpen}
         onClose={handleModalClose}
-        onSuccess={handleModalSuccess}
       />
     </div>
   )

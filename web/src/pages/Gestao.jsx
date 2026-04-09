@@ -164,13 +164,7 @@ export default function Gestao() {
               />
               <EstudanteAtletaModal
                 open={modalEstudanteOpen}
-                onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null); setEstudanteModalInitialStep(0) }}
-                onSuccess={() => {
-                  setModalEstudanteOpen(false)
-                  setEstudanteParaEditar(null)
-                  setEstudanteModalInitialStep(0)
-                  fetchEstudantes()
-                }}
+                onClose={() => { setModalEstudanteOpen(false); setEstudanteParaEditar(null); setEstudanteModalInitialStep(0); fetchEstudantes() }}
                 estudante={estudanteParaEditar}
                 initialStep={estudanteModalInitialStep}
               />
@@ -196,12 +190,7 @@ export default function Gestao() {
               />
               <ProfessorTecnicoModal
                 open={modalProfessorOpen}
-                onClose={() => { setModalProfessorOpen(false); setProfessorParaEditar(null) }}
-                onSuccess={() => {
-                  setModalProfessorOpen(false)
-                  setProfessorParaEditar(null)
-                  fetchProfessores()
-                }}
+                onClose={() => { setModalProfessorOpen(false); setProfessorParaEditar(null); fetchProfessores() }}
                 professor={professorParaEditar}
               />
             </>
@@ -330,12 +319,7 @@ export default function Gestao() {
               />
               <EquipeModal
                 open={modalEquipeOpen}
-                onClose={() => { setModalEquipeOpen(false); setEquipeParaEditar(null) }}
-                onSuccess={() => {
-                  setModalEquipeOpen(false)
-                  setEquipeParaEditar(null)
-                  fetchEquipes()
-                }}
+                onClose={() => { setModalEquipeOpen(false); setEquipeParaEditar(null); fetchEquipes() }}
                 variantes={variantes}
                 estudantes={listaEstudantes}
                 professoresTecnicos={listaProfessores}

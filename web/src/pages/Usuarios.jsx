@@ -7,6 +7,7 @@ export default function Usuarios({ embedded }) {
   const { user } = useAuth()
   const [modalOpen, setModalOpen] = useState(false)
   const [userSelecionado, setUserSelecionado] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const handleNewUser = () => {
     setUserSelecionado(null)
@@ -21,11 +22,7 @@ export default function Usuarios({ embedded }) {
   const handleModalClose = () => {
     setModalOpen(false)
     setUserSelecionado(null)
-  }
-
-  const handleModalSuccess = () => {
-    setModalOpen(false)
-    setUserSelecionado(null)
+    setRefreshKey((k) => k + 1)
   }
 
   return (
@@ -46,6 +43,7 @@ export default function Usuarios({ embedded }) {
           currentUser={user}
           onNewUser={handleNewUser}
           onEditUser={handleEditUser}
+          refreshKey={refreshKey}
         />
       </div>
 
@@ -54,7 +52,7 @@ export default function Usuarios({ embedded }) {
         onClose={handleModalClose}
         user={userSelecionado}
         currentUser={user}
-        onSuccess={handleModalSuccess}
+        onSuccess={handleModalClose}
       />
     </div>
   )

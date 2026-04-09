@@ -511,7 +511,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       </button>
                       <p className="text-xs text-[#64748b] text-center w-32 m-0">
                         {form.fotoUrl
-                          ? estudante?.id ? 'Clique para alterar (salva imediatamente)' : 'Clique para alterar'
+                          ? estudante?.id ? 'Foto Salva. Clique para alterar' : 'Clique para alterar'
                           : 'Foto obrigatória para emissão do crachá'}
                       </p>
                     </div>

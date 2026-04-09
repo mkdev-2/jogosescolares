@@ -24,10 +24,6 @@ export default function CadastroEstudanteAtleta() {
 
   const handleModalClose = () => {
     setModalOpen(false)
-  }
-
-  const handleModalSuccess = () => {
-    setModalOpen(false)
     fetchEstudantes()
   }
 
@@ -134,7 +130,6 @@ export default function CadastroEstudanteAtleta() {
       <EstudanteAtletaModal
         open={modalOpen}
         onClose={handleModalClose}
-        onSuccess={handleModalSuccess}
       />
     </div>
   )
