@@ -408,6 +408,37 @@ async def create_equipe(
                     detail="Sua escola já possui uma equipe cadastrada para esta modalidade/categoria/naipe.",
                 )
 
+        # Pré-validar conflitos de modalidade (retorna lista estruturada para o frontend)
+        if tipo_modalidade_codigo in ("COLETIVAS", "INDIVIDUAIS") and data.estudante_ids:
+            await cur.execute(
+                """
+                SELECT DISTINCT est.id, est.nome, esp.nome AS esporte_nome
+                FROM estudantes_atletas est
+                JOIN equipe_estudantes ee  ON ee.estudante_id = est.id
+                JOIN equipes eq            ON eq.id  = ee.equipe_id
+                JOIN esporte_variantes ev2 ON ev2.id = eq.esporte_variante_id
+                JOIN tipos_modalidade tm2  ON tm2.id = ev2.tipo_modalidade_id
+                JOIN esportes esp          ON esp.id = ev2.esporte_id
+                WHERE est.id = ANY(%s) AND tm2.codigo = %s
+                ORDER BY est.nome
+                """,
+                (list(data.estudante_ids), tipo_modalidade_codigo),
+            )
+            conflitos = await cur.fetchall()
+            if conflitos:
+                tipo_label = "Coletiva" if tipo_modalidade_codigo == "COLETIVAS" else "Individual"
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "tipo": "conflito_modalidade",
+                        "tipo_modalidade": tipo_label,
+                        "conflitos": [
+                            {"estudante_id": r["id"], "estudante_nome": r["nome"], "esporte_nome": r["esporte_nome"]}
+                            for r in conflitos
+                        ],
+                    },
+                )
+
         # Inserir equipe
         await cur.execute(
             """
@@ -624,6 +655,38 @@ async def update_equipe(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f'Máximo de {limite_atletas} atleta(s) por equipe para "{esporte_nome}". Selecionados: {n_atletas}.',
                 )
+
+            # Pré-validar conflitos de modalidade (exclui a própria equipe sendo editada)
+            if final_tipo_codigo in ("COLETIVAS", "INDIVIDUAIS"):
+                await cur.execute(
+                    """
+                    SELECT DISTINCT est.id, est.nome, esp.nome AS esporte_nome
+                    FROM estudantes_atletas est
+                    JOIN equipe_estudantes ee  ON ee.estudante_id = est.id
+                    JOIN equipes eq            ON eq.id  = ee.equipe_id
+                    JOIN esporte_variantes ev2 ON ev2.id = eq.esporte_variante_id
+                    JOIN tipos_modalidade tm2  ON tm2.id = ev2.tipo_modalidade_id
+                    JOIN esportes esp          ON esp.id = ev2.esporte_id
+                    WHERE est.id = ANY(%s) AND tm2.codigo = %s AND eq.id != %s
+                    ORDER BY est.nome
+                    """,
+                    (list(updates["estudante_ids"]), final_tipo_codigo, equipe_id),
+                )
+                conflitos = await cur.fetchall()
+                if conflitos:
+                    tipo_label = "Coletiva" if final_tipo_codigo == "COLETIVAS" else "Individual"
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={
+                            "tipo": "conflito_modalidade",
+                            "tipo_modalidade": tipo_label,
+                            "conflitos": [
+                                {"estudante_id": r["id"], "estudante_nome": r["nome"], "esporte_nome": r["esporte_nome"]}
+                                for r in conflitos
+                            ],
+                        },
+                    )
+
             await cur.execute("DELETE FROM equipe_estudantes WHERE equipe_id = %s", (equipe_id,))
             try:
                 for sid in updates["estudante_ids"]:

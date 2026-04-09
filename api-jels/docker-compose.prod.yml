@@ -1,8 +1,5 @@
 # Docker Compose - Produção Jogos Escolares (JELS) - Backend
 # Configurado para Traefik (rede proxy externa)
-# Domínios: configure via variáveis de ambiente no .env
-
-version: '3.8'
 
 services:
   # --- BANCO DE DADOS ---

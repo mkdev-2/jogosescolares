@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Trophy, User, Users, Search } from 'lucide-react'
-import { Input, Select, Checkbox, Button, Tooltip } from 'antd'
+import { Input, Select, Checkbox, Button, Tooltip, notification } from 'antd'
 import Modal from '../ui/Modal'
 import ModalidadeIcon from './ModalidadeIcon'
 import { equipesService } from '../../services/equipesService'
@@ -79,7 +79,8 @@ export default function EquipeModal({
   const filteredEstudantes = estudantes.filter((e) => {
     if (!alunoSearch.trim()) return true
     const term = alunoSearch.toLowerCase()
-    return (e.nome || '').toLowerCase().includes(term) || (e.cpf || '').replace(/\D/g, '').includes(alunoSearch.replace(/\D/g, ''))
+    const cpfSearch = alunoSearch.replace(/\D/g, '')
+    return (e.nome || '').toLowerCase().includes(term) || (cpfSearch.length > 0 && (e.cpf || '').replace(/\D/g, '').includes(cpfSearch))
   })
 
   const podeAdicionarMais = limiteAtletas == null || estudanteIds.length < limiteAtletas
@@ -175,6 +176,29 @@ export default function EquipeModal({
       handleClose()
       onSuccess?.()
     } catch (err) {
+      if (err.conflitos) {
+        notification.error({
+          message: `Não foi possível ${equipe ? 'salvar' : 'criar'} a equipe`,
+          description: (
+            <div>
+              <p className="m-0 mb-2">
+                Os alunos abaixo já estão participando de outra equipe <strong>{err.tipoModalidade?.toUpperCase()}</strong>:
+              </p>
+              <ul className="m-0 pl-4 space-y-1">
+                {err.conflitos.map((c) => (
+                  <li key={c.estudante_id} className="text-sm">
+                    <span className="font-medium">{c.estudante_nome}</span>
+                    <span className="text-[#64748b]"> — {c.esporte_nome}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+          placement: 'bottomRight',
+          duration: 10,
+        })
+        return
+      }
       setSubmitError(err.message || 'Erro ao salvar equipe. Tente novamente.')
       formTopRef.current?.scrollIntoView({ behavior: 'smooth' })
     } finally {

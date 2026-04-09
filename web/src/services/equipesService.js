@@ -44,6 +44,12 @@ export const equipesService = {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
+      if (data.detail && typeof data.detail === 'object' && data.detail.tipo === 'conflito_modalidade') {
+        const err = new Error('conflito_modalidade')
+        err.conflitos = data.detail.conflitos
+        err.tipoModalidade = data.detail.tipo_modalidade
+        throw err
+      }
       const raw = data.detail || data.message || `Erro ${res.status}`
       throw new Error(sanitizeErrorMessage(raw, 'Erro ao criar equipe. Verifique os dados e tente novamente.'))
     }
@@ -58,6 +64,12 @@ export const equipesService = {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
+      if (data.detail && typeof data.detail === 'object' && data.detail.tipo === 'conflito_modalidade') {
+        const err = new Error('conflito_modalidade')
+        err.conflitos = data.detail.conflitos
+        err.tipoModalidade = data.detail.tipo_modalidade
+        throw err
+      }
       const raw = data.detail || data.message || `Erro ${res.status}`
       throw new Error(sanitizeErrorMessage(raw, 'Erro ao atualizar equipe. Verifique os dados e tente novamente.'))
     }
