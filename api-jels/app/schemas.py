@@ -465,6 +465,11 @@ class EstudanteAtletaCreate(BaseModel):
     documentacao_rg_url: Optional[str] = Field(None, max_length=500, description="URL do anexo do RG do aluno")
 
 
+class EstudanteAtletaFotoUpdate(BaseModel):
+    """Schema para atualização exclusiva da foto do estudante-atleta."""
+    foto_url: str = Field(..., max_length=500)
+
+
 class EstudanteAtletaUpdate(BaseModel):
     """Schema para atualização parcial de estudante-atleta."""
     nome: Optional[str] = Field(None, min_length=1)

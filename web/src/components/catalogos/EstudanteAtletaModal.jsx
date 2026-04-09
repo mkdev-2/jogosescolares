@@ -284,6 +284,9 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
     setUploadingFoto(true)
     try {
       const url = await uploadFotoEstudante(file)
+      if (estudante?.id) {
+        await estudantesService.atualizarFoto(estudante.id, url)
+      }
       updateField('fotoUrl', url)
     } catch (err) {
       setSubmitError(err.message || 'Erro ao enviar foto')
@@ -507,7 +510,9 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                         )}
                       </button>
                       <p className="text-xs text-[#64748b] text-center w-32 m-0">
-                        {form.fotoUrl ? 'Clique para alterar' : 'A foto será obrigatória para o crachá'}
+                        {form.fotoUrl
+                          ? estudante?.id ? 'Clique para alterar (salva imediatamente)' : 'Clique para alterar'
+                          : 'Foto obrigatória para emissão do crachá'}
                       </p>
                     </div>
 

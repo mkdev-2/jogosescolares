@@ -10,6 +10,7 @@ from psycopg import errors as pg_errors
 
 from app.schemas import (
     EstudanteAtletaCreate,
+    EstudanteAtletaFotoUpdate,
     EstudanteAtletaUpdate,
     EstudanteAtletaResponse,
     EstudanteCredencialResponse,
@@ -602,6 +603,61 @@ async def update_estudante_atleta(
             (estudante_id,),
         )
         row = await cur.fetchone()
+    return _row_to_response(dict(row))
+
+
+@router.patch("/{estudante_id}/foto", response_model=EstudanteAtletaResponse)
+async def update_foto_estudante_atleta(
+    estudante_id: int,
+    data: EstudanteAtletaFotoUpdate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user_with_escola),
+):
+    """Atualiza exclusivamente a foto do estudante-atleta."""
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT * FROM estudantes_atletas WHERE id = %s", (estudante_id,))
+        existing = await cur.fetchone()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Estudante não encontrado")
+    _check_estudante_visible(current_user, existing["escola_id"])
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE estudantes_atletas SET foto_url = %s, updated_at = NOW() WHERE id = %s",
+            (data.foto_url, estudante_id),
+        )
+        await conn.commit()
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT e.id, e.escola_id, e.nome, e.cpf, e.rg, e.data_nascimento, e.sexo, e.email,
+                   e.endereco, e.cep, e.peso, e.numero_registro_confederacao, e.foto_url, e.responsavel_nome,
+                   e.responsavel_cpf, e.responsavel_rg, e.responsavel_celular, e.responsavel_email,
+                   e.responsavel_nis, e.ficha_assinada, e.documentacao_assinada_url, e.documentacao_rg_url,
+                   e.documentos_validados, e.documentos_validados_por, e.documentos_validados_em,
+                   u.nome AS documentos_validados_por_nome,
+                   e.created_at, e.updated_at, s.nome_escola AS escola_nome, s.inep AS escola_inep
+            FROM estudantes_atletas e
+            LEFT JOIN escolas s ON s.id = e.escola_id
+            LEFT JOIN users u ON u.id = e.documentos_validados_por
+            WHERE e.id = %s
+            """,
+            (estudante_id,),
+        )
+        row = await cur.fetchone()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="ESTUDANTE",
+        recurso_id=estudante_id,
+        detalhes_antes={"foto_url": existing["foto_url"]},
+        detalhes_depois={"foto_url": data.foto_url},
+        mensagem=f"Usuário {current_user['nome']} atualizou a foto do aluno {existing['nome']}.",
+    )
+
     return _row_to_response(dict(row))
 
 

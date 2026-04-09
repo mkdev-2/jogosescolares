@@ -39,19 +39,24 @@ export default function Credenciais() {
         (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
     )
     const estudantesComAssinaturaPendente = estudantesDaEscola.length - estudantesComDocumentoAssinado.length
+    const estudantesSemFoto = estudantesDaEscola.filter(
+        (aluno) => !String(aluno?.foto_url || '').trim()
+    ).length
     const credenciaisDaEscola = credenciaisGeradasPorEscola[String(escolaSelecionada)] || {}
-    const estudantesSemCredencialGerada = estudantesDaEscola.filter(
+    const estudantesAptos = estudantesDaEscola.filter(
+        (aluno) =>
+            !!String(aluno?.documentacao_assinada_url || '').trim() &&
+            !!String(aluno?.foto_url || '').trim()
+    )
+    const estudantesSemCredencialGerada = estudantesAptos.filter(
         (aluno) => !credenciaisDaEscola[String(aluno.id)]
     )
-    const estudantesAptosSemCredencialGerada = estudantesSemCredencialGerada.filter(
-        (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
-    )
     const estudantesSelecionadosParaGeracao = filtroGeracao === 'nao-geradas'
-        ? estudantesAptosSemCredencialGerada
-        : estudantesComDocumentoAssinado
+        ? estudantesSemCredencialGerada
+        : estudantesAptos
     const estudantesExibidosNaTabela = filtroGeracao === 'nao-geradas'
         ? estudantesSemCredencialGerada
-        : estudantesComDocumentoAssinado
+        : estudantesDaEscola
 
     const fetchEstudantes = useCallback(async () => {
         if (!escolaSelecionada) {
@@ -84,7 +89,7 @@ export default function Credenciais() {
             if (filtroGeracao === 'nao-geradas') {
                 alert('Nenhum estudante apto sem credencial gerada para esta escola.')
             } else {
-                alert('Nenhum estudante com status "Documento assinado" para esta escola.')
+                alert('Nenhum estudante apto para esta escola. É necessário ter documento assinado e foto cadastrada.')
             }
             return
         }
@@ -400,7 +405,7 @@ export default function Credenciais() {
                     <Alert
                         type="warning"
                         showIcon
-                        message="A geração de credenciais é permitida apenas para alunos com status 'Documento assinado'."
+                        message="A geração de credenciais é permitida apenas para alunos com status 'Documento assinado' e com foto cadastrada."
                     />
 
                     <Form form={form} layout="vertical" className="mt-2">
@@ -438,8 +443,8 @@ export default function Credenciais() {
                                         onChange={setFiltroGeracao}
                                         style={{ width: '100%', height: 45 }}
                                         options={[
-                                            { label: 'Todos os aptos (Documento assinado)', value: 'todos' },
-                                            { label: 'Somente sem credencial gerada', value: 'nao-geradas' },
+                                            { label: 'Todos os alunos', value: 'todos' },
+                                            { label: 'Somente aptos sem credencial gerada', value: 'nao-geradas' },
                                         ]}
                                     />
                                 </Form.Item>
@@ -455,6 +460,8 @@ export default function Credenciais() {
                                             <div className="text-[0.875rem] sm:text-[1rem]"><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
                                             <div className="text-[0.875rem] sm:text-[1rem]"><strong>Documento assinado:</strong> {estudantesComDocumentoAssinado.length}</div>
                                             <div className="text-[0.875rem] sm:text-[1rem]"><strong>Assinatura pendente:</strong> {estudantesComAssinaturaPendente}</div>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Sem foto:</strong> <span className={estudantesSemFoto > 0 ? 'text-red-500' : ''}>{estudantesSemFoto}</span></div>
+                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Aptos para credencial</strong> (doc. assinado + foto): <span className="text-green-700 font-semibold">{estudantesAptos.length}</span></div>
                                         </Space>
                                     }
                                     type="info"
@@ -502,8 +509,8 @@ export default function Credenciais() {
                             size="small"
                             title={
                                 filtroGeracao === 'nao-geradas'
-                                    ? `Estudantes sem credencial gerada (${estudantesExibidosNaTabela.length})`
-                                    : `Estudantes Encontrados (${estudantesExibidosNaTabela.length})`
+                                    ? `Aptos sem credencial gerada (${estudantesExibidosNaTabela.length})`
+                                    : `Todos os Estudantes (${estudantesExibidosNaTabela.length})`
                             }
                             className="shadow-sm sm:rounded-xl -mx-4 sm:mx-0 border-x-0 sm:border-x border-[#f1f5f9]"
                             bodyStyle={{ padding: 0 }}
@@ -526,6 +533,13 @@ export default function Credenciais() {
                                         render: (c) => estudantesService.formatCpf(c)
                                     },
                                     {
+                                        title: 'Foto',
+                                        key: 'foto',
+                                        render: (_, row) => !!String(row?.foto_url || '').trim()
+                                            ? <Tag color="green">Com foto</Tag>
+                                            : <Tag color="red">Sem foto</Tag>
+                                    },
+                                    {
                                         title: 'Status da ficha',
                                         key: 'status_ficha',
                                         render: (_, row) => {
@@ -539,6 +553,8 @@ export default function Credenciais() {
                                         title: 'Credencial',
                                         key: 'status_credencial',
                                         render: (_, row) => {
+                                            const apto = !!String(row?.documentacao_assinada_url || '').trim() && !!String(row?.foto_url || '').trim()
+                                            if (!apto) return <Tag color="default">Inapto</Tag>
                                             const gerada = !!credenciaisDaEscola[String(row?.id)]
                                             return gerada
                                                 ? <Tag color="cyan">Gerada</Tag>

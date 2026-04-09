@@ -110,6 +110,18 @@ export const estudantesService = {
     return res.json().catch(() => ({}))
   },
 
+  async atualizarFoto(id, fotoUrl) {
+    const res = await apiFetch(`/estudantes-atletas/${id}/foto`, {
+      method: 'PATCH',
+      body: JSON.stringify({ foto_url: fotoUrl }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail || data.message || `Erro ${res.status}`)
+    }
+    return res.json().catch(() => ({}))
+  },
+
   async atualizar(id, payload) {
     const res = await apiFetch(`/estudantes-atletas/${id}`, {
       method: 'PUT',
