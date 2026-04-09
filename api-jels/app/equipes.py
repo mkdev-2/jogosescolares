@@ -56,6 +56,7 @@ def _row_to_response(row: dict, estudantes: list[EquipeEstudanteItem] | None = N
         esporte_variante_id=str(row["esporte_variante_id"]),
         esporte_nome=row.get("esporte_nome"),
         esporte_icone=row.get("esporte_icone"),
+        esporte_minimo_atletas=row.get("esporte_minimo_atletas"),
         esporte_limite_atletas=row.get("esporte_limite_atletas"),
         categoria_nome=row.get("categoria_nome"),
         naipe_nome=row.get("naipe_nome"),
@@ -76,7 +77,7 @@ def _get_equipes_sql(where_clause: str = "") -> str:
         SELECT e.id, e.edicao_id, e.escola_id, e.esporte_variante_id, e.professor_tecnico_id, e.professor_auxiliar_id,
                e.created_at, e.updated_at,
                esp.nome AS esporte_nome, esp.icone AS esporte_icone,
-               esp.limite_atletas AS esporte_limite_atletas,
+               esp.minimo_atletas AS esporte_minimo_atletas, esp.limite_atletas AS esporte_limite_atletas,
                c.nome AS categoria_nome, n.nome AS naipe_nome,
                tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
                p.nome AS professor_tecnico_nome, pa.nome AS professor_auxiliar_nome, s.nome_escola AS escola_nome
@@ -313,12 +314,14 @@ async def create_equipe(
                 detail="Professor-técnico deve pertencer à sua escola",
             )
 
-        # Validar variante existe
+        # Validar variante existe e buscar limites de atletas
         await cur.execute(
             """
-            SELECT ev.id, tm.codigo AS tipo_modalidade_codigo
+            SELECT ev.id, tm.codigo AS tipo_modalidade_codigo,
+                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome
             FROM esporte_variantes ev
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
             WHERE ev.id = %s AND ev.edicao_id = %s
             """,
             (data.esporte_variante_id, resolved_edicao_id),
@@ -327,6 +330,9 @@ async def create_equipe(
         if not variante_row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada")
         tipo_modalidade_codigo = variante_row.get("tipo_modalidade_codigo")
+        minimo_atletas = variante_row.get("minimo_atletas") or 1
+        limite_atletas = variante_row.get("limite_atletas") or 1
+        esporte_nome = variante_row.get("esporte_nome", "")
 
         professor_auxiliar_id = data.professor_auxiliar_id
         if tipo_modalidade_codigo != "COLETIVAS":
@@ -375,6 +381,19 @@ async def create_equipe(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="A equipe só pode ser formada por alunos com documentação assinada.",
                 )
+
+        # Validar mínimo e máximo de atletas
+        n_atletas = len(data.estudante_ids)
+        if n_atletas < minimo_atletas:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Mínimo de {minimo_atletas} atleta(s) por equipe para "{esporte_nome}". Selecionados: {n_atletas}.',
+            )
+        if n_atletas > limite_atletas:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Máximo de {limite_atletas} atleta(s) por equipe para "{esporte_nome}". Selecionados: {n_atletas}.',
+            )
 
         # Em modalidade coletiva: só pode existir 1 equipe por escola/variante/edição.
         # Em modalidade individual: permite múltiplas equipes/inscrições por escola.
@@ -515,9 +534,11 @@ async def update_equipe(
         final_variante_id = updates.get("esporte_variante_id", existing["esporte_variante_id"])
         await cur.execute(
             """
-            SELECT tm.codigo AS tipo_modalidade_codigo
+            SELECT tm.codigo AS tipo_modalidade_codigo,
+                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome
             FROM esporte_variantes ev
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
             WHERE ev.id = %s AND ev.edicao_id = %s
             """,
             (final_variante_id, resolved_edicao_id),
@@ -526,6 +547,9 @@ async def update_equipe(
         if not final_variante_tipo:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variante não encontrada na edição selecionada")
         final_tipo_codigo = final_variante_tipo.get("tipo_modalidade_codigo")
+        minimo_atletas = final_variante_tipo.get("minimo_atletas") or 1
+        limite_atletas = final_variante_tipo.get("limite_atletas") or 1
+        esporte_nome = final_variante_tipo.get("esporte_nome", "")
         final_tecnico_id = updates.get("professor_tecnico_id", existing["professor_tecnico_id"])
         final_auxiliar_id = updates.get("professor_auxiliar_id", existing.get("professor_auxiliar_id"))
         if final_tipo_codigo != "COLETIVAS":
@@ -589,6 +613,17 @@ async def update_equipe(
                 (updates["esporte_variante_id"], equipe_id),
             )
         if "estudante_ids" in updates:
+            n_atletas = len(updates["estudante_ids"])
+            if n_atletas < minimo_atletas:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f'Mínimo de {minimo_atletas} atleta(s) por equipe para "{esporte_nome}". Selecionados: {n_atletas}.',
+                )
+            if n_atletas > limite_atletas:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f'Máximo de {limite_atletas} atleta(s) por equipe para "{esporte_nome}". Selecionados: {n_atletas}.',
+                )
             await cur.execute("DELETE FROM equipe_estudantes WHERE equipe_id = %s", (equipe_id,))
             try:
                 for sid in updates["estudante_ids"]:

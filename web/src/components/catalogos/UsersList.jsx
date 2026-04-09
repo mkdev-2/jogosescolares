@@ -47,11 +47,12 @@ export default function UsersList({ currentUser, onNewUser, onEditUser, refreshK
     const matchEscola =
       escolaFilterId == null || escolaFilterId === '' ||
       Number(u.escola_id) === Number(escolaFilterId)
+    const cpfSearch = searchTerm.replace(/\D/g, '')
     const matchSearch =
       !searchTerm ||
       u.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.cpf && u.cpf.includes(searchTerm.replace(/\D/g, '')))
+      (cpfSearch.length > 0 && u.cpf && u.cpf.includes(cpfSearch))
     return matchEscola && matchSearch
   })
 

@@ -73,6 +73,7 @@ export default function EquipeModal({
     const nome = String(selectedVariante?.tipo_modalidade_nome || '').trim().toUpperCase()
     return codigo === 'COLETIVAS' || nome === 'COLETIVAS'
   })()
+  const minimoAtletas = selectedVariante?.esporte_minimo_atletas != null ? Number(selectedVariante.esporte_minimo_atletas) : null
   const limiteAtletas = selectedVariante?.esporte_limite_atletas != null ? Number(selectedVariante.esporte_limite_atletas) : null
 
   const filteredEstudantes = estudantes.filter((e) => {
@@ -127,8 +128,11 @@ export default function EquipeModal({
       err.professor_auxiliar_id = 'O auxiliar deve ser diferente do técnico'
     }
     if (estudanteIds.length === 0) err.estudante_ids = 'Selecione pelo menos um aluno'
+    if (minimoAtletas != null && estudanteIds.length < minimoAtletas) {
+      err.estudante_ids = `Mínimo de ${minimoAtletas} atleta(s) por equipe para este esporte.`
+    }
     if (limiteAtletas != null && estudanteIds.length > limiteAtletas) {
-      err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe nesta variante.`
+      err.estudante_ids = `Máximo de ${limiteAtletas} atleta(s) por equipe para este esporte.`
     }
     const alunosSelecionados = estudantes.filter((e) => estudanteIds.includes(e.id))
     const algumSemDocumento = alunosSelecionados.some((e) => !temDocumentoAssinado(e))
@@ -309,8 +313,13 @@ export default function EquipeModal({
             <p className="text-sm text-[#64748b] mb-3">
               Selecione os alunos já cadastrados em Alunos com documentação assinada. O sistema valida idade e naipe automaticamente.
               <span className="block mt-1">Idade exibida considera o ano calendário (ano atual - ano de nascimento).</span>
-              {limiteAtletas != null && (
-                <span className="font-medium text-[#0f766e]"> Máximo de {limiteAtletas} atleta(s) por equipe.</span>
+              {(minimoAtletas != null || limiteAtletas != null) && (
+                <span className="font-medium text-[#0f766e]">
+                  {minimoAtletas != null && ` Mínimo: ${minimoAtletas}`}
+                  {minimoAtletas != null && limiteAtletas != null && ' •'}
+                  {limiteAtletas != null && ` Máximo: ${limiteAtletas}`}
+                  {' atleta(s) por equipe.'}
+                </span>
               )}
             </p>
             <div className="mb-3">
@@ -365,8 +374,8 @@ export default function EquipeModal({
             {estudanteIds.length > 0 && (
               <p className="text-sm text-[#64748b] mt-2 m-0">
                 {estudanteIds.length} aluno(s) selecionado(s).
-                {limiteAtletas != null && (
-                  <span> (máx. {limiteAtletas})</span>
+                {(minimoAtletas != null || limiteAtletas != null) && (
+                  <span> (mín. {minimoAtletas ?? '—'} / máx. {limiteAtletas ?? '—'})</span>
                 )}
               </p>
             )}

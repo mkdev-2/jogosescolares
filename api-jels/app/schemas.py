@@ -605,6 +605,7 @@ class EquipeResponse(BaseModel):
     esporte_variante_id: str
     esporte_nome: Optional[str] = None
     esporte_icone: Optional[str] = None
+    esporte_minimo_atletas: Optional[int] = None
     esporte_limite_atletas: Optional[int] = None
     categoria_nome: Optional[str] = None
     naipe_nome: Optional[str] = None
