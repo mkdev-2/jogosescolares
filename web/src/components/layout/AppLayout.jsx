@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar } from 'lucide-react'
 
 import { useAuth } from '../../contexts/AuthContext'
+import StorageImage from '../StorageImage'
 
 const menuItems = [
   { label: 'Dashboard', path: '/app', icon: LayoutDashboard },
@@ -211,8 +212,11 @@ export default function AppLayout({ children }) {
           <div className="flex-1" />
 
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center bg-white/20 rounded-[12px] text-white border border-white/30">
-              <User size={20} />
+            <div className="w-10 h-10 flex items-center justify-center bg-white/20 rounded-[12px] text-white border border-white/30 overflow-hidden">
+              {user.foto_url
+                ? <StorageImage path={user.foto_url} alt={user.nome} className="w-full h-full object-cover" />
+                : <User size={20} />
+              }
             </div>
             <div className="hidden flex-col items-end sm:flex">
               <span className="text-sm font-semibold text-white">{user.nome}</span>
