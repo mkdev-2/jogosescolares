@@ -26,7 +26,7 @@ const menuGroups = [
     icon: Activity,
     items: [
       { label: 'Esportes', path: '/app/atividades', icon: Trophy, tab: 'esportes' },
-      { label: 'Campeonatos', path: '/app/atividades', icon: ClipboardList, tab: 'campeonatos', adminOnly: true },
+      // { label: 'Campeonatos', path: '/app/atividades', icon: ClipboardList, tab: 'campeonatos', adminOnly: true }, // em desenvolvimento
     ],
   },
   {
