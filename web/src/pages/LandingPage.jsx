@@ -29,7 +29,7 @@ export default function LandingPage() {
       <GallerySection />
       
       {/* Widget do Instagram */}
-      <InstagramWidget />
+      {/* <InstagramWidget /> */}
       
       <FooterInstitucional />
     </div>

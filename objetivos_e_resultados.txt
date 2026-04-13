@@ -1,0 +1,29 @@
+PROJETO: JOGOS ESCOLARES LUMINENSES (JELS)
+RELATÓRIO DE OBJETIVOS E RESULTADOS ALCANÇADOS
+
+1. OBJETIVOS DA APLICAÇÃO
+A aplicação foi concebida para modernizar a gestão do maior evento esportivo do município, resolvendo gargalos históricos identificados pela Secretaria de Esporte. Os principais objetivos são:
+
+- Modernização e Desburocratização: Substituir o processo arcaico de fichas físicas e papelada manual por um sistema web integrado, eliminando problemas de legibilidade e extravio de documentos.
+- Eficiência Administrativa: Reduzir drasticamente o tempo de resposta da SEMCEJ e a carga de trabalho das escolas no processo de inscrição e formação de equipes.
+- Integridade de Dados e Segurança: Implementar validações automáticas de idade (categorias), CPF e vínculo escolar (Inep), prevenindo fraudes e garantindo que apenas estudantes aptos participem.
+- Centralização de Informações: Criar uma base de dados única que armazene desde o termo de adesão da escola até o histórico de gols e pontos de cada atleta.
+- Transparência Pública: Oferecer um portal acessível a alunos, pais e torcedores para acompanhamento em tempo real de tabelas, chaveamentos, resultados e estatísticas.
+- Emissão de Documentação Oficial: Automatizar a geração de Fichas Individuais, Fichas Coletivas e Credenciais (crachás) com fotos, padronizando a identidade do evento.
+- Alinhamento Institucional: Seguir os padrões e dados exigidos pelas fases regional e estadual (SGE/CED), facilitando o envio de dados dos campeões municipais para as etapas seguintes.
+
+2. RESULTADOS ALCANÇADOS
+Com base no desenvolvimento atual da aplicação, os seguintes resultados foram consolidados:
+
+- Arquitetura Full-Stack Implementada: Estrutura robusta utilizando React (Frontend) e FastAPI (Backend), garantindo alta disponibilidade e performance.
+- Módulo de Gestão Institucional: Fluxo completo de adesão de escolas, com área administrativa para aprovação e liberação de acesso a coordenadores escolares.
+- Cadastros Unificados e Validados: Módulos operacionais finalizados para o cadastro de Escolas, Modalidades Esportivas (27+ variantes), Categorias (Idade/Gênero) e Professores/Técnicos.
+- Gestão de Atletas e Equipes: Implementação do cadastro detalhado de Estudantes-Atletas, permitindo o gerenciamento de documentos e a formação de equipes específicas por modalidade e naipe.
+- Automação de Documentos (Print Engine): Desenvolvimento de componentes de alta fidelidade para impressão automática de:
+    - Termos de Adesão Institucional.
+    - Fichas Individuais de Atletas (com assinatura do médico/pais).
+    - Fichas Coletivas de Equipe.
+    - Credenciais e Crachás personalizados para segurança e transporte.
+- Controle de Acesso e Auditoria: Sistema de login seguro com perfis diferenciados e registro de logs de auditoria, garantindo a responsabilização pelas alterações no sistema.
+- Dashboard de Monitoramento: Painel administrativo para acompanhamento métrico das inscrições, permitindo à Secretaria visualizar o alcance do evento por modalidade e por escola em tempo real.
+- Interface Responsiva e Premium: Design moderno otimizado para uso em computadores e dispositivos móveis, facilitando o uso por professores nas escolas e coordenadores na SEMCEJ.
