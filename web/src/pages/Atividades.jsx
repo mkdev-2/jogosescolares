@@ -179,6 +179,7 @@ export default function Atividades() {
               <Trophy size={20} className={activeTab === 'esportes' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
               <span>Esportes</span>
             </button>
+            {/* Campeonatos em desenvolvimento — oculto temporariamente
             {isAdmin && (
               <button
                 type="button"
@@ -191,7 +192,7 @@ export default function Atividades() {
                 <ClipboardList size={20} className={activeTab === 'campeonatos' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
                 <span>Campeonatos</span>
               </button>
-            )}
+            )} */}
           </div>
         </div>
       )}
