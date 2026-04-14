@@ -73,12 +73,9 @@ def data_nascimento_para_categoria(categoria_idade_min: int, categoria_idade_max
 
 
 def calcular_idade_anos_completos(data_nascimento: date) -> int:
-    """Calcula idade em anos completos (mesmo critério do PostgreSQL AGE)."""
-    hoje = date.today()
-    idade = hoje.year - data_nascimento.year
-    if (hoje.month, hoje.day) < (data_nascimento.month, data_nascimento.day):
-        idade -= 1
-    return idade
+    """Calcula idade pelo ano calendário (mesmo critério do trigger validar_estudante_equipe):
+    EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM data_nascimento)."""
+    return date.today().year - data_nascimento.year
 
 
 def get_database_url() -> str:

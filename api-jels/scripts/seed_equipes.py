@@ -2,8 +2,8 @@
 """
 Script para criar equipes e vincular estudantes.
 Regras: idade (faixa da categoria), sexo alinhado ao naipe (M/F), 1 individual + 1 coletiva por aluno,
-limite_atletas do esporte. Equipes só são criadas se houver pelo menos 80% do limite de membros
-(ex.: limite 15 → mín. 12), exceto quando o limite é tratado como ilimitado (999).
+limite_atletas do esporte. Equipes só são criadas se houver pelo menos o mínimo de membros definido em esportes.minimo_atletas,
+exceto quando o limite é tratado como ilimitado (999), onde o mínimo é 1.
 
 Por padrão tenta **todas** as variantes INDIVIDUAIS + COLETIVAS da edição ativa, para **cada escola**.
 Use --max-variantes N para limitar (teste rápido).
@@ -12,7 +12,6 @@ Executa: python scripts/seed_equipes.py [--max-variantes N]
 Requer: seed_esportes_modalidades (ou catálogo equivalente), escolas, professores e estudantes.
 """
 import asyncio
-import math
 import random
 import sys
 import time
@@ -50,7 +49,7 @@ async def seed_equipes(limite_variantes: int) -> None:
             await cur.execute(
                 """
                 SELECT ev.id, ev.esporte_id, c.idade_min, c.idade_max, n.codigo AS naipe, tm.codigo AS tipo,
-                       e.limite_atletas, e.nome AS esporte_nome
+                       e.limite_atletas, e.minimo_atletas, e.nome AS esporte_nome
                 FROM esporte_variantes ev
                 JOIN esportes e ON e.id = ev.esporte_id AND e.edicao_id = ev.edicao_id
                 JOIN categorias c ON c.id = ev.categoria_id
@@ -167,7 +166,7 @@ async def seed_equipes(limite_variantes: int) -> None:
                         naipe = ev["naipe"]
                         tipo = ev["tipo"]
                         limite_atletas = ev.get("limite_atletas") or 999
-                        minimo_membros = math.ceil(limite_atletas * 0.8) if limite_atletas < 999 else 1
+                        minimo_membros = ev.get("minimo_atletas") or 1
 
                         candidatos = []
                         for est in estudantes_escola:
@@ -183,7 +182,7 @@ async def seed_equipes(limite_variantes: int) -> None:
 
                         if len(candidatos) < minimo_membros:
                             variantes_puladas += 1
-                            limite_info = f" (mín {minimo_membros}/{limite_atletas})" if limite_atletas < 999 else ""
+                            limite_info = f" (mín {minimo_membros}, máx {limite_atletas})" if limite_atletas < 999 else ""
                             if n_var <= 30 or ev_idx % max(1, n_var // 10) == 0:
                                 print(
                                     f"    [{ev_idx + 1}/{n_var}] {ev.get('esporte_nome', '?')} ({tipo}){limite_info}: "
@@ -269,8 +268,8 @@ async def seed_equipes(limite_variantes: int) -> None:
 
                 await conn.commit()
                 print(
-                    f"    ✓ Escola {escola_id} concluída em {_fmt_dur(time.perf_counter() - t_escola)} "
-                    f"(+{eq_escola} equipe(s), +{vin_escola} vínculos) — commit salvo.",
+                    f"    OK Escola {escola_id} concluida em {_fmt_dur(time.perf_counter() - t_escola)} "
+                    f"(+{eq_escola} equipe(s), +{vin_escola} vinculos) -- commit salvo.",
                     flush=True,
                 )
 
