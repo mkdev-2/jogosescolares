@@ -446,10 +446,10 @@ async def aprovar_adesao(
         row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitação não encontrada")
-    if row["status"] != "PENDENTE":
+    if row["status"] not in ("PENDENTE", "NEGADO"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solicitação já foi aprovada ou negada.",
+            detail="Solicitação já foi aprovada.",
         )
     dados_diretor = row.get("dados_diretor")
     if not isinstance(dados_diretor, dict):
