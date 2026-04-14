@@ -254,15 +254,19 @@ export default function UsuariosPendentes({ embedded }) {
                   <tbody>
                     {filtered.map((a) => (
                       <tr key={a.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]/50">
-                        <td className="py-3 px-4 font-medium text-[#0f172a]">{a.nome_escola || '-'}</td>
+                        <td className="py-3 px-4 font-medium text-[#0f172a] max-w-[200px]">
+                          <span className="block truncate">{a.nome_escola || '-'}</span>
+                        </td>
                         <td className="py-3 px-4 text-[#475569]">{a.inep || '-'}</td>
-                        <td className="py-3 px-4 text-[#475569]">
-                          {a.dados_diretor?.nome || '-'}
+                        <td className="py-3 px-4 text-[#475569] max-w-[160px]">
+                          <span className="block truncate">{a.dados_diretor?.nome || '-'}</span>
                           {a.dados_diretor?.cpf && (
-                            <span className="block text-xs text-[#94a3b8]">CPF: {a.dados_diretor.cpf}</span>
+                            <span className="block text-[11px] text-[#94a3b8] whitespace-nowrap">CPF: {a.dados_diretor.cpf}</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-[#475569]">{a.dados_coordenador?.nome || '-'}</td>
+                        <td className="py-3 px-4 text-[#475569] max-w-[160px]">
+                          <span className="block truncate">{a.dados_coordenador?.nome || '-'}</span>
+                        </td>
                         <td className="py-3 px-4 text-[#475569]">
                           {a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '-'}
                         </td>
@@ -328,15 +332,19 @@ export default function UsuariosPendentes({ embedded }) {
                             {a._status === 'APROVADA' ? 'Aprovada' : 'Recusada'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-medium text-[#0f172a]">{a.nome_escola || '-'}</td>
+                        <td className="py-3 px-4 font-medium text-[#0f172a] max-w-[200px]">
+                          <span className="block truncate">{a.nome_escola || '-'}</span>
+                        </td>
                         <td className="py-3 px-4 text-[#475569]">{a.inep || '-'}</td>
-                        <td className="py-3 px-4 text-[#475569]">
-                          {a.dados_diretor?.nome || '-'}
+                        <td className="py-3 px-4 text-[#475569] max-w-[160px]">
+                          <span className="block truncate">{a.dados_diretor?.nome || '-'}</span>
                           {a.dados_diretor?.cpf && (
-                            <span className="block text-xs text-[#94a3b8]">CPF: {a.dados_diretor.cpf}</span>
+                            <span className="block text-[11px] text-[#94a3b8] whitespace-nowrap">CPF: {a.dados_diretor.cpf}</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-[#475569]">{a.dados_coordenador?.nome || '-'}</td>
+                        <td className="py-3 px-4 text-[#475569] max-w-[160px]">
+                          <span className="block truncate">{a.dados_coordenador?.nome || '-'}</span>
+                        </td>
                         <td className="py-3 px-4 text-[#475569]">
                           {a.created_at ? new Date(a.created_at).toLocaleDateString('pt-BR') : '-'}
                         </td>
@@ -432,7 +440,9 @@ export default function UsuariosPendentes({ embedded }) {
               <div className="md:col-span-2">
                 <SectionCard icon={Building2} title="Instituição">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
-                    <InfoRow label="Nome/Razão Social" value={modalSolicitacao.nome_escola} />
+                    <div className="col-span-full">
+                      <InfoRow label="Nome/Razão Social" value={modalSolicitacao.nome_escola} />
+                    </div>
                     <InfoRow label="INEP" value={modalSolicitacao.inep} />
                     <InfoRow label="CNPJ" value={formatCnpj(modalSolicitacao.cnpj)} />
                     <InfoRow label="Endereço" value={modalSolicitacao.endereco} />
