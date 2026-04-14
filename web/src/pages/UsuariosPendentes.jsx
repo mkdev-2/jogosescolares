@@ -383,6 +383,7 @@ export default function UsuariosPendentes({ embedded }) {
                 okText="Sim, negar"
                 cancelText="Cancelar"
                 okButtonProps={{ danger: true }}
+                overlayStyle={{ zIndex: 1200 }}
               >
                 <button
                   type="button"
