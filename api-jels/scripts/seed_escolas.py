@@ -14,6 +14,7 @@ sys.path.insert(0, str(_scripts_dir))
 from seed_utils import (
     get_connection,
     gerar_cpf_valido,
+    gerar_cnpj_valido,
     parse_args_escolas,
     get_edicao_ativa_id,
     ensure_jels_esportes_e_variantes,
@@ -21,8 +22,8 @@ from seed_utils import (
 )
 
 
-def gerar_escolas_dados(quantidade: int, base_inep: int, base_cnpj: int) -> list[tuple]:
-    """Gera dados fictícios para N escolas a partir das bases informadas."""
+def gerar_escolas_dados(quantidade: int, base_inep: int) -> list[tuple]:
+    """Gera dados fictícios para N escolas a partir da base de INEP informada."""
     cidades = ["Recife", "Olinda", "Jaboatão", "Caruaru", "Petrolina", "Garanhuns", "Vitória", "Camaragibe"]
     prefixos = ["Escola Municipal", "Escola Estadual", "Colégio", "Escola Técnica"]
     nomes = ["St Agostinho", "Isaac Newton", "Albert Einstein", "Aristóteles", "Stephen Hawking", "René Descartes"]
@@ -32,7 +33,7 @@ def gerar_escolas_dados(quantidade: int, base_inep: int, base_cnpj: int) -> list
         if quantidade > len(nomes):
             nome = f"{nome} {i}"
         inep = str(base_inep + i)
-        cnpj = str(base_cnpj + i)
+        cnpj = gerar_cnpj_valido()
         cidade = cidades[i % len(cidades)]
         dados.append((
             nome, inep, cnpj,
@@ -53,18 +54,16 @@ async def seed_escolas(quantidade_escolas: int, quantidade_coordenadores: int = 
         async with conn.cursor() as cur:
             print("Conectando ao banco...", flush=True)
 
-            # Obtém o próximo INEP/CNPJ disponível para criar escolas novas (evita conflito)
+            # Obtém o próximo INEP disponível para criar escolas novas (evita conflito)
             await cur.execute(
                 """SELECT
-                    COALESCE(MAX(CAST(NULLIF(TRIM(inep), '') AS BIGINT)), 26123455) + 1 AS next_inep,
-                    COALESCE(MAX(CAST(NULLIF(TRIM(cnpj), '') AS BIGINT)), 12345678000189) + 1 AS next_cnpj
+                    COALESCE(MAX(CAST(NULLIF(TRIM(inep), '') AS BIGINT)), 26123455) + 1 AS next_inep
                 FROM escolas"""
             )
             row = await cur.fetchone()
             base_inep = int(row["next_inep"])
-            base_cnpj = int(row["next_cnpj"])
 
-            escolas_dados = gerar_escolas_dados(quantidade_escolas, base_inep, base_cnpj)
+            escolas_dados = gerar_escolas_dados(quantidade_escolas, base_inep)
             escola_ids = []
 
             # ========== ESCOLAS ==========

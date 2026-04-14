@@ -20,17 +20,17 @@ sys.path.insert(0, str(_scripts_dir))
 from seed_utils import get_connection, get_edicao_ativa_id, codigo_tipo_modalidade_para_limite
 
 # (nome, limite_atletas, ícone lucide aproximado)
-ESPORTES_BASE_META: list[tuple[str, int, str]] = [
-    ("Futebol de Campo", 15, "PiSoccerBall"),
-    ("Futsal", 15, "PiSoccerBall"),
-    ("Vôlei", 12, "GiVolleyballBall"),
-    ("Basquete", 12, "FaBasketballBall"),
-    ("Handebol", 15, "Award"),
-    ("Natação", 1, "GrSwim"),
-    ("Atletismo", 1, "GiContortionist"),
-    ("Judô", 1, "MdSportsKabaddi"),
-    ("Tênis de Mesa", 1, "FaTableTennis"),
-    ("Xadrez", 1, "FaChess"),
+ESPORTES_BASE_META: list[tuple[str, int, int, str]] = [
+    ("Futebol de Campo", 10, 15, "PiSoccerBall"),
+    ("Futsal", 10, 15, "PiSoccerBall"),
+    ("Vôlei", 8, 12, "GiVolleyballBall"),
+    ("Basquete", 8, 12, "FaBasketballBall"),
+    ("Handebol", 10, 15, "Award"),
+    ("Natação", 1, 1, "GrSwim"),
+    ("Atletismo", 1, 1, "GiContortionist"),
+    ("Judô", 1, 1, "MdSportsKabaddi"),
+    ("Tênis de Mesa", 1, 1, "FaTableTennis"),
+    ("Xadrez", 1, 1, "FaChess"),
 ]
 
 
@@ -78,7 +78,7 @@ async def seed_esportes_modalidades() -> None:
             esportes_criados = 0
             variantes_inseridas = 0
 
-            for nome, limite_atletas, icone in ESPORTES_BASE_META:
+            for nome, minimo_atletas, limite_atletas, icone in ESPORTES_BASE_META:
                 await cur.execute(
                     "SELECT id FROM esportes WHERE nome = %s AND edicao_id = %s",
                     (nome, edicao_id),
@@ -89,11 +89,11 @@ async def seed_esportes_modalidades() -> None:
                 else:
                     await cur.execute(
                         """
-                        INSERT INTO esportes (edicao_id, nome, descricao, icone, requisitos, limite_atletas, ativa)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO esportes (edicao_id, nome, descricao, icone, requisitos, limite_atletas, minimo_atletas, ativa)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                         """,
-                        (edicao_id, nome, "", icone, "", limite_atletas, True),
+                        (edicao_id, nome, "", icone, "", limite_atletas, minimo_atletas, True),
                     )
                     esporte_id = str((await cur.fetchone())["id"])
                     esportes_criados += 1

@@ -20,14 +20,36 @@ import psycopg
 from psycopg.rows import dict_row
 
 
+def _cpf_digito(parciais: list[int], multiplicador_inicial: int) -> int:
+    soma = sum(d * (multiplicador_inicial - i) for i, d in enumerate(parciais))
+    resto = (soma * 10) % 11
+    return 0 if resto == 10 else resto
+
+
 def gerar_cpf_valido() -> str:
-    """Gera um CPF com dígitos verificadores válidos (apenas para seed)."""
-    base = [random.randint(1, 9) for _ in range(9)]
-    for _ in range(2):
-        soma = sum((10 - i) * d for i, d in enumerate(base))
-        dig = (soma * 10 % 11) % 10
-        base.append(dig)
-    return "".join(map(str, base))
+    """Gera um CPF com dígitos verificadores válidos segundo o algoritmo da Receita Federal."""
+    while True:
+        base = [random.randint(0, 9) for _ in range(9)]
+        if len(set(base)) == 1:
+            continue  # rejeita sequências tipo 111111111
+        d1 = _cpf_digito(base, 10)
+        d2 = _cpf_digito(base + [d1], 11)
+        return "".join(map(str, base + [d1, d2]))
+
+
+def gerar_cnpj_valido() -> str:
+    """Gera um CNPJ com dígitos verificadores válidos segundo o algoritmo da Receita Federal."""
+    _W1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    _W2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    while True:
+        base = [random.randint(0, 9) for _ in range(12)]
+        if len(set(base)) == 1:
+            continue
+        r1 = sum(base[i] * _W1[i] for i in range(12)) % 11
+        d1 = 0 if r1 < 2 else 11 - r1
+        r2 = sum((base + [d1])[i] * _W2[i] for i in range(13)) % 11
+        d2 = 0 if r2 < 2 else 11 - r2
+        return "".join(map(str, base + [d1, d2]))
 
 
 def gerar_nis() -> str:
@@ -38,11 +60,6 @@ def gerar_nis() -> str:
 def gerar_inep() -> str:
     """Gera um INEP de 8 dígitos."""
     return "".join(str(random.randint(1, 9)) for _ in range(8))
-
-
-def gerar_cnpj() -> str:
-    """Gera um CNPJ de 14 dígitos (apenas para seed)."""
-    return "".join(str(random.randint(0, 9)) for _ in range(14))
 
 
 def data_nascimento_para_categoria(categoria_idade_min: int, categoria_idade_max: int) -> date:
