@@ -315,7 +315,11 @@ export default function UsuariosPendentes({ embedded }) {
                   </thead>
                   <tbody>
                     {paginatedEncerradas.map((a) => (
-                      <tr key={`${a._status}-${a.id}`} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]/50">
+                      <tr
+                        key={`${a._status}-${a.id}`}
+                        className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]/50 cursor-pointer"
+                        onClick={() => setModalSolicitacao(a)}
+                      >
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-semibold ${
@@ -384,41 +388,68 @@ export default function UsuariosPendentes({ embedded }) {
         footer={
           modalSolicitacao && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 w-full">
-              <Popconfirm
-                title="Negar solicitação"
-                description="Confirma que deseja negar esta solicitação? Os dados não serão cadastrados no sistema."
-                onConfirm={() => handleNegar(modalSolicitacao.id)}
-                okText="Sim, negar"
-                cancelText="Cancelar"
-                okButtonProps={{ danger: true }}
-                overlayStyle={{ zIndex: 1200 }}
-              >
-                <button
-                  type="button"
-                  disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+              {modalSolicitacao.status_adesao === 'PENDENTE' && (
+                <>
+                  <Popconfirm
+                    title="Negar solicitação"
+                    description="Confirma que deseja negar esta solicitação? Os dados não serão cadastrados no sistema."
+                    onConfirm={() => handleNegar(modalSolicitacao.id)}
+                    okText="Sim, negar"
+                    cancelText="Cancelar"
+                    okButtonProps={{ danger: true }}
+                    overlayStyle={{ zIndex: 1200 }}
+                  >
+                    <button
+                      type="button"
+                      disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {negandoId === modalSolicitacao.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                      Negar
+                    </button>
+                  </Popconfirm>
+                  <button
+                    type="button"
+                    disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
+                    onClick={handleAprovarNoModal}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {aprovandoId === modalSolicitacao.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    Aprovar
+                  </button>
+                </>
+              )}
+              {modalSolicitacao.status_adesao === 'REJEITADA' && (
+                <Popconfirm
+                  title="Aprovar solicitação recusada"
+                  description="Confirma que deseja aprovar esta solicitação? A escola e o usuário diretor serão criados no sistema."
+                  onConfirm={handleAprovarNoModal}
+                  okText="Sim, aprovar"
+                  cancelText="Cancelar"
+                  overlayStyle={{ zIndex: 1200 }}
                 >
-                  {negandoId === modalSolicitacao.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <XCircle size={16} />
-                  )}
-                  Negar
-                </button>
-              </Popconfirm>
-              <button
-                type="button"
-                disabled={aprovandoId === modalSolicitacao.id || negandoId === modalSolicitacao.id}
-                onClick={handleAprovarNoModal}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {aprovandoId === modalSolicitacao.id ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <CheckCircle size={16} />
-                )}
-                Aprovar
-              </button>
+                  <button
+                    type="button"
+                    disabled={aprovandoId === modalSolicitacao.id}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] text-sm font-semibold bg-[#0f766e] text-white hover:bg-[#0d9488] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {aprovandoId === modalSolicitacao.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    Aprovar assim mesmo
+                  </button>
+                </Popconfirm>
+              )}
             </div>
           )
         }

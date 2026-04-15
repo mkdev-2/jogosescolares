@@ -227,12 +227,7 @@ export default function EquipesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
-                    {(onFichaColetiva || onFichaIndividual) && (
-                      <th className="w-[80px] text-center px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                        Ficha
-                      </th>
-                    )}
-                    {(onEditEquipe || onDeleteEquipe) && (
+                    {(onEditEquipe || onDeleteEquipe || onFichaColetiva || onFichaIndividual) && (
                       <th className="w-[100px] text-right px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                         Ações
                       </th>

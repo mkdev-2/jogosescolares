@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2 } from 'lucide-react'
 
 import { useAuth } from '../../contexts/AuthContext'
 import StorageImage from '../StorageImage'
@@ -45,10 +45,91 @@ const menuGroups = [
   },
 ]
 
+function EscolaSwitcher({ user, switchEscola, navigate }) {
+  const [open, setOpen] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSwitch = async (escolaId) => {
+    if (escolaId === user.escola_id || switching) return
+    setOpen(false)
+    setSwitching(true)
+    await switchEscola(escolaId)
+    setSwitching(false)
+    // Navegar para home para garantir que todos os dados recarreguem no novo contexto
+    navigate('/app', { replace: true })
+  }
+
+  const currentNome = user.escola_nome || user.escolas?.find(e => e.id === user.escola_id)?.nome_escola || '—'
+
+  return (
+    <div ref={ref} className="sm:relative">
+      {/* Botão — desktop: com nome da escola | mobile: só ícone */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        disabled={switching}
+        title={currentNome}
+        className="flex items-center gap-1.5 px-2.5 py-2 rounded-[10px] bg-white/15 text-white border border-white/30 hover:bg-white/25 transition-colors disabled:opacity-60"
+      >
+        {switching
+          ? <Loader2 size={15} className="flex-shrink-0 animate-spin" />
+          : <Building2 size={15} className="flex-shrink-0" />
+        }
+        {/* Nome da escola: visível apenas em sm+ */}
+        <span className="hidden sm:block text-xs font-medium truncate max-w-[160px] leading-none">
+          {currentNome}
+        </span>
+        <ChevronsUpDown size={13} className="flex-shrink-0 opacity-70" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[220px] bg-white rounded-[12px] shadow-[0_8px_30px_rgba(0,0,0,0.15)] border border-[#e2e8f0] overflow-hidden">
+          <div className="px-3 py-2 border-b border-[#f1f5f9]">
+            <p className="text-[0.7rem] font-semibold text-[#94a3b8] uppercase tracking-wider">Trocar escola</p>
+            {/* No mobile, mostrar escola atual dentro do dropdown como contexto */}
+            <p className="text-xs text-[#64748b] mt-0.5 sm:hidden truncate">{currentNome}</p>
+          </div>
+          <ul className="py-1">
+            {user.escolas?.map(escola => {
+              const isActive = escola.id === user.escola_id
+              return (
+                <li key={escola.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitch(escola.id)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                      isActive
+                        ? 'bg-[#f0fdfa] text-[#0f766e] font-semibold'
+                        : 'text-[#334155] hover:bg-[#f8fafc]'
+                    }`}
+                  >
+                    <Building2 size={14} className={`flex-shrink-0 ${isActive ? 'text-[#0d9488]' : 'text-[#94a3b8]'}`} />
+                    <span className="truncate leading-snug">{escola.nome_escola}</span>
+                    {isActive && <Check size={13} className="flex-shrink-0 ml-auto text-[#0d9488]" />}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AppLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [groupExpanded, setGroupExpanded] = useState({ Gestão: true, Atividades: true, Administrativo: true })
-  const { user, logout } = useAuth()
+  const { user, logout, switchEscola } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -211,7 +292,12 @@ export default function AppLayout({ children }) {
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
+            {/* Seletor de escola: visível apenas para coordenadores com múltiplas escolas */}
+            {user.role === 'COORDENADOR' && user.escolas?.length > 1 && (
+              <EscolaSwitcher user={user} switchEscola={switchEscola} navigate={navigate} />
+            )}
+
             <div className="w-10 h-10 flex items-center justify-center bg-white/20 rounded-[12px] text-white border border-white/30 overflow-hidden">
               {user.foto_url
                 ? <StorageImage path={user.foto_url} alt={user.nome} className="w-full h-full object-cover" />
@@ -224,6 +310,7 @@ export default function AppLayout({ children }) {
                 {user.role}
               </span>
             </div>
+
             <button
               type="button"
               className="flex items-center justify-center px-3 py-2 rounded-[10px] bg-white/15 text-white border border-white/30 hover:bg-white/25"

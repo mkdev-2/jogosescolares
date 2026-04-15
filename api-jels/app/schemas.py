@@ -163,7 +163,7 @@ class UserCreate(BaseModel):
     """Schema para criação de novo usuário."""
     cpf: str = Field(..., description="CPF do usuário (apenas números, 11 dígitos)")
     email: Optional[EmailStr] = None
-    password: str = Field(..., min_length=6, description="Senha com no mínimo 6 caracteres")
+    password: Optional[str] = Field(None, min_length=6, description="Senha com no mínimo 6 caracteres (obrigatória apenas para novo usuário)")
     nome: str = Field(..., min_length=1, description="Nome completo do usuário")
     role: VALID_ROLES = Field(..., description="Perfil de acesso")
     escola_id: Optional[int] = Field(None, description="ID da escola (obrigatório para DIRETOR e COORDENADOR)")
@@ -171,8 +171,8 @@ class UserCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_escola_for_role(self):
-        if self.role in ("DIRETOR", "COORDENADOR") and self.escola_id is None:
-            raise ValueError("escola_id é obrigatório para usuários DIRETOR ou COORDENADOR")
+        if self.role == "DIRETOR" and self.escola_id is None:
+            raise ValueError("escola_id é obrigatório para usuários DIRETOR")
         return self
 
 
@@ -182,11 +182,32 @@ class UserLogin(BaseModel):
     password: str
 
 
+class EscolaSimples(BaseModel):
+    """Escola resumida para seleção no login de coordenador multi-escola."""
+    id: int
+    nome_escola: str
+
+
 class Token(BaseModel):
     """Schema para resposta de token JWT."""
-    access_token: str
+    access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
+    # Preenchidos apenas quando o coordenador tem múltiplas escolas e precisa escolher
+    requires_escola_selection: bool = False
+    escolas: Optional[list[EscolaSimples]] = None
+
+
+class SelectEscolaRequest(BaseModel):
+    """Payload para coordenador selecionar escola no login (multi-escola)."""
+    cpf: str = Field(..., description="CPF do usuário")
+    password: str
+    escola_id: int = Field(..., description="ID da escola escolhida")
+
+
+class SwitchEscolaRequest(BaseModel):
+    """Payload para trocar de escola sem novo login (token atual válido)."""
+    escola_id: int = Field(..., description="ID da escola destino")
 
 
 class RefreshTokenRequest(BaseModel):
@@ -225,6 +246,8 @@ class UserMeResponse(BaseModel):
     can_create_users: bool = False
     allowed_roles_for_create: list[str] = Field(default_factory=list)
     max_users_per_escola: int = 3
+    # Para coordenadores multi-escola: lista de todas as escolas vinculadas
+    escolas: Optional[list[EscolaSimples]] = None
 
     class Config:
         from_attributes = True
@@ -248,8 +271,8 @@ class UserUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_escola_for_role(self):
-        if self.role in ("DIRETOR", "COORDENADOR") and self.escola_id is None:
-            raise ValueError("escola_id é obrigatório para usuários DIRETOR ou COORDENADOR")
+        if self.role == "DIRETOR" and self.escola_id is None:
+            raise ValueError("escola_id é obrigatório para usuários DIRETOR")
         return self
 
 

@@ -49,6 +49,15 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true }
   }, [fetchMe])
 
+  /**
+   * Realiza o login.
+   *
+   * Retornos possíveis:
+   * - { success: true }  → login concluído, usuário disponível em `user`
+   * - { success: false, error: string }  → credenciais inválidas ou erro
+   * - { success: 'escola_selection', escolas: [...], cpf, password }
+   *     → coordenador com múltiplas escolas; caller deve exibir seletor
+   */
   const login = async (cpf, password) => {
     const normalizedCpf = normalizeCpf(cpf)
     if (!normalizedCpf || normalizedCpf.length !== 11) {
@@ -67,6 +76,16 @@ export function AuthProvider({ children }) {
         return {
           success: false,
           error: data.detail || 'CPF ou senha incorretos.',
+        }
+      }
+
+      // Coordenador com múltiplas escolas — precisa selecionar
+      if (data.requires_escola_selection) {
+        return {
+          success: 'escola_selection',
+          escolas: data.escolas || [],
+          cpf: normalizedCpf,
+          password,
         }
       }
 
@@ -89,6 +108,67 @@ export function AuthProvider({ children }) {
     }
   }
 
+  /**
+   * Finaliza o login de um coordenador multi-escola após seleção da escola.
+   */
+  const selectEscola = async (cpf, password, escolaId) => {
+    try {
+      const res = await apiFetch('/auth/select-escola', {
+        method: 'POST',
+        body: JSON.stringify({ cpf, password, escola_id: escolaId }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        return { success: false, error: data.detail || 'Erro ao selecionar escola.' }
+      }
+
+      setTokens(data.access_token, data.refresh_token)
+
+      const meRes = await apiFetch('/auth/me')
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        setUser(meData)
+      }
+
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message || 'Erro de conexão.' }
+    }
+  }
+
+  /**
+   * Troca a escola ativa de um coordenador sem exigir nova autenticação.
+   * Emite um novo token com a escola destino.
+   */
+  const switchEscola = async (escolaId) => {
+    try {
+      const res = await apiFetch('/auth/switch-escola', {
+        method: 'POST',
+        body: JSON.stringify({ escola_id: escolaId }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        return { success: false, error: data.detail || 'Erro ao trocar de escola.' }
+      }
+
+      setTokens(data.access_token, data.refresh_token)
+
+      const meRes = await apiFetch('/auth/me')
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        setUser(meData)
+      }
+
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message || 'Erro de conexão.' }
+    }
+  }
+
   const logout = () => {
     setUser(null)
     clearTokens()
@@ -101,7 +181,7 @@ export function AuthProvider({ children }) {
   }, [fetchMe])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser }}>
+    <AuthContext.Provider value={{ user, login, selectEscola, switchEscola, logout, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

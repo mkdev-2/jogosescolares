@@ -100,7 +100,6 @@ function validateStep(step, form) {
     else if (onlyDigits(form.responsavelRg).length > 15) err.responsavelRg = 'RG do responsável deve ter no máximo 15 caracteres'
     if (!form.responsavelCelular?.trim() || onlyDigits(form.responsavelCelular).length < 10) err.responsavelCelular = 'Celular deve ter pelo menos 10 dígitos'
     if (!form.responsavelEmail?.trim() || !emailRe.test(form.responsavelEmail)) err.responsavelEmail = 'E-mail do responsável inválido'
-    if (!form.responsavelNis?.trim()) err.responsavelNis = 'NIS do responsável é obrigatório'
   }
   return err
 }
@@ -641,7 +640,7 @@ export default function EstudanteAtletaModal({ open, onClose, onSuccess, estudan
                       {errors.responsavelRg && <p className={errorClass}>{errors.responsavelRg}</p>}
                     </div>
                     <div className="sm:col-span-4">
-                      <label htmlFor="modal-responsavelNis" className={labelClass}>Número do NIS *</label>
+                      <label htmlFor="modal-responsavelNis" className={labelClass}>Número do NIS</label>
                       <Input id="modal-responsavelNis" inputMode="numeric" value={form.responsavelNis} onChange={(e) => updateField('responsavelNis', e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="Apenas 11 dígitos" maxLength={11} status={errors.responsavelNis ? 'error' : undefined} />
                       {errors.responsavelNis && <p className={errorClass}>{errors.responsavelNis}</p>}
                     </div>
