@@ -163,7 +163,7 @@ class UserCreate(BaseModel):
     """Schema para criação de novo usuário."""
     cpf: str = Field(..., description="CPF do usuário (apenas números, 11 dígitos)")
     email: Optional[EmailStr] = None
-    password: str = Field(..., min_length=6, description="Senha com no mínimo 6 caracteres")
+    password: Optional[str] = Field(None, min_length=6, description="Senha com no mínimo 6 caracteres (obrigatória apenas para novo usuário)")
     nome: str = Field(..., min_length=1, description="Nome completo do usuário")
     role: VALID_ROLES = Field(..., description="Perfil de acesso")
     escola_id: Optional[int] = Field(None, description="ID da escola (obrigatório para DIRETOR e COORDENADOR)")

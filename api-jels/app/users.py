@@ -349,6 +349,11 @@ async def create_user(
             return _row_to_response(existing)
 
         # CPF não existe → criar novo coordenador
+        if not data.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Senha é obrigatória para criar um novo coordenador.",
+            )
         hashed_password = get_password_hash(data.password)
 
         async with conn.cursor() as cur:
@@ -385,6 +390,11 @@ async def create_user(
     # ── Fluxo SUPER_ADMIN / ADMIN ───────────────────────────────────────────
     data_escola_id = data.escola_id if data.role in ("DIRETOR", "COORDENADOR") else None
 
+    if not data.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Senha é obrigatória para criar um novo usuário.",
+        )
     hashed_password = get_password_hash(data.password)
 
     async with conn.cursor() as cur:

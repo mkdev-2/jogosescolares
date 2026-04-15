@@ -83,15 +83,20 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
   }, [user, isOpen, isDiretor, currentUser?.escola_id, currentUser?.allowed_roles_for_create])
 
   // Busca informativa de CPF duplicado (apenas para DIRETOR criando novo coordenador)
+  // existingCoord: dados do coordenador já cadastrado, quando encontrado
+  const [existingCoord, setExistingCoord] = useState(null)
+
   useEffect(() => {
     if (!isDiretor || user || formData.role !== 'COORDENADOR') {
       setCpfHint(null)
+      setExistingCoord(null)
       return
     }
 
     const digits = (formData.cpf || '').replace(/\D/g, '')
     if (digits.length !== 11) {
       setCpfHint(null)
+      setExistingCoord(null)
       return
     }
 
@@ -100,6 +105,7 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
       const result = await usersService.checkCpf(digits)
       if (!result.exists) {
         setCpfHint(null)
+        setExistingCoord(null)
         return
       }
 
@@ -109,22 +115,23 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
       const cpfFormatado = usersService.formatCpf(result.cpf)
 
       if (jaMinhaEscola) {
+        // Já está nesta escola — erro no submit, apenas avisa
+        setExistingCoord(null)
         setCpfHint({
           type: 'warning',
           text: `Coordenador ${result.nome} (${cpfFormatado}) já está vinculado à sua escola.`,
         })
-      } else if (outraEscolas.length > 0) {
-        const nomesEscolas = outraEscolas.map((e) => e.nome_escola).join(' e ')
-        const pluralEscola = outraEscolas.length > 1 ? 'escolas' : 'escola'
-        setCpfHint({
-          type: 'info',
-          text: `Coordenador ${result.nome} (${cpfFormatado}) já cadastrado na ${pluralEscola} ${nomesEscolas}. Cadastro terá acesso a ambas as escolas.`,
-        })
       } else {
-        setCpfHint({
-          type: 'info',
-          text: `Coordenador ${result.nome} (${cpfFormatado}) já existe no sistema e será vinculado à sua escola.`,
-        })
+        // Existe em outra escola — será apenas vinculado, não criado
+        setExistingCoord(result)
+        // Pré-preencher nome com os dados já cadastrados
+        setFormData((prev) => ({ ...prev, nome: result.nome }))
+
+        const nomesEscolas = outraEscolas.map((e) => e.nome_escola).join(' e ')
+        const texto = outraEscolas.length > 0
+          ? `Coordenador ${result.nome} (${cpfFormatado}) já cadastrado na ${outraEscolas.length > 1 ? 'escolas' : 'escola'} ${nomesEscolas}. Cadastro terá acesso a ambas as escolas.`
+          : `Coordenador ${result.nome} (${cpfFormatado}) já existe no sistema e será vinculado à sua escola.`
+        setCpfHint({ type: 'info', text: texto })
       }
     }, 500)
 
@@ -149,15 +156,18 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     if (!user && (!cpfDigits || cpfDigits.length !== 11)) {
       newErrors.cpf = 'CPF deve conter 11 dígitos'
     }
-    if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
-    if (!user && !formData.password?.trim()) {
-      newErrors.password = 'Senha é obrigatória para novo usuário'
-    }
-    if (!user && formData.password?.length > 0 && formData.password.length < 6) {
-      newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
-    }
-    if (!user && formData.password?.trim() && formData.password !== (formData.password_confirm ?? '')) {
-      newErrors.password_confirm = 'senhas devem coincidir'
+    // Se for vínculo de coordenador existente, nome/senha não precisam ser validados
+    if (!existingCoord) {
+      if (!formData.nome?.trim()) newErrors.nome = 'Nome é obrigatório'
+      if (!user && !formData.password?.trim()) {
+        newErrors.password = 'Senha é obrigatória para novo usuário'
+      }
+      if (!user && formData.password?.length > 0 && formData.password.length < 6) {
+        newErrors.password = 'Senha deve ter no mínimo 6 caracteres'
+      }
+      if (!user && formData.password?.trim() && formData.password !== (formData.password_confirm ?? '')) {
+        newErrors.password_confirm = 'senhas devem coincidir'
+      }
     }
     if (REQUIRES_ESCOLA.includes(formData.role) && !isDiretor && !formData.escola_id) {
       newErrors.escola_id = 'Escola é obrigatória para Diretor e Coordenador'
@@ -224,7 +234,7 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
             Cancelar
           </Button>
           <Button type="primary" htmlType="submit" form="user-form" loading={loading} disabled={loading}>
-            {loading ? 'Salvando...' : user ? 'Atualizar' : 'Criar'}
+            {loading ? 'Salvando...' : user ? 'Atualizar' : existingCoord ? 'Vincular à escola' : 'Criar'}
           </Button>
         </div>
       }
@@ -279,36 +289,47 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
           </div>
         )}
 
+        {/* Nome: somente leitura quando for vínculo de coordenador existente */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-semibold text-[#334155]" htmlFor="nome">
             Nome <span className="text-[#dc2626]">*</span>
           </label>
-          <Input
-            id="nome"
-            value={formData.nome}
-            onChange={(e) => updateField('nome', e.target.value)}
-            placeholder="Nome completo"
-            status={errors.nome ? 'error' : undefined}
-          />
+          {existingCoord ? (
+            <p className="px-3 py-2.5 bg-[#f1f5f9] rounded-[8px] text-[#475569]">
+              {existingCoord.nome}
+            </p>
+          ) : (
+            <Input
+              id="nome"
+              value={formData.nome}
+              onChange={(e) => updateField('nome', e.target.value)}
+              placeholder="Nome completo"
+              status={errors.nome ? 'error' : undefined}
+            />
+          )}
           {errors.nome && (
             <span className="text-[0.8rem] text-[#dc2626]">{errors.nome}</span>
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-[#334155]" htmlFor="email">
-            E-mail
-          </label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => updateField('email', e.target.value)}
-            placeholder="email@exemplo.com"
-          />
-        </div>
+        {/* E-mail e senha: ocultos quando for vínculo de coordenador existente */}
+        {!existingCoord && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-[#334155]" htmlFor="email">
+              E-mail
+            </label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => updateField('email', e.target.value)}
+              placeholder="email@exemplo.com"
+            />
+          </div>
+        )}
 
         <div className={user ? 'flex flex-col gap-1.5' : 'grid grid-cols-1 gap-4 sm:grid-cols-2'}>
+          {!existingCoord && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-semibold text-[#334155]" htmlFor="password">
               {user ? 'Nova senha (deixe em branco para manter)' : 'Senha'}
@@ -325,7 +346,8 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
               <span className="text-[0.8rem] text-[#dc2626]">{errors.password}</span>
             )}
           </div>
-          {!user && (
+          )}
+          {!user && !existingCoord && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-[#334155]" htmlFor="password_confirm">
                 Confirmar Senha <span className="text-[#dc2626]">*</span>
