@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Input, Select, Button } from 'antd'
+import { Info } from 'lucide-react'
 import Modal from '../ui/Modal'
 import useUsers from '../../hooks/useUsers'
 import { usersService } from '../../services/usersService'
@@ -42,6 +43,9 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
     status: 'ATIVO',
   })
   const [errors, setErrors] = useState({})
+  // Aviso informativo de CPF já existente como coordenador (não bloqueia)
+  const [cpfHint, setCpfHint] = useState(null)
+  const cpfDebounceRef = useRef(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -75,7 +79,57 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
       })
     }
     setErrors({})
+    setCpfHint(null)
   }, [user, isOpen, isDiretor, currentUser?.escola_id, currentUser?.allowed_roles_for_create])
+
+  // Busca informativa de CPF duplicado (apenas para DIRETOR criando novo coordenador)
+  useEffect(() => {
+    if (!isDiretor || user || formData.role !== 'COORDENADOR') {
+      setCpfHint(null)
+      return
+    }
+
+    const digits = (formData.cpf || '').replace(/\D/g, '')
+    if (digits.length !== 11) {
+      setCpfHint(null)
+      return
+    }
+
+    clearTimeout(cpfDebounceRef.current)
+    cpfDebounceRef.current = setTimeout(async () => {
+      const result = await usersService.checkCpf(digits)
+      if (!result.exists) {
+        setCpfHint(null)
+        return
+      }
+
+      const minhaEscolaId = currentUser?.escola_id
+      const jaMinhaEscola = result.escolas?.some((e) => e.id === minhaEscolaId)
+      const outraEscolas = result.escolas?.filter((e) => e.id !== minhaEscolaId) ?? []
+      const cpfFormatado = usersService.formatCpf(result.cpf)
+
+      if (jaMinhaEscola) {
+        setCpfHint({
+          type: 'warning',
+          text: `Coordenador ${result.nome} (${cpfFormatado}) já está vinculado à sua escola.`,
+        })
+      } else if (outraEscolas.length > 0) {
+        const nomesEscolas = outraEscolas.map((e) => e.nome_escola).join(' e ')
+        const pluralEscola = outraEscolas.length > 1 ? 'escolas' : 'escola'
+        setCpfHint({
+          type: 'info',
+          text: `Coordenador ${result.nome} (${cpfFormatado}) já cadastrado na ${pluralEscola} ${nomesEscolas}. Cadastro terá acesso a ambas as escolas.`,
+        })
+      } else {
+        setCpfHint({
+          type: 'info',
+          text: `Coordenador ${result.nome} (${cpfFormatado}) já existe no sistema e será vinculado à sua escola.`,
+        })
+      }
+    }, 500)
+
+    return () => clearTimeout(cpfDebounceRef.current)
+  }, [formData.cpf, formData.role, isDiretor, user, currentUser?.escola_id])
 
   const updateField = (name, value) => {
     if (name === 'cpf') value = formatCpfInput(value)
@@ -200,6 +254,18 @@ export default function UserModal({ isOpen, onClose, user = null, currentUser, o
             />
             {errors.cpf && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.cpf}</span>
+            )}
+            {!errors.cpf && cpfHint && (
+              <div
+                className={`flex items-start gap-2 px-3 py-2.5 rounded-[8px] text-sm leading-snug ${
+                  cpfHint.type === 'warning'
+                    ? 'bg-[#fffbeb] border border-[#fde68a] text-[#92400e]'
+                    : 'bg-[#f0fdfa] border border-[#99f6e4] text-[#0f766e]'
+                }`}
+              >
+                <Info size={15} className="flex-shrink-0 mt-[1px]" />
+                <span>{cpfHint.text}</span>
+              </div>
             )}
           </div>
         )}

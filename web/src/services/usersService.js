@@ -70,6 +70,18 @@ export const usersService = {
     return handleResponse(res, 'Erro ao atualizar usuário')
   },
 
+  /**
+   * Verifica se um CPF já pertence a um coordenador no sistema.
+   * Retorna { exists: false } ou { exists: true, nome, cpf, escolas }.
+   */
+  async checkCpf(cpf) {
+    const digits = (cpf || '').replace(/\D/g, '')
+    if (digits.length !== 11) return { exists: false }
+    const res = await apiFetch(`${BASE}/check-cpf?cpf=${digits}`)
+    if (!res.ok) return { exists: false }
+    return res.json().catch(() => ({ exists: false }))
+  },
+
   async delete(id) {
     const res = await apiFetch(`${BASE}/${id}`, {
       method: 'DELETE',
