@@ -278,10 +278,10 @@ async def create_user(
         # Contar coordenadores ativos nesta escola (limite = MAX - 1, pois o DIRETOR ocupa 1 vaga)
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT COUNT(*) FROM coordenadores_escolas WHERE escola_id = %s AND ativo = TRUE",
+                "SELECT COUNT(*) AS cnt FROM coordenadores_escolas WHERE escola_id = %s AND ativo = TRUE",
                 (escola_id,),
             )
-            coord_count = (await cur.fetchone())[0]
+            coord_count = (await cur.fetchone())["cnt"]
 
         max_coords = MAX_USERS_PER_ESCOLA - 1  # 2
         if coord_count >= max_coords:
@@ -589,10 +589,10 @@ async def delete_user(
 
             # Verificar se ainda há vínculos restantes
             await cur.execute(
-                "SELECT COUNT(*) FROM coordenadores_escolas WHERE user_id = %s",
+                "SELECT COUNT(*) AS cnt FROM coordenadores_escolas WHERE user_id = %s",
                 (user_id,),
             )
-            remaining = (await cur.fetchone())[0]
+            remaining = (await cur.fetchone())["cnt"]
 
             if remaining == 0:
                 # Sem mais vínculos — remover o usuário

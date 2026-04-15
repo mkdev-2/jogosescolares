@@ -42,7 +42,7 @@ export const usersService = {
       cpf,
       nome: data.nome?.trim() || '',
       email: data.email?.trim() || null,
-      password: data.password || '',
+      password: data.password || null,
       role: data.role || 'ADMIN',
       escola_id: data.escola_id ?? null,
       status: data.status,
