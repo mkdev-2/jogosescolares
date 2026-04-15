@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Checkbox, Modal, Select, Spin, Tag, message } from 'antd'
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
@@ -23,48 +22,69 @@ function calcularGrupos(totalEquipes) {
 
 // ─── componentes DnD ────────────────────────────────────────────────────────
 
-function EquipeCard({ equipe, isDragging = false, isOverlay = false }) {
+// ─── tela de sorteio ─────────────────────────────────────────────────────────
+
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+
+/**
+ * Card arrastável. Aplica o transform diretamente no elemento — sem DragOverlay —
+ * garantindo que o card siga o cursor exatamente de onde foi pego.
+ */
+function DraggableCard({ equipe, onContextMenu }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `equipe-${equipe.id}`,
+    data: { equipe },
+  })
+
   return (
     <div
-      className={[
-        'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium select-none',
-        'bg-white border-[#e2e8f0] text-[#1e293b] cursor-grab',
-        isDragging ? 'opacity-40' : '',
-        isOverlay ? 'shadow-lg rotate-1 cursor-grabbing' : 'hover:border-[#0f766e] hover:bg-[#f0fdfa]',
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      ref={setNodeRef}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        zIndex: isDragging ? 9999 : undefined,
+        opacity: isDragging ? 0.75 : 1,
+        cursor: isDragging ? 'grabbing' : 'grab',
+        position: 'relative',
+      }}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu() } : undefined}
+      {...listeners}
+      {...attributes}
     >
-      <Trophy size={13} className="text-[#0f766e] shrink-0" />
-      <span className="truncate max-w-[160px]">{equipe.nome_escola}</span>
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium select-none bg-white border-[#e2e8f0] text-[#1e293b] hover:border-[#0f766e] hover:bg-[#f0fdfa]">
+        <Trophy size={13} className="text-[#0f766e] shrink-0" />
+        <span className="truncate max-w-[160px]">{equipe.nome_escola}</span>
+      </div>
     </div>
   )
 }
 
-function DraggableEquipe({ equipe, isDragging }) {
-  // useDraggable importado via hook inline — componente recebe ref do pai
-  return <EquipeCard equipe={equipe} isDragging={isDragging} />
-}
-
-function SlotDroppable({ grupoIdx, slotIdx, equipe, isOver, setNodeRef, activeEquipeId }) {
+function DroppableSlot({ grupoIdx, slotIdx, equipe, onRemove }) {
+  const id = `slot-${grupoIdx}-${slotIdx}`
+  const { setNodeRef, isOver } = useDroppable({ id })
   const ocupado = equipe !== null
-  const highlight = isOver && !ocupado
-  const swapHighlight = isOver && ocupado
 
   return (
     <div
       ref={setNodeRef}
       className={[
-        'flex items-center justify-center min-h-[44px] rounded-lg border-2 border-dashed transition-colors duration-150',
-        highlight ? 'border-[#0f766e] bg-[#f0fdfa]' : '',
-        swapHighlight ? 'border-amber-400 bg-amber-50' : '',
+        'relative flex items-center justify-center min-h-[44px] rounded-lg border-2 border-dashed transition-colors duration-150',
+        isOver && !ocupado ? 'border-[#0f766e] bg-[#f0fdfa]' : '',
+        isOver && ocupado ? 'border-amber-400 bg-amber-50' : '',
         !isOver ? 'border-[#e2e8f0] bg-[#f8fafc]' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      ].filter(Boolean).join(' ')}
     >
       {ocupado ? (
-        <EquipeCard equipe={equipe} isDragging={equipe.id === activeEquipeId} />
+        <>
+          <DraggableCard equipe={equipe} onContextMenu={onRemove} />
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onRemove() }}
+            className="absolute top-0.5 right-0.5 w-4 h-4 flex items-center justify-center rounded-full text-[#94a3b8] hover:text-[#ef4444] hover:bg-[#fee2e2] transition-colors text-[10px] leading-none z-10"
+            title="Devolver à pool"
+          >
+            ✕
+          </button>
+        </>
       ) : (
         <span className="text-xs text-[#94a3b8]">Arraste aqui</span>
       )}
@@ -72,7 +92,9 @@ function SlotDroppable({ grupoIdx, slotIdx, equipe, isOver, setNodeRef, activeEq
   )
 }
 
-function PoolDroppable({ children, isOver, setNodeRef }) {
+function DroppablePool({ pool }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'pool' })
+
   return (
     <div
       ref={setNodeRef}
@@ -81,67 +103,20 @@ function PoolDroppable({ children, isOver, setNodeRef }) {
         isOver ? 'border-[#0f766e] bg-[#f0fdfa]' : 'border-[#e2e8f0] bg-[#f8fafc]',
       ].join(' ')}
     >
-      {children.length === 0 ? (
+      {pool.length === 0 ? (
         <span className="text-xs text-[#94a3b8] self-center w-full text-center">
           Todas as equipes foram alocadas nos grupos
         </span>
       ) : (
-        children
+        pool.map((equipe) => <DraggableCard key={equipe.id} equipe={equipe} />)
       )}
     </div>
-  )
-}
-
-// ─── tela de sorteio ─────────────────────────────────────────────────────────
-
-import { useDraggable, useDroppable } from '@dnd-kit/core'
-
-function DraggableCard({ equipe, activeEquipeId }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `equipe-${equipe.id}`,
-    data: { equipe },
-  })
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform), zIndex: isDragging ? 999 : undefined }
-    : undefined
-
-  return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <EquipeCard equipe={equipe} isDragging={isDragging} />
-    </div>
-  )
-}
-
-function DroppableSlot({ grupoIdx, slotIdx, equipe, activeEquipeId }) {
-  const id = `slot-${grupoIdx}-${slotIdx}`
-  const { setNodeRef, isOver } = useDroppable({ id })
-  return (
-    <SlotDroppable
-      grupoIdx={grupoIdx}
-      slotIdx={slotIdx}
-      equipe={equipe}
-      isOver={isOver}
-      setNodeRef={setNodeRef}
-      activeEquipeId={activeEquipeId}
-    />
-  )
-}
-
-function DroppablePool({ pool, activeEquipeId }) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'pool' })
-  return (
-    <PoolDroppable isOver={isOver} setNodeRef={setNodeRef}>
-      {pool.map((equipe) => (
-        <DraggableCard key={equipe.id} equipe={equipe} activeEquipeId={activeEquipeId} />
-      ))}
-    </PoolDroppable>
   )
 }
 
 function TelaSorteio({ equipes, onSalvar, salvando }) {
   const [grupos, setGrupos] = useState(() => calcularGrupos(equipes.length))
   const [pool, setPool] = useState(equipes)
-  const [activeEquipe, setActiveEquipe] = useState(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -159,16 +134,7 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
     return null
   }
 
-  function handleDragStart({ active }) {
-    const equipeId = parseInt(active.id.replace('equipe-', ''))
-    const equipe =
-      pool.find((e) => e.id === equipeId) ||
-      grupos.flatMap((g) => g.slots).find((e) => e?.id === equipeId)
-    setActiveEquipe(equipe || null)
-  }
-
   function handleDragEnd({ active, over }) {
-    setActiveEquipe(null)
     if (!over) return
 
     const equipeId = parseInt(active.id.replace('equipe-', ''))
@@ -219,13 +185,24 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
     }
   }
 
+  function handleRemoveFromSlot(gi, si) {
+    const equipe = grupos[gi].slots[si]
+    if (!equipe) return
+    setGrupos((prev) => {
+      const next = prev.map((g) => ({ ...g, slots: [...g.slots] }))
+      next[gi].slots[si] = null
+      return next
+    })
+    setPool((prev) => [...prev, equipe])
+  }
+
   function handleSalvar() {
     const payload = grupos.map((g) => ({ equipes: g.slots.map((e) => e.id) }))
     onSalvar(payload)
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex flex-col gap-6">
         {/* Grupos */}
         <div>
@@ -249,7 +226,7 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
                     grupoIdx={gi}
                     slotIdx={si}
                     equipe={equipe}
-                    activeEquipeId={activeEquipe?.id}
+                    onRemove={() => handleRemoveFromSlot(gi, si)}
                   />
                 ))}
               </div>
@@ -269,7 +246,7 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
               )}
             </p>
           </div>
-          <DroppablePool pool={pool} activeEquipeId={activeEquipe?.id} />
+          <DroppablePool pool={pool} />
         </div>
 
         {/* Ação */}
@@ -286,9 +263,6 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
         </div>
       </div>
 
-      <DragOverlay>
-        {activeEquipe ? <EquipeCard equipe={activeEquipe} isOverlay /> : null}
-      </DragOverlay>
     </DndContext>
   )
 }
