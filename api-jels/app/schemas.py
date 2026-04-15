@@ -729,6 +729,25 @@ class CampeonatoEstruturaResponse(BaseModel):
     partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
 
 
+class EquipeDaVarianteResponse(BaseModel):
+    """Equipe simplificada para exibição na tela de sorteio."""
+    id: int
+    escola_id: int
+    nome_escola: str
+
+
+class GrupoSorteioInput(BaseModel):
+    """Grupo com equipes ordenadas por seed (índice 0 = seed 1)."""
+    equipes: list[int] = Field(..., min_length=2)
+
+
+class CampeonatoComSorteioCreate(BaseModel):
+    """Payload do novo fluxo de criação com sorteio manual."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    grupos: list[GrupoSorteioInput] = Field(..., min_length=2)
+
+
 # ---------- Ficha Coletiva JELS (impressão) ----------
 
 

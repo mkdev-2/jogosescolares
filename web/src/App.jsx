@@ -29,6 +29,7 @@ import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 import Equipes from './pages/Equipes'
 import MinhaConta from './pages/MinhaConta'
+import CriarCampeonato from './pages/CriarCampeonato'
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
             <Route path="/app/usuarios" element={<Usuarios />} />
             <Route path="/app/configuracoes" element={<Configuracoes />} />
             <Route path="/app/auditoria" element={<Auditoria />} />
+            <Route path="/app/criar-campeonato" element={<CriarCampeonato />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

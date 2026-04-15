@@ -54,4 +54,20 @@ export const campeonatosService = {
     const res = await apiFetch(`${BASE}/${id}/estrutura${qs}`)
     return handleResponse(res, 'Erro ao consultar estrutura')
   },
+
+  async getEquipesDaVariante(esporteVarianteId, edicaoId = null) {
+    const params = new URLSearchParams({ esporte_variante_id: String(esporteVarianteId) })
+    if (edicaoId) params.set('edicao_id', String(edicaoId))
+    const res = await apiFetch(`${BASE}/equipes-da-variante?${params}`)
+    const data = await handleResponse(res, 'Erro ao buscar equipes da variante')
+    return Array.isArray(data) ? data : []
+  },
+
+  async criarComSorteio(payload) {
+    const res = await apiFetch(`${BASE}/criar-com-sorteio`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar campeonato')
+  },
 }

@@ -8,14 +8,19 @@ from app.auth import get_current_user, is_admin
 from app.database import get_db, log_audit
 from app.edicao_context import resolve_edicao_id
 from app.schemas import (
+    CampeonatoComSorteioCreate,
     CampeonatoCreate,
     CampeonatoEstruturaResponse,
     CampeonatoGrupoResponse,
     CampeonatoListItemResponse,
     CampeonatoPartidaResponse,
     CampeonatoResponse,
+    EquipeDaVarianteResponse,
 )
-from app.services.chaveamentos_service import gerar_estrutura_campeonato
+from app.services.chaveamentos_service import (
+    gerar_estrutura_campeonato,
+    gerar_partidas_para_grupos_existentes,
+)
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
 
@@ -169,6 +174,188 @@ async def list_campeonatos(
         rows = await cur.fetchall()
 
     return [_row_to_list_item(dict(r)) for r in rows]
+
+
+@router.get("/equipes-da-variante", response_model=list[EquipeDaVarianteResponse])
+async def get_equipes_da_variante(
+    esporte_variante_id: str = Query(..., description="ID da variante COLETIVA"),
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna as equipes cadastradas para uma variante COLETIVA, com nome da escola."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT ev.id
+            FROM esporte_variantes ev
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+            """,
+            (esporte_variante_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+            )
+
+        await cur.execute(
+            """
+            SELECT eq.id, eq.escola_id, esc.nome_escola
+            FROM equipes eq
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE eq.esporte_variante_id = %s AND eq.edicao_id = %s
+            ORDER BY esc.nome_escola
+            """,
+            (esporte_variante_id, resolved_edicao_id),
+        )
+        rows = await cur.fetchall()
+
+    return [
+        EquipeDaVarianteResponse(id=r["id"], escola_id=r["escola_id"], nome_escola=r["nome_escola"])
+        for r in rows
+    ]
+
+
+@router.post("/criar-com-sorteio", response_model=CampeonatoResponse, status_code=status.HTTP_201_CREATED)
+async def criar_com_sorteio(
+    data: CampeonatoComSorteioCreate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Cria campeonato COLETIVO com grupos e equipes já definidos pelo sorteio manual.
+    Gera os confrontos e o bracket de mata-mata atomicamente.
+    """
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id)
+
+    all_equipe_ids = [eid for grupo in data.grupos for eid in grupo.equipes]
+    total_equipes = len(all_equipe_ids)
+
+    if total_equipes < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="São necessárias ao menos 6 equipes para criar um campeonato com fase de grupos.",
+        )
+    if len(set(all_equipe_ids)) != total_equipes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A mesma equipe foi alocada em mais de um grupo.",
+        )
+
+    campeonato_id: int
+
+    async with conn.transaction():
+        async with conn.cursor() as cur:
+            # Valida que a variante é COLETIVAS
+            await cur.execute(
+                """
+                SELECT ev.id,
+                       esp.nome AS esporte_nome,
+                       cat.nome AS categoria_nome,
+                       nai.nome  AS naipe_nome
+                FROM esporte_variantes ev
+                JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+                JOIN esportes esp        ON esp.id = ev.esporte_id
+                JOIN categorias cat      ON cat.id = ev.categoria_id
+                JOIN naipes nai          ON nai.id = ev.naipe_id
+                WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+                """,
+                (data.esporte_variante_id, resolved_edicao_id),
+            )
+            variante = await cur.fetchone()
+            if not variante:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+                )
+
+            # Valida que todas as equipes pertencem a esta variante+edição
+            await cur.execute(
+                "SELECT id FROM equipes WHERE esporte_variante_id = %s AND edicao_id = %s",
+                (data.esporte_variante_id, resolved_edicao_id),
+            )
+            valid_ids = {r["id"] for r in await cur.fetchall()}
+            invalidas = [eid for eid in all_equipe_ids if eid not in valid_ids]
+            if invalidas:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Equipes não pertencem a esta variante/edição: {invalidas}",
+                )
+
+            nome = (
+                f"{variante['esporte_nome']} – "
+                f"{variante['naipe_nome']} – "
+                f"{variante['categoria_nome']}"
+            )
+
+            try:
+                await cur.execute(
+                    """
+                    INSERT INTO campeonatos (
+                        edicao_id, esporte_variante_id, nome, status, formato,
+                        grupo_tamanho_ideal, classificam_por_grupo, permite_melhores_terceiros,
+                        geracao_autorizada_em, geracao_autorizada_por
+                    )
+                    VALUES (%s, %s, %s, 'RASCUNHO', 'GRUPOS_E_MATA_MATA', 4, 2, FALSE, NOW(), %s)
+                    RETURNING id
+                    """,
+                    (resolved_edicao_id, data.esporte_variante_id, nome, current_user["id"]),
+                )
+            except psycopg.errors.UniqueViolation:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Já existe campeonato para esta edição e variante.",
+                )
+
+            campeonato_id = (await cur.fetchone())["id"]
+
+            for idx, grupo_input in enumerate(data.grupos):
+                await cur.execute(
+                    """
+                    INSERT INTO campeonato_grupos (campeonato_id, nome, ordem)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                    """,
+                    (campeonato_id, chr(ord("A") + idx), idx + 1),
+                )
+                grupo_id = (await cur.fetchone())["id"]
+
+                for seed_idx, equipe_id in enumerate(grupo_input.equipes, start=1):
+                    await cur.execute(
+                        """
+                        INSERT INTO campeonato_grupo_equipes (grupo_id, equipe_id, seed_no_grupo)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (grupo_id, equipe_id, seed_idx),
+                    )
+
+        await gerar_partidas_para_grupos_existentes(
+            conn=conn,
+            campeonato_id=campeonato_id,
+            executor_user_id=current_user["id"],
+        )
+
+    async with conn.cursor() as cur:
+        await cur.execute(_base_select("WHERE c.id = %s"), (campeonato_id,))
+        row = await cur.fetchone()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="CREATE",
+        tipo_recurso="CAMPEONATO",
+        recurso_id=campeonato_id,
+        detalhes_depois={"total_grupos": len(data.grupos), "total_equipes": total_equipes},
+        mensagem=f"Usuário {current_user['nome']} criou o campeonato '{nome}' via sorteio manual.",
+    )
+
+    return _row_to_response(dict(row))
 
 
 @router.get("/{campeonato_id}", response_model=CampeonatoResponse)

@@ -346,3 +346,147 @@ async def gerar_estrutura_campeonato(
         "tamanho_chave": chave_tamanho,
         "total_partidas": total_partidas,
     }
+
+
+async def gerar_partidas_para_grupos_existentes(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    executor_user_id: int,
+) -> dict[str, Any]:
+    """
+    Gera partidas (round-robin + mata-mata) para grupos e equipes já persistidos.
+    Usado pelo fluxo de sorteio manual: a criação do campeonato, grupos e
+    campeonato_grupo_equipes já foi feita pelo chamador dentro da mesma transação.
+    Esta função NÃO gerencia transação — depende do contexto do chamador.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, classificam_por_grupo FROM campeonatos WHERE id = %s",
+            (campeonato_id,),
+        )
+        campeonato = await cur.fetchone()
+        if not campeonato:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+        classificam_por_grupo: int = campeonato["classificam_por_grupo"]
+
+        await cur.execute(
+            "SELECT id FROM campeonato_grupos WHERE campeonato_id = %s ORDER BY ordem",
+            (campeonato_id,),
+        )
+        grupos = await cur.fetchall()
+
+        classificados_iniciais: list[int] = []
+
+        for grupo in grupos:
+            grupo_id = int(grupo["id"])
+
+            await cur.execute(
+                """
+                SELECT equipe_id
+                FROM campeonato_grupo_equipes
+                WHERE grupo_id = %s
+                ORDER BY seed_no_grupo
+                """,
+                (grupo_id,),
+            )
+            equipes_grupo = [int(r["equipe_id"]) for r in await cur.fetchall()]
+
+            confrontos = _gerar_confrontos_round_robin(equipes_grupo)
+            for rodada_idx, (mandante_id, visitante_id) in enumerate(confrontos, start=1):
+                await cur.execute(
+                    """
+                    INSERT INTO campeonato_partidas (
+                        campeonato_id, fase, rodada, grupo_id,
+                        mandante_equipe_id, visitante_equipe_id, is_bye
+                    )
+                    VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
+                    """,
+                    (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
+                )
+
+            classificados_iniciais.extend(equipes_grupo[:classificam_por_grupo])
+
+        if len(classificados_iniciais) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não há classificados suficientes para montar o mata-mata.",
+            )
+        if len(classificados_iniciais) > 52:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Limite excedido: máximo de 52 classificados para o mata-mata.",
+            )
+
+        chave_tamanho = _proxima_potencia_2(len(classificados_iniciais))
+        fase_inicial = _fase_por_tamanho_chave(chave_tamanho)
+        slots = _gerar_bracket_slots(classificados_iniciais, chave_tamanho)
+        total_rodadas = int(log2(chave_tamanho))
+
+        for idx in range(chave_tamanho // 2):
+            mandante = slots[idx]
+            visitante = slots[-(idx + 1)]
+            is_bye = mandante is None or visitante is None
+            vencedor = mandante if visitante is None else (visitante if mandante is None else None)
+            await cur.execute(
+                """
+                INSERT INTO campeonato_partidas (
+                    campeonato_id, fase, rodada, grupo_id,
+                    mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                    is_bye, origem_slot_a, origem_slot_b
+                )
+                VALUES (%s, %s, 1, NULL, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    campeonato_id, fase_inicial,
+                    mandante, visitante, vencedor, is_bye,
+                    f"SEED_{idx + 1}", f"SEED_{chave_tamanho - idx}",
+                ),
+            )
+
+        partidas_na_rodada = chave_tamanho // 2
+        for rodada in range(2, total_rodadas + 1):
+            partidas_na_rodada //= 2
+            fase_rodada = _fase_por_tamanho_chave(partidas_na_rodada * 2)
+            for idx in range(partidas_na_rodada):
+                await cur.execute(
+                    """
+                    INSERT INTO campeonato_partidas (
+                        campeonato_id, fase, rodada, grupo_id,
+                        mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                        is_bye, origem_slot_a, origem_slot_b
+                    )
+                    VALUES (%s, %s, %s, NULL, NULL, NULL, NULL, FALSE, %s, %s)
+                    """,
+                    (
+                        campeonato_id, fase_rodada, rodada,
+                        f"R{rodada - 1}M{(idx * 2) + 1}",
+                        f"R{rodada - 1}M{(idx * 2) + 2}",
+                    ),
+                )
+
+        await cur.execute(
+            """
+            UPDATE campeonatos
+            SET status = 'GERADO',
+                geracao_executada_em = NOW(),
+                geracao_executada_por = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (executor_user_id, campeonato_id),
+        )
+
+        await cur.execute(
+            "SELECT COUNT(*) AS total FROM campeonato_partidas WHERE campeonato_id = %s",
+            (campeonato_id,),
+        )
+        total_partidas = (await cur.fetchone())["total"] or 0
+
+    return {
+        "campeonato_id": campeonato_id,
+        "total_grupos": len(grupos),
+        "total_classificados_iniciais": len(classificados_iniciais),
+        "tamanho_chave": chave_tamanho,
+        "total_partidas": total_partidas,
+    }
