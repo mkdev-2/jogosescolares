@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Trophy, Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Trophy, Search, Plus, Pencil, Trash2, Settings2 } from 'lucide-react'
 import { Popconfirm, Input, Button, Select, Switch, Pagination } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
@@ -13,6 +13,7 @@ export default function EsportesList({
   onNewEsporte,
   onEditVariante,
   onEditModalidades,
+  onConfigPontuacao,
   emptyMessageDiretor,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -319,6 +320,16 @@ export default function EsportesList({
                       </td>
                       <td className="px-5 py-4 text-right border-b border-[#f1f5f9]">
                         <div className="flex justify-end gap-2">
+                          {onConfigPontuacao && isEsporteUnico && (v.esporte_limite_atletas ?? 0) > 1 && (
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                              onClick={() => onConfigPontuacao(v)}
+                              title="Configurar pontuação"
+                            >
+                              <Settings2 size={18} />
+                            </button>
+                          )}
                           {onEditVariante && (
                             <button
                               type="button"

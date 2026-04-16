@@ -76,4 +76,20 @@ export const esportesService = {
     await handleResponse(res, 'Erro ao excluir esporte')
     return true
   },
+
+  async getConfigPontuacao(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}/config-pontuacao${qs}`)
+    if (res.status === 404) return null
+    return handleResponse(res, 'Erro ao buscar configuração de pontuação')
+  },
+
+  async upsertConfigPontuacao(id, data, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${encodeURIComponent(id)}/config-pontuacao${qs}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+    return handleResponse(res, 'Erro ao salvar configuração de pontuação')
+  },
 }

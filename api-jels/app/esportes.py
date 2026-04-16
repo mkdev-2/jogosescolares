@@ -5,8 +5,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
 
-from app.schemas import EsporteCreate, EsporteUpdate, EsporteResponse
-from app.auth import get_current_user
+from app.schemas import (
+    EsporteConfigPontuacaoInput,
+    EsporteConfigPontuacaoResponse,
+    EsporteCreate,
+    EsporteUpdate,
+    EsporteResponse,
+)
+from app.auth import get_current_user, is_admin
 from app.database import get_db, log_audit
 from app.edicao_context import resolve_edicao_id
 
@@ -538,3 +544,174 @@ async def delete_esporte(
         detalhes_antes=snapshot_antes,
         mensagem=f"Usuário {current_user['nome']} excluiu o Esporte {snapshot_antes['nome']}.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Configuração de pontuação por esporte + edição
+# ---------------------------------------------------------------------------
+
+def _row_to_config_response(row: dict) -> EsporteConfigPontuacaoResponse:
+    return EsporteConfigPontuacaoResponse(
+        id=row["id"],
+        esporte_id=str(row["esporte_id"]),
+        edicao_id=row["edicao_id"],
+        unidade_placar=row["unidade_placar"],
+        unidade_placar_sec=row.get("unidade_placar_sec"),
+        pts_vitoria=row["pts_vitoria"],
+        pts_vitoria_parcial=row.get("pts_vitoria_parcial"),
+        pts_empate=row["pts_empate"],
+        pts_derrota=row["pts_derrota"],
+        permite_empate=row["permite_empate"],
+        wxo_pts_vencedor=row["wxo_pts_vencedor"],
+        wxo_pts_perdedor=row["wxo_pts_perdedor"],
+        wxo_placar_pro=row["wxo_placar_pro"],
+        wxo_placar_contra=row["wxo_placar_contra"],
+        wxo_placar_pro_sec=row.get("wxo_placar_pro_sec"),
+        wxo_placar_contra_sec=row.get("wxo_placar_contra_sec"),
+        ignorar_placar_extra=row["ignorar_placar_extra"],
+        criterios_desempate_2=row["criterios_desempate_2"] or [],
+        criterios_desempate_3plus=row["criterios_desempate_3plus"] or [],
+    )
+
+
+@router.get(
+    "/{esporte_id}/config-pontuacao",
+    response_model=EsporteConfigPontuacaoResponse | None,
+)
+async def get_config_pontuacao(
+    esporte_id: str,
+    edicao_id: int | None = Query(None, description="Edição alvo; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna a configuração de pontuação do esporte para a edição. Retorna null se não configurada."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, esporte_id, edicao_id,
+                   unidade_placar, unidade_placar_sec,
+                   pts_vitoria, pts_vitoria_parcial, pts_empate, pts_derrota, permite_empate,
+                   wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
+                   wxo_placar_pro_sec, wxo_placar_contra_sec,
+                   ignorar_placar_extra,
+                   criterios_desempate_2, criterios_desempate_3plus
+            FROM esporte_config_pontuacao
+            WHERE esporte_id = %s AND edicao_id = %s
+            """,
+            (esporte_id, resolved_edicao_id),
+        )
+        row = await cur.fetchone()
+    if not row:
+        return None
+    return _row_to_config_response(row)
+
+
+@router.put(
+    "/{esporte_id}/config-pontuacao",
+    response_model=EsporteConfigPontuacaoResponse,
+)
+async def upsert_config_pontuacao(
+    esporte_id: str,
+    data: EsporteConfigPontuacaoInput,
+    edicao_id: int | None = Query(None, description="Edição alvo; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Cria ou atualiza a configuração de pontuação do esporte para a edição. Requer ADMIN."""
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        # Valida que o esporte existe na edição
+        await cur.execute(
+            "SELECT id, nome FROM esportes WHERE id = %s AND edicao_id = %s",
+            (esporte_id, resolved_edicao_id),
+        )
+        esporte_row = await cur.fetchone()
+        if not esporte_row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esporte não encontrado")
+
+        import json as _json
+
+        await cur.execute(
+            """
+            INSERT INTO esporte_config_pontuacao (
+                esporte_id, edicao_id,
+                unidade_placar, unidade_placar_sec,
+                pts_vitoria, pts_vitoria_parcial, pts_empate, pts_derrota, permite_empate,
+                wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
+                wxo_placar_pro_sec, wxo_placar_contra_sec,
+                ignorar_placar_extra,
+                criterios_desempate_2, criterios_desempate_3plus
+            ) VALUES (
+                %s, %s,
+                %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s,
+                %s, %s,
+                %s,
+                %s::jsonb, %s::jsonb
+            )
+            ON CONFLICT (esporte_id, edicao_id) DO UPDATE SET
+                unidade_placar        = EXCLUDED.unidade_placar,
+                unidade_placar_sec    = EXCLUDED.unidade_placar_sec,
+                pts_vitoria           = EXCLUDED.pts_vitoria,
+                pts_vitoria_parcial   = EXCLUDED.pts_vitoria_parcial,
+                pts_empate            = EXCLUDED.pts_empate,
+                pts_derrota           = EXCLUDED.pts_derrota,
+                permite_empate        = EXCLUDED.permite_empate,
+                wxo_pts_vencedor      = EXCLUDED.wxo_pts_vencedor,
+                wxo_pts_perdedor      = EXCLUDED.wxo_pts_perdedor,
+                wxo_placar_pro        = EXCLUDED.wxo_placar_pro,
+                wxo_placar_contra     = EXCLUDED.wxo_placar_contra,
+                wxo_placar_pro_sec    = EXCLUDED.wxo_placar_pro_sec,
+                wxo_placar_contra_sec = EXCLUDED.wxo_placar_contra_sec,
+                ignorar_placar_extra  = EXCLUDED.ignorar_placar_extra,
+                criterios_desempate_2     = EXCLUDED.criterios_desempate_2,
+                criterios_desempate_3plus = EXCLUDED.criterios_desempate_3plus,
+                updated_at            = CURRENT_TIMESTAMP
+            RETURNING
+                id, esporte_id, edicao_id,
+                unidade_placar, unidade_placar_sec,
+                pts_vitoria, pts_vitoria_parcial, pts_empate, pts_derrota, permite_empate,
+                wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
+                wxo_placar_pro_sec, wxo_placar_contra_sec,
+                ignorar_placar_extra,
+                criterios_desempate_2, criterios_desempate_3plus
+            """,
+            (
+                esporte_id, resolved_edicao_id,
+                data.unidade_placar, data.unidade_placar_sec,
+                data.pts_vitoria, data.pts_vitoria_parcial, data.pts_empate, data.pts_derrota, data.permite_empate,
+                data.wxo_pts_vencedor, data.wxo_pts_perdedor, data.wxo_placar_pro, data.wxo_placar_contra,
+                data.wxo_placar_pro_sec, data.wxo_placar_contra_sec,
+                data.ignorar_placar_extra,
+                _json.dumps(data.criterios_desempate_2),
+                _json.dumps(data.criterios_desempate_3plus),
+            ),
+        )
+        row = await cur.fetchone()
+        await conn.commit()
+
+    await log_audit(
+        conn,
+        user_id=current_user["id"],
+        acao="UPSERT",
+        tipo_recurso="ESPORTE_CONFIG_PONTUACAO",
+        recurso_id=None,
+        detalhes_depois={
+            "esporte_id": esporte_id,
+            "esporte_nome": esporte_row["nome"],
+            "edicao_id": resolved_edicao_id,
+            "unidade_placar": data.unidade_placar,
+            "pts_vitoria": data.pts_vitoria,
+            "permite_empate": data.permite_empate,
+        },
+        mensagem=f"Usuário {current_user['nome']} configurou pontuação do esporte {esporte_row['nome']}.",
+    )
+    return _row_to_config_response(row)

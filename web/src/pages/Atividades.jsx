@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Trophy, ClipboardList } from 'lucide-react'
 import EsportesList from '../components/catalogos/EsportesList'
 import EsporteModal from '../components/catalogos/EsporteModal'
+import ConfigPontuacaoModal from '../components/catalogos/ConfigPontuacaoModal'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
 import Campeonatos from './Campeonatos'
 import useEsportes from '../hooks/useEsportes'
@@ -26,6 +27,8 @@ export default function Atividades() {
   const [modalEsporteOpen, setModalEsporteOpen] = useState(false)
   const [esporteSelecionado, setEsporteSelecionado] = useState(null)
   const [variantesDoEsporte, setVariantesDoEsporte] = useState([])
+  const [modalConfigPontuacaoOpen, setModalConfigPontuacaoOpen] = useState(false)
+  const [esporteParaPontuacao, setEsporteParaPontuacao] = useState(null)
 
   const [modalModalidadesOpen, setModalModalidadesOpen] = useState(false)
   const [variantesTodas, setVariantesTodas] = useState([])
@@ -76,6 +79,14 @@ export default function Atividades() {
     } catch {
       setModalEsporteOpen(false)
     }
+  }
+
+  const handleAbrirConfigPontuacao = (variante) => {
+    setEsporteParaPontuacao({
+      id: variante.esporte_id,
+      nome: variante.esporte_nome,
+    })
+    setModalConfigPontuacaoOpen(true)
   }
 
   const handleModalEsporteClose = () => {
@@ -223,6 +234,7 @@ export default function Atividades() {
               onNewEsporte={isDiretor ? undefined : handleNewEsporte}
               onEditVariante={isDiretor ? undefined : handleEditVariante}
               onEditModalidades={isDiretor ? handleAbrirEdicaoModalidades : undefined}
+              onConfigPontuacao={isAdmin ? handleAbrirConfigPontuacao : undefined}
               emptyMessageDiretor={isDiretor}
             />
             {!isDiretor && (
@@ -235,6 +247,18 @@ export default function Atividades() {
                 createEsporte={useEsportesState.createEsporte}
                 updateEsporte={useEsportesState.updateEsporte}
                 loading={useEsportesState.loading}
+              />
+            )}
+            {isAdmin && esporteParaPontuacao && (
+              <ConfigPontuacaoModal
+                isOpen={modalConfigPontuacaoOpen}
+                onClose={() => {
+                  setModalConfigPontuacaoOpen(false)
+                  setEsporteParaPontuacao(null)
+                }}
+                esporteId={esporteParaPontuacao.id}
+                esporteNome={esporteParaPontuacao.nome}
+                onSuccess={() => {}}
               />
             )}
           </div>

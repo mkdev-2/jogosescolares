@@ -775,6 +775,26 @@ class EsporteConfigPontuacaoResponse(BaseModel):
     criterios_desempate_3plus: list[str] = Field(default_factory=list)
 
 
+class EsporteConfigPontuacaoInput(BaseModel):
+    """Payload para criar ou atualizar a configuração de pontuação de um esporte."""
+    unidade_placar: str = Field(..., max_length=20)
+    unidade_placar_sec: Optional[str] = Field(None, max_length=20)
+    pts_vitoria: int = Field(..., ge=0)
+    pts_vitoria_parcial: Optional[int] = Field(None, ge=0)
+    pts_empate: int = Field(0, ge=0)
+    pts_derrota: int = Field(0, ge=0)
+    permite_empate: bool = False
+    wxo_pts_vencedor: int = Field(3, ge=0)
+    wxo_pts_perdedor: int = Field(0, ge=0)
+    wxo_placar_pro: int = Field(1, ge=0)
+    wxo_placar_contra: int = Field(0, ge=0)
+    wxo_placar_pro_sec: Optional[int] = Field(None, ge=0)
+    wxo_placar_contra_sec: Optional[int] = Field(None, ge=0)
+    ignorar_placar_extra: bool = False
+    criterios_desempate_2: list[str] = Field(default_factory=list)
+    criterios_desempate_3plus: list[str] = Field(default_factory=list)
+
+
 RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
 
 
