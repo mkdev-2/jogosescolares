@@ -347,6 +347,7 @@ class EscolaResponse(BaseModel):
     telefone: str
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    termo_desatualizado: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -355,6 +356,11 @@ class EscolaResponse(BaseModel):
 class EscolaModalidadesUpdate(BaseModel):
     """Atualização das modalidades (variantes) em que a escola está vinculada."""
     variante_ids: list[str] = Field(..., min_length=1, description="IDs das variantes de esportes em que a escola pretende competir")
+
+
+class EscolaTermoAdesaoUpdate(BaseModel):
+    """Atualização exclusiva do anexo de termo de adesão assinado (e cancelamento da flag de desatualização)."""
+    termo_assinatura_url: str = Field(..., max_length=500, description="URL do documento do novo termo de adesão assinado")
 
 
 class EscolaAdesaoResponse(BaseModel):

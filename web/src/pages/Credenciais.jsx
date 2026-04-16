@@ -211,14 +211,24 @@ export default function Credenciais() {
                     doc.setFillColor(241, 245, 249)
                     doc.circle(x + 25, yOffset + 42, 18, 'FD')
                 }
-                // == 4. TEXTOS (COLUNA DIREITA COM SOMBRA) ==
+                // == 4. TEXTOS (COLUNA DIREITA CENTRALIZADA COM A FOTO) ==
                 doc.setTextColor(0, 0, 0)
-                let currentItemY = yOffset + 28;
+
+                // 4.1 Preparar textos para cálculo de altura
+                const splitNome = doc.splitTextToSize(aluno.nome.toUpperCase(), 36)
+                const nomeLineHeight = 6.2
+                const splitEscola = doc.splitTextToSize(aluno.escola_nome, 36)
+                const escolaLineHeight = 4.5
+                const textGap = 4
+
+                const totalTextHeight = (splitNome.length * nomeLineHeight) + textGap + (splitEscola.length * escolaLineHeight)
+                
+                // Centraliza verticalmente o bloco de texto em relação ao centro da foto (yOffset + 42)
+                let currentItemY = (yOffset + 42) - (totalTextHeight / 2) + 2 // +2 compensação do baseline
 
                 // Nome do Aluno - Efeito Sombra (Drop Shadow)
                 doc.setFont(mainFont, 'bold')
                 doc.setFontSize(15)
-                const splitNome = doc.splitTextToSize(aluno.nome.toUpperCase(), 32)
                 
                 // Camada de Sombra
                 doc.setTextColor(226, 232, 240)
@@ -228,34 +238,18 @@ export default function Credenciais() {
                 doc.setTextColor(0, 0, 0)
                 doc.text(splitNome, x + 48, currentItemY)
 
-                // Calcula altura do nome para empurrar o próximo item (Mínimo 2 linhas)
-                const nomeLineHeight = 6.2;
-                const totalLineCount = Math.max(splitNome.length, 2);
-                currentItemY += (totalLineCount * nomeLineHeight);
+                // Calcula altura do nome para o próximo item
+                currentItemY += (splitNome.length * nomeLineHeight) + textGap
 
                 // Escola
                 doc.setFont(mainFont, 'normal')
                 doc.setFontSize(12)
                 doc.setTextColor(0, 0, 0)
-                const splitEscola = doc.splitTextToSize(aluno.escola_nome, 36)
                 doc.text(splitEscola, x + 48, currentItemY)
 
-                // Empurra para a área do CPF
-                const escolaLineHeight = 4.5;
-                currentItemY += (splitEscola.length * escolaLineHeight) + 4;
+                currentItemY += (splitEscola.length * escolaLineHeight)
 
-                // Divisória mais visível
-                doc.setDrawColor(203, 213, 225)
-                doc.setLineWidth(0.4)
-                doc.line(x + 48, currentItemY - 2, x + 82, currentItemY - 2)
-
-                // CPF (Mesmo estilo e tamanho da escola agora)
-                doc.setFont(mainFont, 'normal')
-                doc.setFontSize(10)
-                doc.setTextColor(0, 0, 0)
-                doc.text(`CPF: ${estudantesService.formatCpf(aluno.cpf)}`, x + 48, currentItemY + 3)
-
-                currentItemY += 8; // Ajuste para as tags não ficarem coladas
+                currentItemY += 4; // Ajuste para as tags não ficarem coladas
 
                 // == MODALIDADES EM TAGS (AINDA MAIORES) ==
                 if (aluno.modalidades && aluno.modalidades.length > 0) {
@@ -526,11 +520,6 @@ export default function Credenciais() {
                                         title: 'Nome',
                                         dataIndex: 'nome',
                                         render: (n) => <Typography.Text strong>{n}</Typography.Text>
-                                    },
-                                    {
-                                        title: 'CPF',
-                                        dataIndex: 'cpf',
-                                        render: (c) => estudantesService.formatCpf(c)
                                     },
                                     {
                                         title: 'Foto',

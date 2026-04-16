@@ -269,7 +269,7 @@ async def seed_equipes(limite_variantes: int) -> None:
 
                 await conn.commit()
                 print(
-                    f"    ✓ Escola {escola_id} concluída em {_fmt_dur(time.perf_counter() - t_escola)} "
+                    f"    [OK] Escola {escola_id} concluída em {_fmt_dur(time.perf_counter() - t_escola)} "
                     f"(+{eq_escola} equipe(s), +{vin_escola} vínculos) — commit salvo.",
                     flush=True,
                 )
