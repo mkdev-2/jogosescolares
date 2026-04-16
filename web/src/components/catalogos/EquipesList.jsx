@@ -77,6 +77,13 @@ export default function EquipesList({
   }
   const getQtdAlunos = (item) => (item.estudantes && item.estudantes.length) || item.estudante_ids?.length || 0
 
+  const getAlunoNome = (item) => {
+    if (Array.isArray(item.estudantes) && item.estudantes.length > 0) {
+      return item.estudantes[0]?.nome || '-'
+    }
+    return '-'
+  }
+
   const isModalidadeColetiva = (item) => {
     const codigo = String(item.tipo_modalidade_codigo || '').trim().toUpperCase()
     const nome = String(item.tipo_modalidade_nome || '').trim().toUpperCase()
@@ -144,18 +151,20 @@ export default function EquipesList({
                 options={naipeOptions}
                 className="w-full lg:min-w-[100px]"
               />
-              <Select
-                showSearch
-                placeholder="Técnico"
-                allowClear
-                value={tecnicoFilter}
-                onChange={setTecnicoFilter}
-                options={tecnicoOptions}
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                className="w-full lg:min-w-[180px] lg:flex-1"
-              />
+              {showInstituicao && (
+                <Select
+                  showSearch
+                  placeholder="Técnico"
+                  allowClear
+                  value={tecnicoFilter}
+                  onChange={setTecnicoFilter}
+                  options={tecnicoOptions}
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  className="w-full lg:min-w-[180px] lg:flex-1"
+                />
+              )}
             </div>
             {onNewEquipe && (
               <Button
@@ -221,9 +230,11 @@ export default function EquipesList({
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Naipe
                     </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      Técnico
-                    </th>
+                    {showInstituicao && (
+                      <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        Técnico
+                      </th>
+                    )}
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Alunos
                     </th>
@@ -242,8 +253,10 @@ export default function EquipesList({
                       onClick={() => onViewEquipe?.(item)}
                     >
                       {showInstituicao && (
-                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                          {item.escola_nome || '-'}
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9] max-w-[180px]">
+                          <span className="block truncate" title={item.escola_nome || '-'}>
+                            {item.escola_nome || '-'}
+                          </span>
                         </td>
                       )}
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
@@ -258,11 +271,22 @@ export default function EquipesList({
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
                         {getNaipeNome(item)}
                       </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getTecnicoNome(item)}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {getQtdAlunos(item)}/{item.esporte_limite_atletas || '-'} membros
+                      {showInstituicao && (
+                        <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9] max-w-[180px]">
+                          <span className="block truncate" title={getTecnicoNome(item)}>
+                            {getTecnicoNome(item)}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9] max-w-[160px]">
+                        {isModalidadeColetiva(item)
+                          ? `${getQtdAlunos(item)}/${item.esporte_limite_atletas || '-'} membros`
+                          : (
+                            <span className="block truncate" title={getAlunoNome(item)}>
+                              {getAlunoNome(item)}
+                            </span>
+                          )
+                        }
                       </td>
                       {(onEditEquipe || onDeleteEquipe || onFichaColetiva || onFichaIndividual) && (
                         <td

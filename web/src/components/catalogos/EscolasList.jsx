@@ -116,9 +116,6 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       CNPJ
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      E-mail
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Telefone
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -161,9 +158,6 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {escolasService.formatCnpj(item.cnpj)}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {item.email || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {escolasService.formatTelefone(item.telefone)}
