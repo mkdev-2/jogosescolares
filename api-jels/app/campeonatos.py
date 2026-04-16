@@ -16,6 +16,8 @@ from app.schemas import (
     CampeonatoPartidaResponse,
     CampeonatoResponse,
     EquipeDaVarianteResponse,
+    EsporteConfigPontuacaoResponse,
+    PartidaResultadoInput,
 )
 from app.services.chaveamentos_service import (
     gerar_estrutura_campeonato,
@@ -234,6 +236,7 @@ async def criar_com_sorteio(
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id)
 
+    # Validações rápidas antes de abrir transação
     all_equipe_ids = [eid for grupo in data.grupos for eid in grupo.equipes]
     total_equipes = len(all_equipe_ids)
 
@@ -275,17 +278,31 @@ async def criar_com_sorteio(
                     detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
                 )
 
+            # Valida que não existe campeonato para esta variante+edição
+            await cur.execute(
+                "SELECT id FROM campeonatos WHERE edicao_id = %s AND esporte_variante_id = %s",
+                (resolved_edicao_id, data.esporte_variante_id),
+            )
+            if await cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Já existe campeonato para esta edição e variante.",
+                )
+
             # Valida que todas as equipes pertencem a esta variante+edição
             await cur.execute(
-                "SELECT id FROM equipes WHERE esporte_variante_id = %s AND edicao_id = %s",
-                (data.esporte_variante_id, resolved_edicao_id),
+                """
+                SELECT id FROM equipes
+                WHERE id = ANY(%s) AND esporte_variante_id = %s AND edicao_id = %s
+                """,
+                (all_equipe_ids, data.esporte_variante_id, resolved_edicao_id),
             )
-            valid_ids = {r["id"] for r in await cur.fetchall()}
-            invalidas = [eid for eid in all_equipe_ids if eid not in valid_ids]
+            equipes_validas = {int(r["id"]) for r in await cur.fetchall()}
+            invalidas = set(all_equipe_ids) - equipes_validas
             if invalidas:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Equipes não pertencem a esta variante/edição: {invalidas}",
+                    detail=f"Equipes não pertencem a esta variante/edição: {sorted(invalidas)}",
                 )
 
             nome = (
@@ -294,25 +311,18 @@ async def criar_com_sorteio(
                 f"{variante['categoria_nome']}"
             )
 
-            try:
-                await cur.execute(
-                    """
-                    INSERT INTO campeonatos (
-                        edicao_id, esporte_variante_id, nome, status, formato,
-                        grupo_tamanho_ideal, classificam_por_grupo, permite_melhores_terceiros,
-                        geracao_autorizada_em, geracao_autorizada_por
-                    )
-                    VALUES (%s, %s, %s, 'RASCUNHO', 'GRUPOS_E_MATA_MATA', 4, 2, FALSE, NOW(), %s)
-                    RETURNING id
-                    """,
-                    (resolved_edicao_id, data.esporte_variante_id, nome, current_user["id"]),
+            await cur.execute(
+                """
+                INSERT INTO campeonatos (
+                    edicao_id, esporte_variante_id, nome, status, formato,
+                    grupo_tamanho_ideal, classificam_por_grupo, permite_melhores_terceiros,
+                    geracao_autorizada_em, geracao_autorizada_por
                 )
-            except psycopg.errors.UniqueViolation:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Já existe campeonato para esta edição e variante.",
-                )
-
+                VALUES (%s, %s, %s, 'RASCUNHO', 'GRUPOS_E_MATA_MATA', 4, 2, FALSE, NOW(), %s)
+                RETURNING id
+                """,
+                (resolved_edicao_id, data.esporte_variante_id, nome, current_user["id"]),
+            )
             campeonato_id = (await cur.fetchone())["id"]
 
             for idx, grupo_input in enumerate(data.grupos):
@@ -335,15 +345,14 @@ async def criar_com_sorteio(
                         (grupo_id, equipe_id, seed_idx),
                     )
 
-        await gerar_partidas_para_grupos_existentes(
-            conn=conn,
-            campeonato_id=campeonato_id,
-            executor_user_id=current_user["id"],
-        )
+            await gerar_partidas_para_grupos_existentes(
+                conn=conn,
+                campeonato_id=campeonato_id,
+                executor_user_id=current_user["id"],
+            )
 
-    async with conn.cursor() as cur:
-        await cur.execute(_base_select("WHERE c.id = %s"), (campeonato_id,))
-        row = await cur.fetchone()
+            await cur.execute(_base_select("WHERE c.id = %s"), (campeonato_id,))
+            row = await cur.fetchone()
 
     await log_audit(
         conn=conn,
@@ -603,3 +612,148 @@ async def get_estrutura(
         grupos=grupos,
         partidas=partidas,
     )
+
+
+@router.get("/{campeonato_id}/config-pontuacao", response_model=EsporteConfigPontuacaoResponse)
+async def get_config_pontuacao(
+    campeonato_id: int,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna a configuração de pontuação e desempate do esporte do campeonato."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT esporte_variante_id, edicao_id FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        camp = await cur.fetchone()
+        if not camp:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+        await cur.execute(
+            """
+            SELECT ecp.*
+            FROM esporte_config_pontuacao ecp
+            JOIN esporte_variantes ev ON ev.esporte_id = ecp.esporte_id AND ev.edicao_id = ecp.edicao_id
+            WHERE ev.id = %s AND ecp.edicao_id = %s
+            """,
+            (camp["esporte_variante_id"], resolved_edicao_id),
+        )
+        config = await cur.fetchone()
+
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Configuração de pontuação não encontrada para este esporte/edição.",
+        )
+
+    return EsporteConfigPontuacaoResponse(
+        id=config["id"],
+        esporte_id=str(config["esporte_id"]),
+        edicao_id=config["edicao_id"],
+        unidade_placar=config["unidade_placar"],
+        unidade_placar_sec=config.get("unidade_placar_sec"),
+        pts_vitoria=config["pts_vitoria"],
+        pts_vitoria_parcial=config.get("pts_vitoria_parcial"),
+        pts_empate=config["pts_empate"],
+        pts_derrota=config["pts_derrota"],
+        permite_empate=config["permite_empate"],
+        wxo_pts_vencedor=config["wxo_pts_vencedor"],
+        wxo_pts_perdedor=config["wxo_pts_perdedor"],
+        wxo_placar_pro=config["wxo_placar_pro"],
+        wxo_placar_contra=config["wxo_placar_contra"],
+        wxo_placar_pro_sec=config.get("wxo_placar_pro_sec"),
+        wxo_placar_contra_sec=config.get("wxo_placar_contra_sec"),
+        ignorar_placar_extra=config["ignorar_placar_extra"],
+        criterios_desempate_2=config["criterios_desempate_2"] or [],
+        criterios_desempate_3plus=config["criterios_desempate_3plus"] or [],
+    )
+
+
+@router.patch("/{campeonato_id}/partidas/{partida_id}/resultado")
+async def registrar_resultado_partida(
+    campeonato_id: int,
+    partida_id: int,
+    data: PartidaResultadoInput,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Registra o resultado de uma partida, determinando o vencedor automaticamente."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+        await cur.execute(
+            """
+            SELECT id, campeonato_id, mandante_equipe_id, visitante_equipe_id, is_bye, resultado_tipo
+            FROM campeonato_partidas
+            WHERE id = %s AND campeonato_id = %s
+            """,
+            (partida_id, campeonato_id),
+        )
+        partida = await cur.fetchone()
+        if not partida:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+        if partida["is_bye"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ter resultado registrado.")
+
+        # Determina vencedor a partir do placar
+        vencedor_id: int | None = None
+        if data.resultado_tipo == "WXO":
+            # WxO: mandante vence por walkover (placar definido pela config — salvo como enviado)
+            vencedor_id = partida["mandante_equipe_id"]
+        elif data.resultado_tipo == "NORMAL":
+            if data.placar_mandante > data.placar_visitante:
+                vencedor_id = partida["mandante_equipe_id"]
+            elif data.placar_visitante > data.placar_mandante:
+                vencedor_id = partida["visitante_equipe_id"]
+            # Empate: vencedor_id permanece NULL
+
+        await cur.execute(
+            """
+            UPDATE campeonato_partidas
+            SET placar_mandante      = %s,
+                placar_visitante     = %s,
+                placar_mandante_sec  = %s,
+                placar_visitante_sec = %s,
+                resultado_tipo       = %s,
+                vencedor_equipe_id   = %s,
+                registrado_em        = NOW(),
+                registrado_por       = %s,
+                updated_at           = NOW()
+            WHERE id = %s
+            RETURNING id
+            """,
+            (
+                data.placar_mandante,
+                data.placar_visitante,
+                data.placar_mandante_sec,
+                data.placar_visitante_sec,
+                data.resultado_tipo,
+                vencedor_id,
+                current_user["id"],
+                partida_id,
+            ),
+        )
+        await cur.fetchone()
+        await conn.commit()
+
+    return {
+        "partida_id": partida_id,
+        "placar_mandante": data.placar_mandante,
+        "placar_visitante": data.placar_visitante,
+        "resultado_tipo": data.resultado_tipo,
+        "vencedor_equipe_id": vencedor_id,
+    }

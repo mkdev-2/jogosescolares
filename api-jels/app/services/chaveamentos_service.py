@@ -374,23 +374,29 @@ async def gerar_partidas_para_grupos_existentes(
             "SELECT id FROM campeonato_grupos WHERE campeonato_id = %s ORDER BY ordem",
             (campeonato_id,),
         )
-        grupos = await cur.fetchall()
+        grupos_rows = await cur.fetchall()
+        grupo_ids = [int(r["id"]) for r in grupos_rows]
 
-        classificados_iniciais: list[int] = []
+        if not grupo_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nenhum grupo encontrado para este campeonato.",
+            )
 
-        for grupo in grupos:
-            grupo_id = int(grupo["id"])
+        total_equipes = 0
+        participantes_mata_mata: list[int] = []
 
+        for grupo_id in grupo_ids:
             await cur.execute(
                 """
-                SELECT equipe_id
-                FROM campeonato_grupo_equipes
+                SELECT equipe_id FROM campeonato_grupo_equipes
                 WHERE grupo_id = %s
                 ORDER BY seed_no_grupo
                 """,
                 (grupo_id,),
             )
             equipes_grupo = [int(r["equipe_id"]) for r in await cur.fetchall()]
+            total_equipes += len(equipes_grupo)
 
             confrontos = _gerar_confrontos_round_robin(equipes_grupo)
             for rodada_idx, (mandante_id, visitante_id) in enumerate(confrontos, start=1):
@@ -405,22 +411,22 @@ async def gerar_partidas_para_grupos_existentes(
                     (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
                 )
 
-            classificados_iniciais.extend(equipes_grupo[:classificam_por_grupo])
+            participantes_mata_mata.extend(equipes_grupo[:classificam_por_grupo])
 
-        if len(classificados_iniciais) < 2:
+        if len(participantes_mata_mata) < 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Não há classificados suficientes para montar o mata-mata.",
             )
-        if len(classificados_iniciais) > 52:
+        if len(participantes_mata_mata) > 52:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Limite excedido: máximo de 52 classificados para o mata-mata.",
             )
 
-        chave_tamanho = _proxima_potencia_2(len(classificados_iniciais))
+        chave_tamanho = _proxima_potencia_2(len(participantes_mata_mata))
         fase_inicial = _fase_por_tamanho_chave(chave_tamanho)
-        slots = _gerar_bracket_slots(classificados_iniciais, chave_tamanho)
+        slots = _gerar_bracket_slots(participantes_mata_mata, chave_tamanho)
         total_rodadas = int(log2(chave_tamanho))
 
         for idx in range(chave_tamanho // 2):
@@ -485,8 +491,9 @@ async def gerar_partidas_para_grupos_existentes(
 
     return {
         "campeonato_id": campeonato_id,
-        "total_grupos": len(grupos),
-        "total_classificados_iniciais": len(classificados_iniciais),
+        "total_equipes": total_equipes,
+        "total_grupos": len(grupo_ids),
+        "total_classificados_iniciais": len(participantes_mata_mata),
         "tamanho_chave": chave_tamanho,
         "total_partidas": total_partidas,
     }

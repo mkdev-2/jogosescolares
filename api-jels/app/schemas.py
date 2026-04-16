@@ -729,6 +729,8 @@ class CampeonatoEstruturaResponse(BaseModel):
     partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
 
 
+# ========== CAMPEONATOS — SORTEIO MANUAL ==========
+
 class EquipeDaVarianteResponse(BaseModel):
     """Equipe simplificada para exibição na tela de sorteio."""
     id: int
@@ -746,6 +748,43 @@ class CampeonatoComSorteioCreate(BaseModel):
     esporte_variante_id: str = Field(..., min_length=1)
     edicao_id: Optional[int] = None
     grupos: list[GrupoSorteioInput] = Field(..., min_length=2)
+
+
+# ========== CAMPEONATOS — PONTUAÇÃO ==========
+
+class EsporteConfigPontuacaoResponse(BaseModel):
+    """Configuração de pontuação e desempate de um esporte."""
+    id: int
+    esporte_id: str
+    edicao_id: int
+    unidade_placar: str
+    unidade_placar_sec: Optional[str] = None
+    pts_vitoria: int
+    pts_vitoria_parcial: Optional[int] = None
+    pts_empate: int
+    pts_derrota: int
+    permite_empate: bool
+    wxo_pts_vencedor: int
+    wxo_pts_perdedor: int
+    wxo_placar_pro: int
+    wxo_placar_contra: int
+    wxo_placar_pro_sec: Optional[int] = None
+    wxo_placar_contra_sec: Optional[int] = None
+    ignorar_placar_extra: bool
+    criterios_desempate_2: list[str] = Field(default_factory=list)
+    criterios_desempate_3plus: list[str] = Field(default_factory=list)
+
+
+RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
+
+
+class PartidaResultadoInput(BaseModel):
+    """Payload para registrar o resultado de uma partida."""
+    placar_mandante: int = Field(..., ge=0)
+    placar_visitante: int = Field(..., ge=0)
+    placar_mandante_sec: Optional[int] = Field(None, ge=0)
+    placar_visitante_sec: Optional[int] = Field(None, ge=0)
+    resultado_tipo: RESULTADO_TIPO = "NORMAL"
 
 
 # ---------- Ficha Coletiva JELS (impressão) ----------

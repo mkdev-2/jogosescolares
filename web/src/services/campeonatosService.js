@@ -70,4 +70,19 @@ export const campeonatosService = {
     })
     return handleResponse(res, 'Erro ao criar campeonato')
   },
+
+  async getConfigPontuacao(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}/config-pontuacao${qs}`)
+    return handleResponse(res, 'Erro ao buscar configuração de pontuação')
+  },
+
+  async registrarResultado(campeonatoId, partidaId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/resultado${qs}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao registrar resultado')
+  },
 }
