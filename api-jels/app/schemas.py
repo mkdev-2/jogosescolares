@@ -690,12 +690,21 @@ class CampeonatoResponse(CampeonatoListItemResponse):
     tipo_modalidade_nome: Optional[str] = None
 
 
+class CampeonatoGrupoEquipeResponse(BaseModel):
+    """Equipe dentro de um grupo do campeonato."""
+    equipe_id: int
+    escola_id: int
+    nome_escola: str
+    seed_no_grupo: int
+
+
 class CampeonatoGrupoResponse(BaseModel):
     """Schema de grupo do campeonato."""
     id: int
     campeonato_id: int
     nome: str
     ordem: int
+    equipes: list[CampeonatoGrupoEquipeResponse] = Field(default_factory=list)
     created_at: Optional[str] = None
 
     class Config:
@@ -715,6 +724,17 @@ class CampeonatoPartidaResponse(BaseModel):
     is_bye: bool = False
     origem_slot_a: Optional[str] = None
     origem_slot_b: Optional[str] = None
+    # Nomes das equipes (resolvidos via JOIN)
+    mandante_nome: Optional[str] = None
+    visitante_nome: Optional[str] = None
+    vencedor_nome: Optional[str] = None
+    # Placar e resultado
+    placar_mandante: Optional[int] = None
+    placar_visitante: Optional[int] = None
+    placar_mandante_sec: Optional[int] = None
+    placar_visitante_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = None
+    registrado_em: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -805,6 +825,14 @@ class PartidaResultadoInput(BaseModel):
     placar_mandante_sec: Optional[int] = Field(None, ge=0)
     placar_visitante_sec: Optional[int] = Field(None, ge=0)
     resultado_tipo: RESULTADO_TIPO = "NORMAL"
+    # Para WxO: qual equipe vence (MANDANTE ou VISITANTE). Obrigatório quando resultado_tipo == "WXO".
+    vencedor_wxo: Optional[Literal["MANDANTE", "VISITANTE"]] = None
+
+    @model_validator(mode="after")
+    def validar_vencedor_wxo(self):
+        if self.resultado_tipo == "WXO" and self.vencedor_wxo is None:
+            raise ValueError("Para resultado WxO, informe vencedor_wxo (MANDANTE ou VISITANTE).")
+        return self
 
 
 # ---------- Ficha Coletiva JELS (impressão) ----------

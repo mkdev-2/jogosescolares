@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Trophy, Search, Plus, Pencil, Trash2, Settings2 } from 'lucide-react'
-import { Popconfirm, Input, Button, Select, Switch, Pagination } from 'antd'
+import { Popconfirm, Input, Button, Select, Switch, Pagination, Tooltip } from 'antd'
 import ModalidadeIcon from './ModalidadeIcon'
 
 export default function EsportesList({
@@ -321,44 +321,47 @@ export default function EsportesList({
                       <td className="px-5 py-4 text-right border-b border-[#f1f5f9]">
                         <div className="flex justify-end gap-2">
                           {onConfigPontuacao && isEsporteUnico && (v.esporte_limite_atletas ?? 0) > 1 && (
-                            <button
-                              type="button"
-                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                              onClick={() => onConfigPontuacao(v)}
-                              title="Configurar pontuação"
-                            >
-                              <Settings2 size={18} />
-                            </button>
+                            <Tooltip title="Configurar pontuação" placement="top">
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                                onClick={() => onConfigPontuacao(v)}
+                              >
+                                <Settings2 size={18} />
+                              </button>
+                            </Tooltip>
                           )}
                           {onEditVariante && (
-                            <button
-                              type="button"
-                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
-                              onClick={() => onEditVariante(v)}
-                              title="Editar esporte"
-                            >
-                              <Pencil size={18} />
-                            </button>
+                            <Tooltip title="Editar esporte" placement="top">
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:text-[#0f766e] hover:bg-[#f1f5f9]"
+                                onClick={() => onEditVariante(v)}
+                              >
+                                <Pencil size={18} />
+                              </button>
+                            </Tooltip>
                           )}
                           {(isEsporteUnico ? deleteEsporte : deleteVariante) && (
-                          <Popconfirm
-                            title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'}
-                            description={isEsporteUnico
-                              ? `Excluir o esporte "${v.esporte_nome}" e todas as suas variantes?`
-                              : `Excluir "${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome}"?`}
-                            onConfirm={() => handleDelete(v, isEsporteUnico)}
-                            okText="Sim, excluir"
-                            cancelText="Cancelar"
-                            okButtonProps={{ danger: true }}
-                          >
-                            <button
-                              type="button"
-                              className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
-                              title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'}
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </Popconfirm>
+                            <Tooltip title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'} placement="top">
+                              <Popconfirm
+                                title={isEsporteUnico ? 'Excluir esporte' : 'Excluir variante'}
+                                description={isEsporteUnico
+                                  ? `Excluir o esporte "${v.esporte_nome}" e todas as suas variantes?`
+                                  : `Excluir "${v.esporte_nome} • ${v.categoria_nome} • ${v.naipe_nome}"?`}
+                                onConfirm={() => handleDelete(v, isEsporteUnico)}
+                                okText="Sim, excluir"
+                                cancelText="Cancelar"
+                                okButtonProps={{ danger: true }}
+                              >
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center p-1.5 rounded-[6px] border-0 text-[#64748b] hover:bg-[#fef2f2] hover:text-[#dc2626]"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </Popconfirm>
+                            </Tooltip>
                           )}
                         </div>
                       </td>

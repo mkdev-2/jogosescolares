@@ -11,6 +11,7 @@ from app.schemas import (
     CampeonatoComSorteioCreate,
     CampeonatoCreate,
     CampeonatoEstruturaResponse,
+    CampeonatoGrupoEquipeResponse,
     CampeonatoGrupoResponse,
     CampeonatoListItemResponse,
     CampeonatoPartidaResponse,
@@ -22,6 +23,13 @@ from app.schemas import (
 from app.services.chaveamentos_service import (
     gerar_estrutura_campeonato,
     gerar_partidas_para_grupos_existentes,
+)
+from app.services.pontuacao_service import (
+    get_config_pontuacao,
+    calcular_classificacao_grupo,
+    verificar_grupo_concluido,
+    avancar_classificados_para_mata_mata,
+    avancar_vencedor_knockout,
 )
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
@@ -552,15 +560,48 @@ async def get_estrutura(
         )
         grupos_rows = await cur.fetchall()
 
+        grupo_ids = [r["id"] for r in grupos_rows]
+
+        # Equipes de cada grupo (com nome da escola)
+        equipes_por_grupo: dict[int, list] = {gid: [] for gid in grupo_ids}
+        if grupo_ids:
+            await cur.execute(
+                """
+                SELECT cge.grupo_id, cge.equipe_id, cge.seed_no_grupo,
+                       eq.escola_id, esc.nome_escola
+                FROM campeonato_grupo_equipes cge
+                JOIN equipes eq ON eq.id = cge.equipe_id
+                JOIN escolas esc ON esc.id = eq.escola_id
+                WHERE cge.grupo_id = ANY(%s)
+                ORDER BY cge.grupo_id, cge.seed_no_grupo
+                """,
+                (grupo_ids,),
+            )
+            for r in await cur.fetchall():
+                equipes_por_grupo[r["grupo_id"]].append(r)
+
         await cur.execute(
             """
-            SELECT id, campeonato_id, fase, rodada, grupo_id,
-                   mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
-                   is_bye, origem_slot_a, origem_slot_b, created_at, updated_at
-            FROM campeonato_partidas
-            WHERE campeonato_id = %s
+            SELECT cp.id, cp.campeonato_id, cp.fase, cp.rodada, cp.grupo_id,
+                   cp.mandante_equipe_id, cp.visitante_equipe_id, cp.vencedor_equipe_id,
+                   cp.is_bye, cp.origem_slot_a, cp.origem_slot_b,
+                   cp.placar_mandante, cp.placar_visitante,
+                   cp.placar_mandante_sec, cp.placar_visitante_sec,
+                   cp.resultado_tipo, cp.registrado_em,
+                   cp.created_at, cp.updated_at,
+                   esc_m.nome_escola AS mandante_nome,
+                   esc_v.nome_escola AS visitante_nome,
+                   esc_w.nome_escola AS vencedor_nome
+            FROM campeonato_partidas cp
+            LEFT JOIN equipes eq_m ON eq_m.id = cp.mandante_equipe_id
+            LEFT JOIN escolas esc_m ON esc_m.id = eq_m.escola_id
+            LEFT JOIN equipes eq_v ON eq_v.id = cp.visitante_equipe_id
+            LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
+            LEFT JOIN equipes eq_w ON eq_w.id = cp.vencedor_equipe_id
+            LEFT JOIN escolas esc_w ON esc_w.id = eq_w.escola_id
+            WHERE cp.campeonato_id = %s
             ORDER BY
-                CASE fase
+                CASE cp.fase
                     WHEN 'GRUPOS' THEN 1
                     WHEN 'TRINTA_E_DOIS_AVOS' THEN 2
                     WHEN 'DEZESSEIS_AVOS' THEN 3
@@ -571,8 +612,8 @@ async def get_estrutura(
                     WHEN 'TERCEIRO' THEN 8
                     ELSE 99
                 END,
-                rodada,
-                id
+                cp.rodada,
+                cp.id
             """,
             (campeonato_id,),
         )
@@ -584,6 +625,15 @@ async def get_estrutura(
             campeonato_id=r["campeonato_id"],
             nome=r["nome"],
             ordem=r["ordem"],
+            equipes=[
+                CampeonatoGrupoEquipeResponse(
+                    equipe_id=e["equipe_id"],
+                    escola_id=e["escola_id"],
+                    nome_escola=e["nome_escola"],
+                    seed_no_grupo=e["seed_no_grupo"],
+                )
+                for e in equipes_por_grupo.get(r["id"], [])
+            ],
             created_at=r["created_at"].isoformat() if r.get("created_at") else None,
         )
         for r in grupos_rows
@@ -601,6 +651,15 @@ async def get_estrutura(
             is_bye=bool(r.get("is_bye")),
             origem_slot_a=r.get("origem_slot_a"),
             origem_slot_b=r.get("origem_slot_b"),
+            mandante_nome=r.get("mandante_nome"),
+            visitante_nome=r.get("visitante_nome"),
+            vencedor_nome=r.get("vencedor_nome"),
+            placar_mandante=r.get("placar_mandante"),
+            placar_visitante=r.get("placar_visitante"),
+            placar_mandante_sec=r.get("placar_mandante_sec"),
+            placar_visitante_sec=r.get("placar_visitante_sec"),
+            resultado_tipo=r.get("resultado_tipo"),
+            registrado_em=r["registrado_em"].isoformat() if r.get("registrado_em") else None,
             created_at=r["created_at"].isoformat() if r.get("created_at") else None,
             updated_at=r["updated_at"].isoformat() if r.get("updated_at") else None,
         )
@@ -615,7 +674,7 @@ async def get_estrutura(
 
 
 @router.get("/{campeonato_id}/config-pontuacao", response_model=EsporteConfigPontuacaoResponse)
-async def get_config_pontuacao(
+async def get_config_pontuacao_endpoint(
     campeonato_id: int,
     edicao_id: int | None = Query(None),
     conn: psycopg.AsyncConnection = Depends(get_db),
@@ -683,7 +742,14 @@ async def registrar_resultado_partida(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Registra o resultado de uma partida, determinando o vencedor automaticamente."""
+    """
+    Registra o resultado de uma partida.
+
+    Após salvar:
+    - Se for partida de grupo e o grupo ficar completo → avança classificados
+      para os slots do mata-mata com a classificação real.
+    - Se for partida eliminatória → preenche o slot do vencedor na próxima fase.
+    """
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
@@ -697,30 +763,37 @@ async def registrar_resultado_partida(
 
         await cur.execute(
             """
-            SELECT id, campeonato_id, mandante_equipe_id, visitante_equipe_id, is_bye, resultado_tipo
+            SELECT id, campeonato_id, grupo_id,
+                   mandante_equipe_id, visitante_equipe_id,
+                   is_bye, resultado_tipo
             FROM campeonato_partidas
             WHERE id = %s AND campeonato_id = %s
             """,
             (partida_id, campeonato_id),
         )
         partida = await cur.fetchone()
-        if not partida:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
-        if partida["is_bye"]:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ter resultado registrado.")
 
-        # Determina vencedor a partir do placar
-        vencedor_id: int | None = None
-        if data.resultado_tipo == "WXO":
-            # WxO: mandante vence por walkover (placar definido pela config — salvo como enviado)
+    if not partida:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+    if partida["is_bye"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ter resultado registrado.")
+
+    # Determina vencedor a partir do placar
+    vencedor_id: int | None = None
+    if data.resultado_tipo == "WXO":
+        # WxO: o campo vencedor_wxo indica quem vence (MANDANTE ou VISITANTE)
+        if data.vencedor_wxo == "VISITANTE":
+            vencedor_id = partida["visitante_equipe_id"]
+        else:
             vencedor_id = partida["mandante_equipe_id"]
-        elif data.resultado_tipo == "NORMAL":
-            if data.placar_mandante > data.placar_visitante:
-                vencedor_id = partida["mandante_equipe_id"]
-            elif data.placar_visitante > data.placar_mandante:
-                vencedor_id = partida["visitante_equipe_id"]
-            # Empate: vencedor_id permanece NULL
+    elif data.resultado_tipo == "NORMAL":
+        if data.placar_mandante > data.placar_visitante:
+            vencedor_id = partida["mandante_equipe_id"]
+        elif data.placar_visitante > data.placar_mandante:
+            vencedor_id = partida["visitante_equipe_id"]
+        # Empate: vencedor_id permanece NULL
 
+    async with conn.cursor() as cur:
         await cur.execute(
             """
             UPDATE campeonato_partidas
@@ -734,7 +807,6 @@ async def registrar_resultado_partida(
                 registrado_por       = %s,
                 updated_at           = NOW()
             WHERE id = %s
-            RETURNING id
             """,
             (
                 data.placar_mandante,
@@ -747,7 +819,24 @@ async def registrar_resultado_partida(
                 partida_id,
             ),
         )
-        await cur.fetchone()
+        await conn.commit()
+
+    grupo_id = partida["grupo_id"]
+    config = await get_config_pontuacao(conn, campeonato_id)
+
+    # --- Fase de grupos: verificar se o grupo ficou completo ---
+    grupo_concluido = False
+    if grupo_id is not None:
+        grupo_concluido = await verificar_grupo_concluido(conn, grupo_id)
+        if grupo_concluido:
+            await avancar_classificados_para_mata_mata(
+                conn, campeonato_id, grupo_id, config
+            )
+            await conn.commit()
+
+    # --- Mata-mata: avançar vencedor para a próxima fase ---
+    elif vencedor_id is not None:
+        await avancar_vencedor_knockout(conn, campeonato_id, partida_id, vencedor_id)
         await conn.commit()
 
     return {
@@ -756,4 +845,48 @@ async def registrar_resultado_partida(
         "placar_visitante": data.placar_visitante,
         "resultado_tipo": data.resultado_tipo,
         "vencedor_equipe_id": vencedor_id,
+        "grupo_concluido": grupo_concluido,
     }
+
+
+# ---------------------------------------------------------------------------
+# Classificação do grupo
+# ---------------------------------------------------------------------------
+
+@router.get("/{campeonato_id}/grupos/{grupo_id}/classificacao")
+async def get_classificacao_grupo(
+    campeonato_id: int,
+    grupo_id: int,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Retorna a tabela classificatória atual do grupo, com pontos e critérios
+    de desempate aplicados conforme a config de pontuação do esporte.
+
+    Cada item da lista contém:
+      posicao, equipe_id, nome_escola, seed,
+      J, V, E, D, pts, pro, contra, saldo, pro_sec, contra_sec.
+    """
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    # Valida que o grupo pertence ao campeonato na edição correta
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT cg.id
+            FROM campeonato_grupos cg
+            JOIN campeonatos c ON c.id = cg.campeonato_id
+            WHERE cg.id = %s AND cg.campeonato_id = %s AND c.edicao_id = %s
+            """,
+            (grupo_id, campeonato_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Grupo não encontrado neste campeonato.",
+            )
+
+    config = await get_config_pontuacao(conn, campeonato_id)
+    return await calcular_classificacao_grupo(conn, grupo_id, config)

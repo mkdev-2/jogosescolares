@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Modal, Select, Table, Tag, message } from 'antd'
+import { Button, Select, Table, Tag, message } from 'antd'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
@@ -23,9 +23,6 @@ export default function Campeonatos({ embedded = false }) {
   const [loadingVariantesFiltro, setLoadingVariantesFiltro] = useState(false)
   const [filtroEdicaoId, setFiltroEdicaoId] = useState(undefined)
   const [filtroVarianteId, setFiltroVarianteId] = useState(undefined)
-  const [estruturaOpen, setEstruturaOpen] = useState(false)
-  const [estruturaLoading, setEstruturaLoading] = useState(false)
-  const [estrutura, setEstrutura] = useState(null)
 
   const varianteLabelById = useMemo(() => {
     const m = new Map()
@@ -96,20 +93,6 @@ export default function Campeonatos({ embedded = false }) {
     loadVariantesFiltro()
   }, [filtroEdicaoId])
 
-  const handleVerEstrutura = async (row) => {
-    setEstruturaOpen(true)
-    setEstrutura(null)
-    setEstruturaLoading(true)
-    try {
-      const data = await campeonatosService.getEstrutura(row.id, row.edicao_id)
-      setEstrutura(data)
-    } catch (err) {
-      message.error(err.message || 'Erro ao consultar estrutura')
-    } finally {
-      setEstruturaLoading(false)
-    }
-  }
-
   const columns = [
     { title: 'Nome', dataIndex: 'nome', key: 'nome' },
     { title: 'Edição', dataIndex: 'edicao_id', key: 'edicao_id', width: 90 },
@@ -131,8 +114,8 @@ export default function Campeonatos({ embedded = false }) {
       key: 'acoes',
       width: 160,
       render: (_, row) => (
-        <Button size="small" onClick={() => handleVerEstrutura(row)}>
-          Ver estrutura
+        <Button size="small" onClick={() => navigate(`/app/campeonatos/${row.id}`)}>
+          Ver campeonato
         </Button>
       ),
     },
@@ -182,51 +165,6 @@ export default function Campeonatos({ embedded = false }) {
         pagination={{ pageSize: 10 }}
       />
 
-      <Modal
-        open={estruturaOpen}
-        onCancel={() => setEstruturaOpen(false)}
-        footer={null}
-        width={1000}
-        title="Estrutura do campeonato"
-      >
-        {estruturaLoading && <p className="text-sm text-[#64748b]">Carregando estrutura...</p>}
-        {!estruturaLoading && !estrutura && <p className="text-sm text-[#64748b]">Sem dados.</p>}
-        {!!estrutura && (
-          <div className="flex flex-col gap-4">
-            <div className="text-sm text-[#334155]">
-              <strong>Campeonato:</strong> {estrutura.campeonato_id} | <strong>Grupos:</strong>{' '}
-              {estrutura.grupos?.length || 0} | <strong>Partidas:</strong>{' '}
-              {estrutura.partidas?.length || 0}
-            </div>
-            <Table
-              rowKey={(r) => `g-${r.id}`}
-              size="small"
-              pagination={false}
-              dataSource={estrutura.grupos || []}
-              columns={[
-                { title: 'Grupo', dataIndex: 'nome', key: 'nome', width: 100 },
-                { title: 'Ordem', dataIndex: 'ordem', key: 'ordem', width: 90 },
-                { title: 'ID', dataIndex: 'id', key: 'id', width: 90 },
-              ]}
-            />
-            <Table
-              rowKey={(r) => `p-${r.id}`}
-              size="small"
-              pagination={{ pageSize: 8 }}
-              dataSource={estrutura.partidas || []}
-              columns={[
-                { title: 'Fase', dataIndex: 'fase', key: 'fase', width: 170 },
-                { title: 'Rodada', dataIndex: 'rodada', key: 'rodada', width: 90 },
-                { title: 'Grupo', dataIndex: 'grupo_id', key: 'grupo_id', width: 90 },
-                { title: 'Mandante', dataIndex: 'mandante_equipe_id', key: 'mandante_equipe_id', width: 110 },
-                { title: 'Visitante', dataIndex: 'visitante_equipe_id', key: 'visitante_equipe_id', width: 110 },
-                { title: 'Vencedor', dataIndex: 'vencedor_equipe_id', key: 'vencedor_equipe_id', width: 110 },
-                { title: 'BYE', dataIndex: 'is_bye', key: 'is_bye', width: 80, render: (v) => (v ? 'Sim' : 'Não') },
-              ]}
-            />
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

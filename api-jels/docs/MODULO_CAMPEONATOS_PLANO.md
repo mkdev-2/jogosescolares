@@ -252,19 +252,19 @@ O `PATCH` de resultado:
 
 ### Fase 1 — Sorteio
 
-- [ ] Acessar `/app/criar-campeonato` como admin
-- [ ] Selecionar modalidade COLETIVA e buscar equipes
-- [ ] Desmarcar equipes no modal (< 6 deve bloquear o botão)
-- [ ] Arrastar todas as equipes para grupos — "Salvar" só habilita com pool vazio
-- [ ] Testar X e clique direito para devolver ao pool
-- [ ] Salvar e conferir no banco: `campeonatos` (GERADO), `campeonato_grupos`, `campeonato_grupo_equipes`, `campeonato_partidas`
-- [ ] Tentar criar segundo campeonato para mesma variante — deve retornar 409
+- [x] Acessar `/app/criar-campeonato` como admin
+- [x] Selecionar modalidade COLETIVA e buscar equipes
+- [x] Desmarcar equipes no modal (< 6 deve bloquear o botão)
+- [x] Arrastar todas as equipes para grupos — "Salvar" só habilita com pool vazio
+- [x] Testar X e clique direito para devolver ao pool
+- [x] Salvar e conferir no banco: `campeonatos` (GERADO), `campeonato_grupos`, `campeonato_grupo_equipes`, `campeonato_partidas`
+- [x] Tentar criar segundo campeonato para mesma variante — deve retornar 409
 
 ### Fase 2 — Pontuação
 
-- [ ] Rodar migrations 044 e 045
-- [ ] Rodar seed das 4 configs de esporte
-- [ ] `GET /api/campeonatos/{id}/config-pontuacao` retorna config correta
+- [x] Rodar migrations 044 e 045
+- [x] Rodar seed das 4 configs de esporte
+- [x] `GET /api/campeonatos/{id}/config-pontuacao` retorna config correta
 - [ ] `PATCH /partidas/{id}/resultado` preenche vencedor e placar corretamente
 - [ ] Vôlei 2x1: vencedor recebe `pts_vitoria_parcial` (2), perdedor `pts_derrota` (1)
 - [ ] Basquete WxO: perdedor recebe 0 pts (não 1)

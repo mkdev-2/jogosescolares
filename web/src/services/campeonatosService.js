@@ -55,6 +55,12 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao consultar estrutura')
   },
 
+  async getById(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}${qs}`)
+    return handleResponse(res, 'Erro ao buscar campeonato')
+  },
+
   async getEquipesDaVariante(esporteVarianteId, edicaoId = null) {
     const params = new URLSearchParams({ esporte_variante_id: String(esporteVarianteId) })
     if (edicaoId) params.set('edicao_id', String(edicaoId))
@@ -84,5 +90,12 @@ export const campeonatosService = {
       body: JSON.stringify(payload),
     })
     return handleResponse(res, 'Erro ao registrar resultado')
+  },
+
+  async getClassificacaoGrupo(campeonatoId, grupoId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/grupos/${grupoId}/classificacao${qs}`)
+    const data = await handleResponse(res, 'Erro ao buscar classificação do grupo')
+    return Array.isArray(data) ? data : []
   },
 }
