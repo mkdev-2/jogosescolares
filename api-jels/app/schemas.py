@@ -455,8 +455,12 @@ class ConfiguracoesUpdate(BaseModel):
     social_youtube: Optional[str] = None
     prefeito_nome: Optional[str] = None
     prefeito_descricao: Optional[str] = None
-    layout_credencial: Optional[str] = Field(None, description="JSON stringified com as posições e tamanhos dos elementos da credencial")
+    prefeito_foto: Optional[str] = None
+    logo_secretaria: Optional[str] = None
+    logo_jels: Optional[str] = None
+    bg_credencial: Optional[str] = None
     bg_verso_credencial: Optional[str] = Field(None, description="Path da imagem do verso da credencial")
+    layout_credencial: Optional[str] = Field(None, description="JSON stringified com as posições e tamanhos dos elementos da credencial")
 
 
 class ConfiguracoesLogosUpdate(BaseModel):
