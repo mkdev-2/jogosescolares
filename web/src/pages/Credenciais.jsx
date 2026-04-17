@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag } from 'antd'
-import { Download, IdCard, User } from 'lucide-react'
+import { Download, IdCard, User, Medal as MedalIcon } from 'lucide-react'
 import dayjs from 'dayjs'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import { estudantesService } from '../services/estudantesService'
@@ -10,7 +10,6 @@ import { configuracoesService } from '../services/configuracoesService'
 import { fetchStorageBlob } from '../services/storageService'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { Medal as MedalIcon } from 'lucide-react'
 
 export default function Credenciais() {
     const [form] = Form.useForm()
