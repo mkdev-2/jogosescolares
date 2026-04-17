@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image as ImageIcon, ImagePlus, User, Medal, Move, Save } from 'lucide-react'
-import { notification, Button, Spin } from 'antd'
+import { Image as ImageIcon, ImagePlus, User, Medal, Move, Save, Trash2 } from 'lucide-react'
+import { notification, Button, Spin, Popconfirm } from 'antd'
 import { motion } from 'framer-motion'
 import { configuracoesService } from '../../services/configuracoesService'
 import { uploadLogoMidias, fetchStorageBlob } from '../../services/storageService'
@@ -24,7 +24,7 @@ export default function Midias({ embedded }) {
   const [uploadingJels, setUploadingJels] = useState(false)
   const [uploadingBg, setUploadingBg] = useState(false)
   const [uploadingVerso, setUploadingVerso] = useState(false)
-
+  
   const inputSecretariaRef = useRef(null)
   const inputJelsRef = useRef(null)
   const inputBgRef = useRef(null)
@@ -117,13 +117,23 @@ export default function Midias({ embedded }) {
     setUploading(true)
     try {
       const path = await uploadLogoMidias(file, tipo)
-      await configuracoesService.update({ [tipo]: path }) // Usar update parcial
+      await configuracoesService.update({ [tipo]: path }) 
       await loadConfig()
       notification.success({ message: 'Upload concluído' })
     } catch (err) {
       notification.error({ message: 'Erro no upload', description: err.message })
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleRemove = async (tipo) => {
+    try {
+      await configuracoesService.update({ [tipo]: null })
+      await loadConfig()
+      notification.success({ message: 'Imagem removida' })
+    } catch (err) {
+      notification.error({ message: 'Erro ao remover imagem' })
     }
   }
 
@@ -203,11 +213,31 @@ export default function Midias({ embedded }) {
           { label: 'Credencial (Frente)', tipo: 'bg_credencial', ref: inputBgRef, uploading: uploadingBg, value: config.bg_credencial },
           { label: 'Credencial (Verso)', tipo: 'bg_verso_credencial', ref: inputVersoRef, uploading: uploadingVerso, value: config.bg_verso_credencial },
         ].map((item) => (
-          <div key={item.tipo} className="bg-white rounded-xl border border-[#e2e8f0] p-4 shadow-sm flex flex-col items-center group">
+          <div key={item.tipo} className="bg-white rounded-xl border border-[#e2e8f0] p-4 shadow-sm flex flex-col items-center group relative overflow-visible">
             <h4 className="text-[10px] font-black text-[#1e293b] mb-3 w-full text-center uppercase tracking-widest opacity-60">{item.label}</h4>
-            <div className="w-full h-32 bg-[#f8fafc] rounded-lg border border-dashed border-[#cbd5e1] flex items-center justify-center overflow-hidden mb-4 relative">
-              {item.value ? <StorageImage path={item.value} className="w-full h-full object-contain p-2" /> : <ImagePlus className="w-8 h-8 opacity-20" />}
+            
+            <div className="w-full h-32 bg-[#f8fafc] rounded-lg border border-dashed border-[#cbd5e1] flex items-center justify-center overflow-hidden mb-4 relative group/img">
+              {item.value ? (
+                <>
+                  <StorageImage path={item.value} className="w-full h-full object-contain p-2" />
+                  <Popconfirm
+                    title="Remover imagem?"
+                    description="Esta ação deixará a configuração vazia."
+                    onConfirm={() => handleRemove(item.tipo)}
+                    okText="Sim, remover"
+                    cancelText="Cancelar"
+                    placement="topRight"
+                  >
+                    <button className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-red-600 z-50">
+                      <Trash2 size={14} />
+                    </button>
+                  </Popconfirm>
+                </>
+              ) : (
+                <ImagePlus className="w-8 h-8 opacity-20" />
+              )}
             </div>
+
             <input ref={item.ref} type="file" accept={ACCEPT_IMAGES} className="hidden" onChange={(e) => {
               const file = e.target.files?.[0]; if (file) handleUpload(item.tipo, file); e.target.value = ''
             }} />
@@ -228,7 +258,7 @@ export default function Midias({ embedded }) {
             {assetsBase64.bg && <div className="absolute inset-0 pointer-events-none"><img src={assetsBase64.bg} className="w-full h-full object-cover" /></div>}
             {!assetsBase64.bg && (
               <div className="absolute inset-0 pointer-events-none flex flex-col">
-                <div className="h-[10.7%] bg-[#0f766e] flex items-center justify-center"><Medal className="text-white opacity-40" size={36} /></div>
+                <div className="h-[10.7%] bg-[#0f766e] flex items-center justify-center"><MedalIcon className="text-white opacity-40" size={36} /></div>
                 <div className="flex-1 bg-white" /><div className="h-[1.3%] bg-[#0f766e]" />
               </div>
             )}
