@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag } from 'antd'
-import { Download, IdCard, User, Medal as MedalIcon } from 'lucide-react'
+import { Download, IdCard, User, Medal } from 'lucide-react'
 import dayjs from 'dayjs'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import { estudantesService } from '../services/estudantesService'
@@ -10,6 +10,105 @@ import { configuracoesService } from '../services/configuracoesService'
 import { fetchStorageBlob } from '../services/storageService'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+
+const PX_TO_MM = 3.2
+
+// Mover o componente de captura para FORA do escopo da função principal para evitar erros de referência em produção
+const PrintableFoldedCredential = ({ aluno, midias, assets, captureRef }) => {
+    if (!aluno) return null
+    let posData = {}
+    try {
+        posData = typeof midias?.layout_credencial === 'string' 
+            ? JSON.parse(midias.layout_credencial) 
+            : (midias?.layout_credencial || {})
+    } catch (e) { posData = {} }
+
+    const p = {
+        foto: { x: (posData.foto?.x ?? 32) * PX_TO_MM, y: (posData.foto?.y ?? 17) * PX_TO_MM, size: (posData.foto?.size ?? 36) * PX_TO_MM },
+        logos: { x: (posData.logos?.x ?? 25) * PX_TO_MM, y: (posData.logos?.y ?? 56) * PX_TO_MM, w: (posData.logos?.w ?? 50) * PX_TO_MM, h: (posData.logos?.h ?? 10) * PX_TO_MM },
+        nome: { x: (posData.nome?.x ?? 0) * PX_TO_MM, y: (posData.nome?.y ?? 78) * PX_TO_MM, fontSize: posData.nome?.fontSize ?? 24 },
+        info: { x: (posData.info?.x ?? 0) * PX_TO_MM, y: (posData.info?.y ?? 92) * PX_TO_MM, fontSize: posData.info?.fontSize ?? 12 },
+        modalidades: { x: (posData.modalidades?.x ?? 10) * PX_TO_MM, y: (posData.modalidades?.y ?? 105) * PX_TO_MM, w: (posData.modalidades?.w ?? 80) * PX_TO_MM, h: (posData.modalidades?.h ?? 22) * PX_TO_MM, fontSize: posData.modalidades?.fontSize ?? 20 }
+    }
+
+    return (
+        <div ref={captureRef} style={{ width: '640px', height: '480px', display: 'flex', backgroundColor: '#fff', fontVariantLigatures: 'none' }}>
+            
+            {/* LADO ESQUERDO: VERSO */}
+            <div style={{ width: '320px', height: '480px', position: 'relative', borderRight: '1px dashed #e2e8f0', backgroundColor: '#f8fafc' }}>
+                {assets.verso ? (
+                    <img src={assets.verso} className="w-full h-full object-cover" />
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full opacity-20">
+                        <Medal size={80} className="text-[#0f766e]" />
+                        <p className="text-xl font-black mt-4 uppercase">Verso</p>
+                    </div>
+                )}
+            </div>
+
+            {/* LADO DIREITO: FRENTE (Layout Customizado) */}
+            <div style={{ width: '320px', height: '480px', position: 'relative', backgroundColor: '#f8fafc' }}>
+                {assets.bg ? (
+                    <div className="absolute inset-0"><img src={assets.bg} className="w-full h-full object-cover" /></div>
+                ) : (
+                    <div className="absolute inset-0 flex flex-col">
+                        <div className="h-[10.7%] bg-[#0f766e] flex items-center justify-center"><Medal className="text-white opacity-40" size={36} /></div>
+                        <div className="flex-1 bg-white" /><div className="h-[1.3%] bg-[#0f766e]" />
+                    </div>
+                )}
+                
+                <div className="absolute" style={{ left: p.foto.x, top: p.foto.y }}>
+                    <div className="rounded-full border-[5px] border-[#3b82f6] bg-white flex items-center justify-center overflow-hidden shadow-lg" style={{ width: p.foto.size, height: p.foto.size }}>
+                        {assets.foto ? <img src={assets.foto} className="w-full h-full object-cover" /> : <User size={p.foto.size * 0.5} className="text-slate-200" />}
+                    </div>
+                </div>
+
+                <div className="absolute flex items-center justify-center" style={{ left: p.logos.x, top: p.logos.y, width: p.logos.w, height: p.logos.h }}>
+                    <div className="w-full h-full flex items-center justify-center px-3 py-1 rounded bg-white/40 backdrop-blur-sm">
+                        {assets.logo && <img src={assets.logo} className="max-w-full max-h-full object-contain" />}
+                    </div>
+                </div>
+
+                <div className="absolute w-full" style={{ left: p.nome.x, top: p.nome.y }}>
+                    <div className="font-black leading-none text-white drop-shadow-md uppercase text-center p-2" style={{ fontSize: p.nome.fontSize, fontFamily: "'Sora', sans-serif" }}>
+                        {aluno.nome.toUpperCase()}
+                    </div>
+                </div>
+                
+                <div className="absolute w-full" style={{ left: p.info.x, top: p.info.y }}>
+                    <div className="text-white drop-shadow-md text-center p-2" style={{ fontSize: p.info.fontSize, fontFamily: "'Lato', sans-serif" }}>
+                        <div className="font-bold border-b border-white/20 pb-0.5 mb-0.5">{aluno.escola_nome}</div>
+                        <div className="font-medium opacity-100">{dayjs(aluno.data_nascimento).format('DD/MM/YYYY')}</div>
+                    </div>
+                </div>
+
+                {aluno.modalidades?.length > 0 && (
+                    <div className="absolute overflow-hidden" style={{ left: p.modalidades.x, top: p.modalidades.y, width: p.modalidades.w, height: p.modalidades.h }}>
+                        <div className="w-full h-full bg-white rounded-2xl shadow-xl border border-blue-100">
+                            <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse' }}>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
+                                            {aluno.modalidades.slice(0, 2).map((m, idx) => (
+                                                <div key={idx} className="text-[#1d4ed8] font-black leading-none text-center w-full" style={{ fontSize: p.modalidades.fontSize, fontFamily: "'Sora', sans-serif", margin: '2px 0' }}>
+                                                    {m.esporte_nome.toUpperCase()}
+                                                </div>
+                                            ))}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                <div className="absolute bottom-0 left-0 right-0 h-3 flex">
+                    {['#fac20a', '#2563eb', '#16a34a', '#dc2626', '#f97316'].map(c => <div key={c} style={{ flex: 1, backgroundColor: c }} />)}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export default function Credenciais() {
     const [form] = Form.useForm()
@@ -36,7 +135,6 @@ export default function Credenciais() {
     const [midiasConfig, setMidiasConfig] = useState(null)
     const [assetsCaptura, setAssetsCaptura] = useState({ foto: null, logo: null, bg: null, verso: null })
     const captureRef = useRef(null)
-    const PX_TO_MM = 3.2
 
     const escolaObj = listaEscolas.find((e) => Number(e.id) === Number(escolaSelecionada))
     
@@ -177,102 +275,6 @@ export default function Credenciais() {
         }
     }
 
-    const PrintableFoldedCredential = ({ aluno, midias, assets }) => {
-        if (!aluno) return null
-        let posData = {}
-        try {
-            posData = typeof midias?.layout_credencial === 'string' 
-                ? JSON.parse(midias.layout_credencial) 
-                : (midias?.layout_credencial || {})
-        } catch (e) { posData = {} }
-
-        const p = {
-            foto: { x: (posData.foto?.x ?? 32) * PX_TO_MM, y: (posData.foto?.y ?? 17) * PX_TO_MM, size: (posData.foto?.size ?? 36) * PX_TO_MM },
-            logos: { x: (posData.logos?.x ?? 25) * PX_TO_MM, y: (posData.logos?.y ?? 56) * PX_TO_MM, w: (posData.logos?.w ?? 50) * PX_TO_MM, h: (posData.logos?.h ?? 10) * PX_TO_MM },
-            nome: { x: (posData.nome?.x ?? 0) * PX_TO_MM, y: (posData.nome?.y ?? 78) * PX_TO_MM, fontSize: posData.nome?.fontSize ?? 24 },
-            info: { x: (posData.info?.x ?? 0) * PX_TO_MM, y: (posData.info?.y ?? 92) * PX_TO_MM, fontSize: posData.info?.fontSize ?? 12 },
-            modalidades: { x: (posData.modalidades?.x ?? 10) * PX_TO_MM, y: (posData.modalidades?.y ?? 105) * PX_TO_MM, w: (posData.modalidades?.w ?? 80) * PX_TO_MM, h: (posData.modalidades?.h ?? 22) * PX_TO_MM, fontSize: posData.modalidades?.fontSize ?? 20 }
-        }
-
-        return (
-            <div ref={captureRef} style={{ width: '640px', height: '480px', display: 'flex', backgroundColor: '#fff', fontVariantLigatures: 'none' }}>
-                
-                {/* LADO ESQUERDO: VERSO */}
-                <div style={{ width: '320px', height: '480px', position: 'relative', borderRight: '1px dashed #e2e8f0', backgroundColor: '#f8fafc' }}>
-                    {assets.verso ? (
-                        <img src={assets.verso} className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-full opacity-20">
-                            <MedalIcon size={80} className="text-[#0f766e]" />
-                            <p className="text-xl font-black mt-4 uppercase">Verso</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* LADO DIREITO: FRENTE (Layout Customizado) */}
-                <div style={{ width: '320px', height: '480px', position: 'relative', backgroundColor: '#f8fafc' }}>
-                    {assets.bg ? (
-                        <div className="absolute inset-0"><img src={assets.bg} className="w-full h-full object-cover" /></div>
-                    ) : (
-                        <div className="absolute inset-0 flex flex-col">
-                            <div className="h-[10.7%] bg-[#0f766e] flex items-center justify-center"><MedalIcon className="text-white opacity-40" size={36} /></div>
-                            <div className="flex-1 bg-white" /><div className="h-[1.3%] bg-[#0f766e]" />
-                        </div>
-                    )}
-                    
-                    <div className="absolute" style={{ left: p.foto.x, top: p.foto.y }}>
-                        <div className="rounded-full border-[5px] border-[#3b82f6] bg-white flex items-center justify-center overflow-hidden shadow-lg" style={{ width: p.foto.size, height: p.foto.size }}>
-                            {assets.foto ? <img src={assets.foto} className="w-full h-full object-cover" /> : <User size={p.foto.size * 0.5} className="text-slate-200" />}
-                        </div>
-                    </div>
-
-                    <div className="absolute flex items-center justify-center" style={{ left: p.logos.x, top: p.logos.y, width: p.logos.w, height: p.logos.h }}>
-                        <div className="w-full h-full flex items-center justify-center px-3 py-1 rounded bg-white/40 backdrop-blur-sm">
-                            {assets.logo && <img src={assets.logo} className="max-w-full max-h-full object-contain" />}
-                        </div>
-                    </div>
-
-                    <div className="absolute w-full" style={{ left: p.nome.x, top: p.nome.y }}>
-                        <div className="font-black leading-none text-white drop-shadow-md uppercase text-center p-2" style={{ fontSize: p.nome.fontSize, fontFamily: "'Sora', sans-serif" }}>
-                            {aluno.nome.toUpperCase()}
-                        </div>
-                    </div>
-                    
-                    <div className="absolute w-full" style={{ left: p.info.x, top: p.info.y }}>
-                        <div className="text-white drop-shadow-md text-center p-2" style={{ fontSize: p.info.fontSize, fontFamily: "'Lato', sans-serif" }}>
-                            <div className="font-bold border-b border-white/20 pb-0.5 mb-0.5">{aluno.escola_nome}</div>
-                            <div className="font-medium opacity-100">{dayjs(aluno.data_nascimento).format('DD/MM/YYYY')}</div>
-                        </div>
-                    </div>
-
-                    {aluno.modalidades?.length > 0 && (
-                        <div className="absolute overflow-hidden" style={{ left: p.modalidades.x, top: p.modalidades.y, width: p.modalidades.w, height: p.modalidades.h }}>
-                            <div className="w-full h-full bg-white rounded-2xl shadow-xl border border-blue-100">
-                                <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse' }}>
-                                    <tbody>
-                                        <tr>
-                                            <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
-                                                {aluno.modalidades.slice(0, 2).map((m, idx) => (
-                                                    <div key={idx} className="text-[#1d4ed8] font-black leading-none text-center w-full" style={{ fontSize: p.modalidades.fontSize, fontFamily: "'Sora', sans-serif", margin: '2px 0' }}>
-                                                        {m.esporte_nome.toUpperCase()}
-                                                    </div>
-                                                ))}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="absolute bottom-0 left-0 right-0 h-3 flex">
-                        {['#fac20a', '#2563eb', '#16a34a', '#dc2626', '#f97316'].map(c => <div key={c} style={{ flex: 1, backgroundColor: c }} />)}
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
         <div className="bg-white sm:rounded-[12px] border-y sm:border border-[#f1f5f9] shadow-none sm:shadow-[0_1px_3px_rgba(0,0,0,0.06)] -mx-4 sm:mx-0 p-4 sm:p-6">
             <Spin spinning={loadingEscolas || loadingEstudantes}>
@@ -337,7 +339,7 @@ export default function Credenciais() {
                         </div>
                         <p className="text-sm text-[#64748b] font-medium m-0 italic">Capturando frente e verso para dobradura...</p>
                         <div className="fixed -left-[9999px] -top-[9999px]">
-                            <PrintableFoldedCredential aluno={capturandoAluno} midias={midiasConfig} assets={assetsCaptura} />
+                            <PrintableFoldedCredential aluno={capturandoAluno} midias={midiasConfig} assets={assetsCaptura} captureRef={captureRef} />
                         </div>
                     </div>
                 </div>,
