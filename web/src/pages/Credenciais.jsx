@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag } from 'antd'
-import { Download, IdCard, Building2, User } from 'lucide-react'
+import { Download, IdCard, User } from 'lucide-react'
+import dayjs from 'dayjs'
+import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import { estudantesService } from '../services/estudantesService'
 import useEscolas from '../hooks/useEscolas'
 import { configuracoesService } from '../services/configuracoesService'
 import { fetchStorageBlob } from '../services/storageService'
 import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import { Medal as MedalIcon } from 'lucide-react'
 
 export default function Credenciais() {
     const [form] = Form.useForm()
@@ -20,34 +24,29 @@ export default function Credenciais() {
         try {
             const raw = localStorage.getItem('credenciais_exportadas')
             return raw ? JSON.parse(raw) : {}
-        } catch (e) {
-            return {}
-        }
+        } catch (e) { return {} }
     })
     const [credenciaisGeradasPorEscola, setCredenciaisGeradasPorEscola] = useState(() => {
         try {
             const raw = localStorage.getItem('credenciais_alunos_exportados')
             return raw ? JSON.parse(raw) : {}
-        } catch (e) {
-            return {}
-        }
+        } catch (e) { return {} }
     })
     const [filtroGeracao, setFiltroGeracao] = useState('todos')
+    const [capturandoAluno, setCapturandoAluno] = useState(null)
+    const [midiasConfig, setMidiasConfig] = useState(null)
+    const [assetsCaptura, setAssetsCaptura] = useState({ foto: null, logo: null, bg: null, verso: null })
+    const captureRef = useRef(null)
+    const PX_TO_MM = 3.2
 
     const escolaObj = listaEscolas.find((e) => Number(e.id) === Number(escolaSelecionada))
-    const estudantesComDocumentoAssinado = estudantesDaEscola.filter(
-        (aluno) => !!String(aluno?.documentacao_assinada_url || '').trim()
-    )
-    const estudantesComAssinaturaPendente = estudantesDaEscola.length - estudantesComDocumentoAssinado.length
-    const estudantesSemFoto = estudantesDaEscola.filter(
-        (aluno) => !String(aluno?.foto_url || '').trim()
-    ).length
-    const credenciaisDaEscola = credenciaisGeradasPorEscola[String(escolaSelecionada)] || {}
+    
     const estudantesAptos = estudantesDaEscola.filter(
         (aluno) =>
             !!String(aluno?.documentacao_assinada_url || '').trim() &&
             !!String(aluno?.foto_url || '').trim()
     )
+    const credenciaisDaEscola = credenciaisGeradasPorEscola[String(escolaSelecionada)] || {}
     const estudantesSemCredencialGerada = estudantesAptos.filter(
         (aluno) => !credenciaisDaEscola[String(aluno.id)]
     )
@@ -79,18 +78,28 @@ export default function Credenciais() {
         fetchEstudantes()
     }, [fetchEstudantes])
 
+    const loadAssetAsBase64 = async (path) => {
+        if (!path) return null
+        try {
+            const blob = await fetchStorageBlob(path)
+            return new Promise((resolve) => {
+                const reader = new FileReader()
+                reader.onloadend = () => resolve(reader.result)
+                reader.readAsDataURL(blob)
+            })
+        } catch (e) {
+            console.error('Erro ao carregar asset:', path, e)
+            return null
+        }
+    }
+
     const handleGerarPdf = async () => {
         if (!escolaSelecionada || estudantesDaEscola.length === 0) {
             alert('Nenhum estudante encontrado para esta escola.')
             return
         }
-
         if (estudantesSelecionadosParaGeracao.length === 0) {
-            if (filtroGeracao === 'nao-geradas') {
-                alert('Nenhum estudante apto sem credencial gerada para esta escola.')
-            } else {
-                alert('Nenhum estudante apto para esta escola. É necessário ter documento assinado e foto cadastrada.')
-            }
+            alert('Nenhum estudante apto selecionado.')
             return
         }
 
@@ -99,289 +108,170 @@ export default function Credenciais() {
 
         try {
             await estudantesService.auditarGeracaoCredenciais(escolaSelecionada)
+            const midias = await configuracoesService.getNoCache()
+            setMidiasConfig(midias)
 
-            // 1. Carregar mídias (logos e fundo)
-            const midias = await configuracoesService.getLogos()
+            const bgBase64 = await loadAssetAsBase64(midias?.bg_credencial)
+            const versoBase64 = await loadAssetAsBase64(midias?.bg_verso_credencial)
+            const logoBase64 = await loadAssetAsBase64(midias?.logo_jels)
 
-            // Cores originais dos badges (Substituído Laranja por Roxo)
-            const BADGE_COLORS = ['#0f766e', '#6b21a8', '#0369a1', '#0d9488']
-
-            // Carrega via fetch com JWT (gateway pode bloquear <img src> sem Authorization)
-            const loadImg = async (storagePath, rounded = false) => {
-                if (!storagePath) return null
-                let blobUrl = null
-                try {
-                    const blob = await fetchStorageBlob(storagePath)
-                    blobUrl = URL.createObjectURL(blob)
-                    const img = new Image()
-                    img.crossOrigin = 'anonymous'
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve
-                        img.onerror = reject
-                        img.src = blobUrl
-                    })
-                    const canvas = document.createElement('canvas')
-                    const ratio = img.width / img.height
-                    const size = rounded ? Math.min(img.width, img.height) : null
-                    canvas.width = rounded ? size : img.width
-                    canvas.height = rounded ? size : img.height
-                    const ctx = canvas.getContext('2d')
-
-                    if (rounded) {
-                        ctx.beginPath()
-                        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                        ctx.clip()
-                        const xOffset = (img.width - size) / 2
-                        const yOffset = (img.height - size) / 2
-                        ctx.drawImage(img, xOffset, yOffset, size, size, 0, 0, size, size)
-                    } else {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height)
-                        ctx.drawImage(img, 0, 0)
-                    }
-                    return {
-                        data: canvas.toDataURL('image/png'),
-                        ratio: ratio,
-                        w: img.width,
-                        h: img.height
-                    }
-                } catch {
-                    return null
-                } finally {
-                    if (blobUrl) URL.revokeObjectURL(blobUrl)
-                }
-            }
-
-            const bgBase64 = midias?.bg_credencial ? await loadImg(midias.bg_credencial) : null
-            const logoSec = await loadImg(midias?.logo_secretaria)
-            const logoJels = await loadImg(midias?.logo_jels)
-
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-            const mainFont = 'helvetica'; // Revertendo para helvetica para evitar erros de cmap/unicode
-
-            const pageWidth = doc.internal.pageSize.getWidth()
-            const cardW = 90
-            const cardH = 120
-            const marginX = (pageWidth - cardW) / 2
-            const topMargin = 15
-            const gapY = 15
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+            const cardW = 100
+            const cardH = 150
+            const pageWidth = doc.internal.pageSize.getWidth() // 297mm
+            const pageHeight = doc.internal.pageSize.getHeight() // 210mm
+            
+            // Modelo de Dobra: Frente + Verso lado a lado = 200mm
+            const totalW = cardW * 2
+            const marginX = (pageWidth - totalW) / 2
+            const marginY = (pageHeight - cardH) / 2
 
             for (let i = 0; i < estudantesSelecionadosParaGeracao.length; i++) {
                 const aluno = estudantesSelecionadosParaGeracao[i]
-                const indexInPage = i % 2
-                if (i > 0 && indexInPage === 0) doc.addPage()
-
-                const yOffset = indexInPage === 0 ? topMargin : topMargin + cardH + gapY
-                const x = marginX
-
-                // == 2. FUNDO ==
-                if (bgBase64) {
-                    doc.addImage(bgBase64.data, 'PNG', x, yOffset, cardW, cardH)
-                } else {
-                    doc.setDrawColor(15, 118, 110)
-                    doc.setLineWidth(0.5)
-                    doc.roundedRect(x, yOffset, cardW, cardH, 3, 3, 'S')
-                    doc.setFillColor(15, 118, 110)
-                    doc.rect(x, yOffset, cardW, 12, 'F')
-                    doc.rect(x, yOffset + cardH - 2, cardW, 2, 'F')
-                }
-
-                // == 3. FOTO REDONDA (TAMANHO AJUSTADO) ==
-                if (aluno.foto_url) {
-                    const fotoRes = await loadImg(aluno.foto_url, true)
-                    if (fotoRes) {
-                        // Anel Externo
-                        doc.setDrawColor(226, 232, 240)
-                        doc.setLineWidth(0.6)
-                        doc.circle(x + 25, yOffset + 42, 19.5, 'S')
-
-                        // Borda principal (Verde JELS)
-                        doc.setDrawColor(15, 118, 110)
-                        doc.setLineWidth(1)
-                        doc.setFillColor(241, 245, 249)
-                        doc.circle(x + 25, yOffset + 42, 18, 'FD')
-                        doc.addImage(fotoRes.data, 'PNG', x + 7, yOffset + 24, 36, 36)
-                    }
-                } else {
-                    // Placeholder estilizado
-                    doc.setDrawColor(226, 232, 240)
-                    doc.setLineWidth(0.5)
-                    doc.circle(x + 25, yOffset + 42, 19.5, 'S')
-
-                    doc.setDrawColor(203, 213, 225)
-                    doc.setFillColor(241, 245, 249)
-                    doc.circle(x + 25, yOffset + 42, 18, 'FD')
-                }
-                // == 4. TEXTOS (COLUNA DIREITA CENTRALIZADA COM A FOTO) ==
-                doc.setTextColor(0, 0, 0)
-
-                // 4.1 Preparar textos para cálculo de altura
-                const splitNome = doc.splitTextToSize(aluno.nome.toUpperCase(), 36)
-                const nomeLineHeight = 6.2
-                const splitEscola = doc.splitTextToSize(aluno.escola_nome, 36)
-                const escolaLineHeight = 4.5
-                const textGap = 4
-
-                const totalTextHeight = (splitNome.length * nomeLineHeight) + textGap + (splitEscola.length * escolaLineHeight)
                 
-                // Centraliza verticalmente o bloco de texto em relação ao centro da foto (yOffset + 42)
-                let currentItemY = (yOffset + 42) - (totalTextHeight / 2) + 2 // +2 compensação do baseline
-
-                // Nome do Aluno - Efeito Sombra (Drop Shadow)
-                doc.setFont(mainFont, 'bold')
-                doc.setFontSize(15)
+                if (i > 0) doc.addPage()
                 
-                // Camada de Sombra
-                doc.setTextColor(226, 232, 240)
-                doc.text(splitNome, x + 48.3, currentItemY + 0.3)
+                const fotoBase64 = await loadAssetAsBase64(aluno.foto_url)
                 
-                // Camada Principal
-                doc.setTextColor(0, 0, 0)
-                doc.text(splitNome, x + 48, currentItemY)
-
-                // Calcula altura do nome para o próximo item
-                currentItemY += (splitNome.length * nomeLineHeight) + textGap
-
-                // Escola
-                doc.setFont(mainFont, 'normal')
-                doc.setFontSize(12)
-                doc.setTextColor(0, 0, 0)
-                doc.text(splitEscola, x + 48, currentItemY)
-
-                currentItemY += (splitEscola.length * escolaLineHeight)
-
-                currentItemY += 4; // Ajuste para as tags não ficarem coladas
-
-                // == MODALIDADES EM TAGS (AINDA MAIORES) ==
-                if (aluno.modalidades && aluno.modalidades.length > 0) {
-                    const tagGap = 2.5;
-                    const tagH = 10; // Aumentado de 6.5 para 8mm
-                    const maxAreaW = 82;
-
-                    // 1. Agrupar em linhas
-                    let lines = [[]];
-                    let currentLineIdx = 0;
-                    let currentLineWidth = 0;
-
-                    aluno.modalidades.forEach((m, idx) => {
-                        const label = `${m.esporte_nome} (${m.categoria_nome})`.toUpperCase();
-                        doc.setFont(mainFont, 'bold');
-                        doc.setFontSize(10); // Aumentado de 8 para 9pt
-                        const tagW = doc.getTextWidth(label) + 8; // Mais largura interna
-
-                        if (currentLineWidth + tagW > maxAreaW && lines[currentLineIdx].length > 0) {
-                            currentLineIdx++;
-                            lines[currentLineIdx] = [];
-                            currentLineWidth = 0;
-                        }
-
-                        lines[currentLineIdx].push({ label, tagW, colorIdx: idx });
-                        currentLineWidth += tagW + tagGap;
-                    });
-
-                    // 2. Desenhar as linhas centralizadas (Subindo a altura inicial para não pegar o rodapé)
-                    let startY = yOffset + 68;
-                    lines.forEach(line => {
-                        const totalLineW = line.reduce((sum, item) => sum + item.tagW, 0) + (line.length - 1) * tagGap;
-                        let lineX = x + (cardW - totalLineW) / 2;
-                        
-                        line.forEach(item => {
-                            const color = BADGE_COLORS[item.colorIdx % BADGE_COLORS.length];
-                            const rgb = color.match(/[A-Za-z0-9]{2}/g).map(h => parseInt(h, 16));
-                            
-                            // 1. Tag Principal (Fundo)
-                            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-                            doc.roundedRect(lineX, startY, item.tagW, tagH, tagH/2, tagH/2, 'F');
-                            
-                            // 2. Borda externa sutil (mais escura)
-                            doc.setDrawColor(Math.max(0, rgb[0]-40), Math.max(0, rgb[1]-40), Math.max(0, rgb[2]-40));
-                            doc.setLineWidth(0.15);
-                            doc.roundedRect(lineX, startY, item.tagW, tagH, tagH/2, tagH/2, 'S');
-
-                            // 3. Efeito de brilho/reflexo interno (topo)
-                            doc.setDrawColor(255, 255, 255, 0.4);
-                            doc.setLineWidth(0.1);
-                            doc.line(lineX + tagH/2, startY + 0.5, lineX + item.tagW - tagH/2, startY + 0.5);
-
-                            // 4. Texto centralizado
-                            doc.setTextColor(255, 255, 255);
-                            doc.text(item.label, lineX + 4, startY + 6.2);
-                            lineX += item.tagW + tagGap;
-                        });
-                        startY += tagH + 3;
-                    });
-                }
-
-                // Divisória do Rodapé mais visível
-                const footerY = yOffset + 96
-                doc.setDrawColor(148, 163, 184)
-                doc.setLineWidth(0.5)
-                doc.line(x + 5, footerY, x + cardW - 5, footerY)
-
-                doc.setFont(mainFont, 'bold')
-                doc.setFontSize(7)
-                doc.setTextColor(148, 163, 184)
-                doc.text('REALIZAÇÃO', x + cardW / 2, footerY + 5, { align: 'center' })
-
-                const maxLogoW = 33
-                const maxLogoH = 15
-                const gapLogos = 8
-
-                const getDims = (imgRes) => {
-                    if (!imgRes) return null
-                    let finalW = maxLogoW
-                    let finalH = maxLogoW / imgRes.ratio
-                    if (finalH > maxLogoH) {
-                        finalH = maxLogoH
-                        finalW = maxLogoH * imgRes.ratio
-                    }
-                    return { w: finalW, h: finalH }
-                }
-
-                const dSec = getDims(logoSec)
-                const dJels = getDims(logoJels)
-                const totalW = (dSec ? dSec.w : 0) + (dJels ? dJels.w : 0) + (dSec && dJels ? gapLogos : 0)
-                let currentX = x + (cardW - totalW) / 2
-
-                if (logoSec && dSec) {
-                    doc.addImage(logoSec.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dSec.h) / 2, dSec.w, dSec.h)
-                    currentX += dSec.w + gapLogos
-                }
-                if (logoJels && dJels) {
-                    doc.addImage(logoJels.data, 'PNG', currentX, footerY + 6 + (maxLogoH - dJels.h) / 2, dJels.w, dJels.h)
-                }
-
+                setAssetsCaptura({ foto: fotoBase64, logo: logoBase64, bg: bgBase64, verso: versoBase64 })
+                setCapturandoAluno(aluno)
                 setProgressoPdf({ atual: i + 1, total: estudantesSelecionadosParaGeracao.length })
+                
+                await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 300)))
+
+                if (captureRef.current) {
+                    const canvas = await html2canvas(captureRef.current, {
+                        scale: 3,
+                        useCORS: true,
+                        backgroundColor: null,
+                        logging: false,
+                        allowTaint: true
+                    })
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+                    doc.addImage(imgData, 'JPEG', marginX, marginY, totalW, cardH)
+                }
             }
 
             const nomeArquivo = `credenciais-${(escolaObj?.nome_escola || 'escola').replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`
             doc.save(nomeArquivo)
 
-            const novoExportadas = { ...escolasExportadas, [escolaSelecionada]: new Date().toISOString() }
-            setEscolasExportadas(novoExportadas)
-            localStorage.setItem('credenciais_exportadas', JSON.stringify(novoExportadas))
-
             const escolaKey = String(escolaSelecionada)
-            const baseEscola = credenciaisGeradasPorEscola[escolaKey] || {}
             const novosIds = estudantesSelecionadosParaGeracao.reduce((acc, aluno) => {
                 acc[String(aluno.id)] = new Date().toISOString()
                 return acc
             }, {})
-            const novoMapaCredenciais = {
-                ...credenciaisGeradasPorEscola,
-                [escolaKey]: {
-                    ...baseEscola,
-                    ...novosIds,
-                },
-            }
-            setCredenciaisGeradasPorEscola(novoMapaCredenciais)
-            localStorage.setItem('credenciais_alunos_exportados', JSON.stringify(novoMapaCredenciais))
+            setCredenciaisGeradasPorEscola(prev => ({
+                ...prev,
+                [escolaKey]: { ...(prev[escolaKey] || {}), ...novosIds }
+            }))
+            const expData = { ...escolasExportadas, [escolaSelecionada]: new Date().toISOString() }
+            setEscolasExportadas(expData)
+            localStorage.setItem('credenciais_exportadas', JSON.stringify(expData))
 
         } catch (err) {
             console.error(err)
-            alert('Erro ao gerar PDF. Verifique se as imagens estão acessíveis.')
+            alert('Erro ao gerar PDF.')
         } finally {
             setGerandoPdf(false)
+            setCapturandoAluno(null)
+            setAssetsCaptura({ foto: null, logo: null, bg: null, verso: null })
         }
+    }
+
+    const PrintableFoldedCredential = ({ aluno, midias, assets }) => {
+        if (!aluno) return null
+        let posData = {}
+        try {
+            posData = typeof midias?.layout_credencial === 'string' 
+                ? JSON.parse(midias.layout_credencial) 
+                : (midias?.layout_credencial || {})
+        } catch (e) { posData = {} }
+
+        const p = {
+            foto: { x: (posData.foto?.x ?? 32) * PX_TO_MM, y: (posData.foto?.y ?? 17) * PX_TO_MM, size: (posData.foto?.size ?? 36) * PX_TO_MM },
+            logos: { x: (posData.logos?.x ?? 25) * PX_TO_MM, y: (posData.logos?.y ?? 56) * PX_TO_MM, w: (posData.logos?.w ?? 50) * PX_TO_MM, h: (posData.logos?.h ?? 10) * PX_TO_MM },
+            nome: { x: (posData.nome?.x ?? 0) * PX_TO_MM, y: (posData.nome?.y ?? 78) * PX_TO_MM, fontSize: posData.nome?.fontSize ?? 24 },
+            info: { x: (posData.info?.x ?? 0) * PX_TO_MM, y: (posData.info?.y ?? 92) * PX_TO_MM, fontSize: posData.info?.fontSize ?? 12 },
+            modalidades: { x: (posData.modalidades?.x ?? 10) * PX_TO_MM, y: (posData.modalidades?.y ?? 105) * PX_TO_MM, w: (posData.modalidades?.w ?? 80) * PX_TO_MM, h: (posData.modalidades?.h ?? 22) * PX_TO_MM, fontSize: posData.modalidades?.fontSize ?? 20 }
+        }
+
+        return (
+            <div ref={captureRef} style={{ width: '640px', height: '480px', display: 'flex', backgroundColor: '#fff', fontVariantLigatures: 'none' }}>
+                
+                {/* LADO ESQUERDO: VERSO */}
+                <div style={{ width: '320px', height: '480px', position: 'relative', borderRight: '1px dashed #e2e8f0', backgroundColor: '#f8fafc' }}>
+                    {assets.verso ? (
+                        <img src={assets.verso} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full opacity-20">
+                            <MedalIcon size={80} className="text-[#0f766e]" />
+                            <p className="text-xl font-black mt-4 uppercase">Verso</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* LADO DIREITO: FRENTE (Layout Customizado) */}
+                <div style={{ width: '320px', height: '480px', position: 'relative', backgroundColor: '#f8fafc' }}>
+                    {assets.bg ? (
+                        <div className="absolute inset-0"><img src={assets.bg} className="w-full h-full object-cover" /></div>
+                    ) : (
+                        <div className="absolute inset-0 flex flex-col">
+                            <div className="h-[10.7%] bg-[#0f766e] flex items-center justify-center"><MedalIcon className="text-white opacity-40" size={36} /></div>
+                            <div className="flex-1 bg-white" /><div className="h-[1.3%] bg-[#0f766e]" />
+                        </div>
+                    )}
+                    
+                    <div className="absolute" style={{ left: p.foto.x, top: p.foto.y }}>
+                        <div className="rounded-full border-[5px] border-[#3b82f6] bg-white flex items-center justify-center overflow-hidden shadow-lg" style={{ width: p.foto.size, height: p.foto.size }}>
+                            {assets.foto ? <img src={assets.foto} className="w-full h-full object-cover" /> : <User size={p.foto.size * 0.5} className="text-slate-200" />}
+                        </div>
+                    </div>
+
+                    <div className="absolute flex items-center justify-center" style={{ left: p.logos.x, top: p.logos.y, width: p.logos.w, height: p.logos.h }}>
+                        <div className="w-full h-full flex items-center justify-center px-3 py-1 rounded bg-white/40 backdrop-blur-sm">
+                            {assets.logo && <img src={assets.logo} className="max-w-full max-h-full object-contain" />}
+                        </div>
+                    </div>
+
+                    <div className="absolute w-full" style={{ left: p.nome.x, top: p.nome.y }}>
+                        <div className="font-black leading-none text-white drop-shadow-md uppercase text-center p-2" style={{ fontSize: p.nome.fontSize, fontFamily: "'Sora', sans-serif" }}>
+                            {aluno.nome.toUpperCase()}
+                        </div>
+                    </div>
+                    
+                    <div className="absolute w-full" style={{ left: p.info.x, top: p.info.y }}>
+                        <div className="text-white drop-shadow-md text-center p-2" style={{ fontSize: p.info.fontSize, fontFamily: "'Lato', sans-serif" }}>
+                            <div className="font-bold border-b border-white/20 pb-0.5 mb-0.5">{aluno.escola_nome}</div>
+                            <div className="font-medium opacity-100">{dayjs(aluno.data_nascimento).format('DD/MM/YYYY')}</div>
+                        </div>
+                    </div>
+
+                    {aluno.modalidades?.length > 0 && (
+                        <div className="absolute overflow-hidden" style={{ left: p.modalidades.x, top: p.modalidades.y, width: p.modalidades.w, height: p.modalidades.h }}>
+                            <div className="w-full h-full bg-white rounded-2xl shadow-xl border border-blue-100">
+                                <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse' }}>
+                                    <tbody>
+                                        <tr>
+                                            <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
+                                                {aluno.modalidades.slice(0, 2).map((m, idx) => (
+                                                    <div key={idx} className="text-[#1d4ed8] font-black leading-none text-center w-full" style={{ fontSize: p.modalidades.fontSize, fontFamily: "'Sora', sans-serif", margin: '2px 0' }}>
+                                                        {m.esporte_nome.toUpperCase()}
+                                                    </div>
+                                                ))}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="absolute bottom-0 left-0 right-0 h-3 flex">
+                        {['#fac20a', '#2563eb', '#16a34a', '#dc2626', '#f97316'].map(c => <div key={c} style={{ flex: 1, backgroundColor: c }} />)}
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -390,210 +280,66 @@ export default function Credenciais() {
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <div className="flex flex-col gap-2">
                         <Typography.Title level={4} style={{ margin: 0, fontSize: 'clamp(1.125rem, 4vw, 1.5rem)' }}>
-                            <Space align="start">
-                                <IdCard size={28} className="text-[#0f766e] shrink-0 mt-1" />
-                                <span className="leading-tight">Gerador de Credenciais</span>
-                            </Space>
+                            <Space align="start"><IdCard size={28} className="text-[#0f766e] shrink-0 mt-1" /><span>Gerador de Credenciais (Dobra)</span></Space>
                         </Typography.Title>
                     </div>
-                    <Alert
-                        type="warning"
-                        showIcon
-                        message="A geração de credenciais é permitida apenas para alunos com status 'Documento assinado' e com foto cadastrada."
-                    />
-
+                    <Alert type="info" showIcon message="Modelo 'Vira e Cola': Impressão frente e verso lado a lado para dobradura. Uma credencial por folha A4." />
                     <Form form={form} layout="vertical" className="mt-2">
                         <Row gutter={[16, 16]}>
                             <Col xs={24} sm={24} md={12}>
-                                <Form.Item
-                                    label="Selecione a Escola"
-                                    required
-                                    rules={[{ required: true, message: 'Selecione uma escola' }]}
-                                    style={{ marginBottom: 12 }}
-                                >
-                                    <Select
-                                        placeholder="Selecione uma escola..."
-                                        value={escolaSelecionada}
-                                        onChange={setEscolaSelecionada}
-                                        style={{ width: '100%', height: 45 }}
-                                        showSearch
-                                        filterOption={(input, option) =>
-                                            (option?.label || '').toLowerCase().includes(input.toLowerCase())
-                                        }
-                                        options={listaEscolas.map((escola) => ({
-                                            label: escola.nome_escola,
-                                            value: escola.id,
-                                        }))}
-                                    />
+                                <Form.Item label="Selecione a Escola" required style={{ marginBottom: 12 }}>
+                                    <Select placeholder="Selecione uma escola..." value={escolaSelecionada} onChange={setEscolaSelecionada} style={{ width: '100%', height: 45 }} showSearch options={listaEscolas.map(e => ({ label: e.nome_escola, value: e.id }))} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} sm={24} md={12}>
-                                <Form.Item
-                                    label="Filtro de geração"
-                                    style={{ marginBottom: 12 }}
-                                >
-                                    <Select
-                                        value={filtroGeracao}
-                                        onChange={setFiltroGeracao}
-                                        style={{ width: '100%', height: 45 }}
-                                        options={[
-                                            { label: 'Todos os alunos', value: 'todos' },
-                                            { label: 'Somente aptos sem credencial gerada', value: 'nao-geradas' },
-                                        ]}
-                                    />
+                                <Form.Item label="Filtro de geração" style={{ marginBottom: 12 }}>
+                                    <Select value={filtroGeracao} onChange={setFiltroGeracao} style={{ width: '100%', height: 45 }} options={[{ label: 'Todos os alunos', value: 'todos' }, { label: 'Somente aptos sem credencial gerada', value: 'nao-geradas' }]} />
                                 </Form.Item>
                             </Col>
                         </Row>
-
-                        {escolaSelecionada && (
-                            <div className="mb-4">
-                                <Alert
-                                    message={
-                                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Escola:</strong> {escolaObj?.nome_escola}</div>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Total de Estudantes:</strong> {estudantesDaEscola.length}</div>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Documento assinado:</strong> {estudantesComDocumentoAssinado.length}</div>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Assinatura pendente:</strong> {estudantesComAssinaturaPendente}</div>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Sem foto:</strong> <span className={estudantesSemFoto > 0 ? 'text-red-500' : ''}>{estudantesSemFoto}</span></div>
-                                            <div className="text-[0.875rem] sm:text-[1rem]"><strong>Aptos para credencial</strong> (doc. assinado + foto): <span className="text-green-700 font-semibold">{estudantesAptos.length}</span></div>
-                                        </Space>
-                                    }
-                                    type="info"
-                                    showIcon
-                                    icon={<Building2 size={20} />}
-                                />
-                            </div>
-                        )}
-
-                        {escolasExportadas[escolaSelecionada] && (
-                            <div className="mb-4">
-                                <Alert
-                                    message={
-                                        <span className="text-[0.875rem]">
-                                            Exportado em: <strong>{new Date(escolasExportadas[escolaSelecionada]).toLocaleString('pt-BR')}</strong>
-                                        </span>
-                                    }
-                                    type="success"
-                                    showIcon
-                                />
-                            </div>
-                        )}
-
                         {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                            <div className="mt-4">
-                                <button
-                                    type="button"
-                                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all text-[0.9375rem]"
-                                    onClick={handleGerarPdf}
-                                    disabled={gerandoPdf || estudantesSelecionadosParaGeracao.length === 0}
-                                >
-                                    {gerandoPdf ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <Download size={20} />
-                                    )}
-                                    {gerandoPdf ? 'Processando...' : `GERAR PDF (${estudantesSelecionadosParaGeracao.length} SELECIONADOS)`}
-                                </button>
-                            </div>
+                            <button type="button" className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#0f766e] text-white hover:bg-[#0d6961] border-0 cursor-pointer disabled:opacity-60 font-bold shadow-lg transition-all" onClick={handleGerarPdf} disabled={gerandoPdf || estudantesSelecionadosParaGeracao.length === 0}>
+                                {gerandoPdf ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={20} />}
+                                {gerandoPdf ? 'Processando...' : `GERAR PDF FRENTE/VERSO (${estudantesSelecionadosParaGeracao.length} SELECIONADOS)`}
+                            </button>
                         )}
                     </Form>
-
                     {escolaSelecionada && estudantesDaEscola.length > 0 && (
-                        <Card
-                            size="small"
-                            title={
-                                filtroGeracao === 'nao-geradas'
-                                    ? `Aptos sem credencial gerada (${estudantesExibidosNaTabela.length})`
-                                    : `Todos os Estudantes (${estudantesExibidosNaTabela.length})`
-                            }
-                            className="shadow-sm sm:rounded-xl -mx-4 sm:mx-0 border-x-0 sm:border-x border-[#f1f5f9]"
-                            bodyStyle={{ padding: 0 }}
-                        >
-                            <Table
-                                dataSource={estudantesExibidosNaTabela}
-                                rowKey="id"
-                                pagination={{ pageSize: 15 }}
-                                size="small"
-                                scroll={{ x: 'max-content' }}
-                                columns={[
-                                    {
-                                        title: 'Nome',
-                                        dataIndex: 'nome',
-                                        render: (n) => <Typography.Text strong>{n}</Typography.Text>
-                                    },
-                                    {
-                                        title: 'Foto',
-                                        key: 'foto',
-                                        render: (_, row) => !!String(row?.foto_url || '').trim()
-                                            ? <Tag color="green">Com foto</Tag>
-                                            : <Tag color="red">Sem foto</Tag>
-                                    },
-                                    {
-                                        title: 'Status da ficha',
-                                        key: 'status_ficha',
-                                        render: (_, row) => {
-                                            const temDocumentoAssinado = !!String(row?.documentacao_assinada_url || '').trim()
-                                            return temDocumentoAssinado
-                                                ? <Tag color="green">Documento assinado</Tag>
-                                                : <Tag color="orange">Assinatura pendente</Tag>
-                                        }
-                                    },
-                                    {
-                                        title: 'Credencial',
-                                        key: 'status_credencial',
-                                        render: (_, row) => {
-                                            const apto = !!String(row?.documentacao_assinada_url || '').trim() && !!String(row?.foto_url || '').trim()
-                                            if (!apto) return <Tag color="default">Inapto</Tag>
-                                            const gerada = !!credenciaisDaEscola[String(row?.id)]
-                                            return gerada
-                                                ? <Tag color="cyan">Gerada</Tag>
-                                                : <Tag color="default">Não gerada</Tag>
-                                        }
-                                    },
-                                    {
-                                        title: 'Modalidades',
-                                        dataIndex: 'modalidades',
-                                        render: (mods) => (
-                                            <Space wrap>
-                                                {mods.map((m, idx) => (
-                                                    <Tag key={idx} color="blue">{m.esporte_nome}</Tag>
-                                                ))}
-                                                {mods.length === 0 && <span className="text-gray-400 italic">Nenhuma</span>}
-                                            </Space>
-                                        )
-                                    }
-                                ]}
-                            />
+                        <Card size="small" title={filtroGeracao === 'nao-geradas' ? `Aptos sem credencial gerada (${estudantesExibidosNaTabela.length})` : `Todos os Estudantes (${estudantesExibidosNaTabela.length})`} className="shadow-sm sm:rounded-xl">
+                            <Table dataSource={estudantesExibidosNaTabela} rowKey="id" pagination={{ pageSize: 15 }} size="small" scroll={{ x: 'max-content' }} columns={[
+                                { title: 'Nome', dataIndex: 'nome', render: n => <Typography.Text strong>{n}</Typography.Text> },
+                                { title: 'Nascimento', dataIndex: 'data_nascimento', render: d => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                                { title: 'Status', key: 'status', render: (_, row) => (
+                                    <Space direction="vertical" size={2}>
+                                        {!!String(row?.foto_url || '').trim() ? <Tag color="green">Com foto</Tag> : <Tag color="red">Sem foto</Tag>}
+                                        {!!String(row?.documentacao_assinada_url || '').trim() ? <Tag color="green">Doc. assinado</Tag> : <Tag color="orange">Doc. pendente</Tag>}
+                                    </Space>
+                                )},
+                                { title: 'Modalidades', dataIndex: 'modalidades', render: mods => (
+                                    <Space wrap>{mods.map((m, idx) => <Tag key={idx} color="blue" icon={<ModalidadeIcon icone={m.esporte_icone} size={14} />}>{m.esporte_nome}</Tag>)}</Space>
+                                )}
+                            ]} />
                         </Card>
                     )}
                 </Space>
             </Spin>
-
             {gerandoPdf && createPortal(
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/80 backdrop-blur-md">
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/10 backdrop-blur-md">
                     <div className="bg-white rounded-3xl p-12 flex flex-col items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-[#f1f5f9] max-w-sm w-full text-center">
-                        <div className="relative">
-                            <div className="w-16 h-16 border-[5px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <IdCard size={24} className="text-[#0f766e] opacity-40" />
+                        <div className="w-16 h-16 border-[5px] border-[#e2e8f0] border-t-[#0f766e] rounded-full animate-spin" />
+                        <div className="w-full">
+                            <div className="flex justify-between items-end mb-2">
+                                <span className="text-xs font-bold text-[#64748b] uppercase">Processando</span>
+                                <span className="text-sm font-black text-[#0f766e]">{progressoPdf.atual} / {progressoPdf.total}</span>
+                            </div>
+                            <div className="w-full h-3 bg-[#f1f5f9] rounded-full overflow-hidden border">
+                                <div className="h-full bg-[#0f766e] transition-all duration-500" style={{ width: `${(progressoPdf.atual / (progressoPdf.total || 1)) * 100}%` }} />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <h3 className="m-0 text-xl font-bold text-[#042f2e]">Gerando Credenciais</h3>
-                            <p className="m-0 text-[#64748b] font-medium">
-                                {progressoPdf.total > 0 ? Math.round((progressoPdf.atual / progressoPdf.total) * 100) : 0}% concluído
-                            </p>
-                            <p className="text-sm text-[#94a3b8] m-0">
-                                {progressoPdf.atual} de {progressoPdf.total} processadas
-                            </p>
+                        <p className="text-sm text-[#64748b] font-medium m-0 italic">Capturando frente e verso para dobradura...</p>
+                        <div className="fixed -left-[9999px] -top-[9999px]">
+                            <PrintableFoldedCredential aluno={capturandoAluno} midias={midiasConfig} assets={assetsCaptura} />
                         </div>
-                        <div className="w-full bg-[#f1f5f9] h-3 rounded-full overflow-hidden shadow-inner">
-                            <div
-                                className="h-full bg-gradient-to-r from-[#0f766e] to-[#2dd4bf] transition-all duration-300 ease-out shadow-[0_0_10px_rgba(15,118,110,0.3)]"
-                                style={{ width: `${(progressoPdf.atual / (progressoPdf.total || 1)) * 100}%` }}
-                            />
-                        </div>
-                        <p className="text-xs text-[#94a3b8] italic">Por favor, não feche esta aba durante o processo.</p>
                     </div>
                 </div>,
                 document.body
