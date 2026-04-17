@@ -244,7 +244,7 @@ export default function FichaIndividualPrint({ dados, ano = new Date().getFullYe
         </div>
 
         {/* Assinaturas Atleta e Responsável */}
-        <div className="grid grid-cols-2 gap-8 mb-6 mt-4">
+        <div className="grid grid-cols-2 gap-8 mb-4 mt-4">
           <div className="text-center">
             <div className="border-b border-black h-8 mb-1" />
             <p className="font-bold text-[9px]">Assinatura do Estudante-atleta</p>
@@ -252,6 +252,18 @@ export default function FichaIndividualPrint({ dados, ano = new Date().getFullYe
           <div className="text-center">
             <div className="border-b border-black h-8 mb-1" />
             <p className="font-bold text-[9px]">Assinatura do Responsável Legal</p>
+          </div>
+        </div>
+
+        {/* Assinaturas Médico */}
+        <div className="grid grid-cols-2 gap-8 mb-6">
+          <div className="text-center">
+            <div className="border-b border-black h-8 mb-1" />
+            <p className="font-bold text-[9px]">Assinatura do Médico</p>
+          </div>
+          <div className="text-center">
+            <div className="border-b border-black h-8 mb-1" />
+            <p className="font-bold text-[9px]">Carimbo do Médico com CRM</p>
           </div>
         </div>
 
