@@ -14,6 +14,7 @@ import { esportesService } from '../services/esportesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
+import ModalTermoAtualizado from '../components/catalogos/ModalTermoAtualizado'
 
 export default function Atividades() {
   const { user } = useAuth()
@@ -40,24 +41,43 @@ export default function Atividades() {
   const [dataLimiteEditarModalidades, setDataLimiteEditarModalidades] = useState(null)
   const [prazoModalidadesPagina, setPrazoModalidadesPagina] = useState(null)
   const [prazoModalidadesEncerradoPagina, setPrazoModalidadesEncerradoPagina] = useState(false)
+  
+  const [escolaDetalhes, setEscolaDetalhes] = useState(null)
+  const [modalTermoOpen, setModalTermoOpen] = useState(false)
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false)
 
   useEffect(() => {
-    if (!isDiretor) return
-    configuracoesService
-      .getApp()
-      .then((data) => {
-        const limite = data?.diretor_editar_modalidades_data_limite
+    if (!isDiretor || !user?.escola_id) return
+    
+    const fetchDados = async () => {
+      setLoadingDetalhes(true)
+      try {
+        const [config, detalhes] = await Promise.all([
+          configuracoesService.getApp(),
+          escolasService.getDetalhes(user.escola_id)
+        ])
+
+        setEscolaDetalhes(detalhes)
+        
+        const limite = config?.diretor_editar_modalidades_data_limite
         const str = limite && String(limite).trim().slice(0, 10)
-        if (!str) return
-        setPrazoModalidadesPagina(str)
-        const hoje = new Date()
-        hoje.setHours(0, 0, 0, 0)
-        const [y, m, d] = str.split('-').map(Number)
-        const dataLimite = new Date(y, m - 1, d)
-        setPrazoModalidadesEncerradoPagina(hoje > dataLimite)
-      })
-      .catch(() => {})
-  }, [isDiretor])
+        if (str) {
+          setPrazoModalidadesPagina(str)
+          const hoje = new Date()
+          hoje.setHours(0, 0, 0, 0)
+          const [y, m, d] = str.split('-').map(Number)
+          const dataLimite = new Date(y, m - 1, d)
+          setPrazoModalidadesEncerradoPagina(hoje > dataLimite)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados da escola:', err)
+      } finally {
+        setLoadingDetalhes(false)
+      }
+    }
+
+    fetchDados()
+  }, [isDiretor, user?.escola_id])
 
   const handleNewEsporte = () => {
     setEsporteSelecionado(null)
@@ -111,7 +131,7 @@ export default function Atividades() {
   }
 
   useEffect(() => {
-    if (!modalModalidadesOpen) return
+    if (!modalModalidadesOpen && !modalTermoOpen) return
     setLoadingVariantesTodas(true)
     const dataLimiteStr = (v) => (v && String(v).trim().slice(0, 10)) || null
     const hoje = new Date()
@@ -134,7 +154,7 @@ export default function Atividades() {
       })
       .catch(() => setVariantesTodas([]))
       .finally(() => setLoadingVariantesTodas(false))
-  }, [modalModalidadesOpen, isDiretor])
+  }, [modalModalidadesOpen, modalTermoOpen, isDiretor])
 
   const handleSalvarModalidades = async () => {
     if (!editModalidadeIds?.length) {
@@ -147,6 +167,10 @@ export default function Atividades() {
       await escolasService.updateMinhaEscolaModalidades(editModalidadeIds)
       setModalModalidadesOpen(false)
       useVariantesState.fetchVariantes()
+      
+      // Recarregar detalhes para que o aviso de termo desatualizado e o conteúdo do termo reflitam a mudança
+      const detalhes = await escolasService.getDetalhes(user.escola_id)
+      setEscolaDetalhes(detalhes)
     } catch (err) {
       setErroModalidades(err.message || 'Erro ao salvar modalidades.')
     } finally {
@@ -207,14 +231,33 @@ export default function Atividades() {
         </div>
       )}
 
-      {isDiretor && prazoModalidadesPagina && (
+      {isDiretor && prazoModalidadesPagina && (!prazoModalidadesEncerradoPagina || escolaDetalhes?.termo_desatualizado) && (
         <Alert
           type={prazoModalidadesEncerradoPagina ? 'warning' : 'info'}
-          message={prazoModalidadesEncerradoPagina ? 'Prazo encerrado' : 'Prazo para editar modalidades'}
+          message={
+            prazoModalidadesEncerradoPagina 
+              ? 'Ação Necessária: Atualizar Termo de Adesão' 
+              : 'Prazo para editar modalidades'
+          }
           description={
-            prazoModalidadesEncerradoPagina
-              ? `O período para editar as modalidades da escola encerrou em ${new Date(prazoModalidadesPagina + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Não é possível salvar alterações.`
-              : `Você pode editar as modalidades da escola até ${new Date(prazoModalidadesPagina + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Após essa data, não será possível alterar.`
+            <div className="flex flex-col gap-3">
+              <p className="m-0">
+                {prazoModalidadesEncerradoPagina
+                  ? 'As modalidades da sua escola sofreram alterações e o termo de adesão inicial está desatualizado. É obrigatório o envio da nova ficha assinada.'
+                  : `Você pode editar as modalidades da escola até ${new Date(prazoModalidadesPagina + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Após essa data, não será possível alterar.`}
+              </p>
+              {prazoModalidadesEncerradoPagina && (
+                <div>
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    onClick={() => setModalTermoOpen(true)}
+                  >
+                    Gerar e Enviar Termo Atualizado
+                  </Button>
+                </div>
+              )}
+            </div>
           }
           showIcon
           className="mb-0"
@@ -316,6 +359,37 @@ export default function Atividades() {
             emptyMessage="Nenhuma modalidade cadastrada no sistema. Entre em contato com a SEMCEJ."
           />
         </Modal>
+      )}
+
+      {isDiretor && escolaDetalhes && (
+        <ModalTermoAtualizado
+          open={modalTermoOpen}
+          onClose={() => setModalTermoOpen(false)}
+          onSuccess={async () => {
+            const res = await escolasService.getDetalhes(user.escola_id)
+            setEscolaDetalhes(res)
+          } }
+          escolaId={user.escola_id}
+          edicaoId={escolaDetalhes.edicao_id}
+          variantes={variantesTodas}
+          dados={{
+            nomeRazaoSocial: escolaDetalhes.escola.nome_escola,
+            inep: escolaDetalhes.escola.inep,
+            cnpj: escolaDetalhes.escola.cnpj,
+            endereco: escolaDetalhes.escola.endereco,
+            cidade: escolaDetalhes.escola.cidade,
+            uf: escolaDetalhes.escola.uf,
+            email: escolaDetalhes.escola.email,
+            telefone: escolaDetalhes.escola.telefone,
+            diretorNome: escolaDetalhes.diretor?.nome,
+            diretorCpf: escolaDetalhes.diretor?.cpf,
+            diretorRg: escolaDetalhes.escola.dados_diretor?.rg,
+            coordenadorNome: escolaDetalhes.escola.dados_coordenador?.nome,
+            coordenadorCpf: escolaDetalhes.escola.dados_coordenador?.cpf,
+            coordenadorTelefone: escolaDetalhes.escola.dados_coordenador?.telefone,
+            varianteIds: escolaDetalhes.modalidades.map(m => m.variante_id)
+          }}
+        />
       )}
     </div>
   )

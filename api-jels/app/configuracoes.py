@@ -33,6 +33,8 @@ CHAVES_CONHECIDAS = {
     "prefeito_nome",
     "prefeito_foto",
     "prefeito_descricao",
+    "layout_credencial",
+    "bg_verso_credencial",
 }
 
 
@@ -145,21 +147,17 @@ async def update_configuracoes(
     """Atualiza configurações (apenas SUPER_ADMIN/ADMIN). Body: cadastro_data_limite, diretor_cadastro_alunos_data_limite (YYYY-MM-DD ou null)."""
     require_admin(current_user)
 
-    updates = {
-        "cadastro_data_limite": _normalize_data_limite(payload.cadastro_data_limite),
-        "diretor_cadastro_alunos_data_limite": _normalize_data_limite(
-            payload.diretor_cadastro_alunos_data_limite
-        ),
-        "diretor_editar_modalidades_data_limite": _normalize_data_limite(
-            payload.diretor_editar_modalidades_data_limite
-        ),
-        "footer_descricao": payload.footer_descricao,
-        "social_facebook": payload.social_facebook,
-        "social_instagram": payload.social_instagram,
-        "social_youtube": payload.social_youtube,
-        "prefeito_nome": payload.prefeito_nome,
-        "prefeito_descricao": payload.prefeito_descricao,
-    }
+    # Construir dicionário de updates apenas com campos enviados (partial update)
+    data = payload.model_dump(exclude_unset=True)
+    updates = {}
+    for chave, valor in data.items():
+        if "data_limite" in chave:
+            updates[chave] = _normalize_data_limite(valor)
+        else:
+            updates[chave] = valor
+
+    if not updates:
+        return await get_configuracoes(conn, current_user)
 
     previous_values = {}
     async with conn.cursor() as cur:

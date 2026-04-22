@@ -14,6 +14,7 @@ from app.schemas import (
     EscolaModalidadesUpdate,
     AdesaoCreate,
     EscolaAdesaoResponse,
+    EscolaTermoAdesaoUpdate,
 )
 from app.auth import get_current_user
 from app.database import get_db, log_audit
@@ -49,6 +50,7 @@ def _row_to_response(row: dict) -> dict:
         "email": row["email"],
         "telefone": row["telefone"],
         "termo_assinatura_url": row.get("termo_assinatura_url"),
+        "termo_desatualizado": bool(row.get("termo_desatualizado")),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }
@@ -72,7 +74,8 @@ def _row_to_adesao_response(row: dict) -> dict:
         "status_adesao": row.get("status_adesao"),
         "dados_diretor": dados_diretor,
         "dados_coordenador": row.get("dados_coordenador"),
-        "modalidades_adesao": row.get("modalidades_adesao"),
+        "termo_assinatura_url": row.get("termo_assinatura_url"),
+        "termo_desatualizado": bool(row["termo_desatualizado"]),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }
@@ -84,10 +87,20 @@ async def list_escolas(
     current_user: dict = Depends(get_current_user),
 ):
     """Lista todas as escolas (requer autenticação)."""
+    # Obtém a edição ativa para cruzar os dados de termo_desatualizado
+    from app.edicao_context import resolve_edicao_id
+    resolved_edicao_id = await resolve_edicao_id(conn, None)
+
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at "
-            "FROM escolas ORDER BY nome_escola"
+            """
+            SELECT e.id, e.nome_escola, e.inep, e.cnpj, e.endereco, e.cidade, e.uf, e.email, e.telefone, e.created_at, e.updated_at,
+                   EXISTS(SELECT 1 FROM escola_edicao_modalidades 
+                          WHERE escola_id = e.id AND edicao_id = %s AND termo_desatualizado = TRUE) AS termo_desatualizado
+            FROM escolas e
+            ORDER BY e.nome_escola
+            """,
+            (resolved_edicao_id,)
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
@@ -169,11 +182,11 @@ async def update_minha_escola_modalidades(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Atualiza as modalidades da escola do usuário logado. Para uso do diretor (usa escola_id do token)."""
-    if current_user.get("role") != "DIRETOR":
+    """Atualiza as modalidades da escola do usuário logado. Para uso do diretor/coordenador (usa escola_id do token)."""
+    if current_user.get("role") not in ["DIRETOR", "COORDENADOR"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Apenas o diretor pode editar as modalidades da sua escola por este endpoint.",
+            detail="Apenas o diretor ou coordenador pode editar as modalidades da sua escola por este endpoint.",
         )
     escola_id = current_user.get("escola_id")
     if escola_id is None:
@@ -211,15 +224,32 @@ async def update_minha_escola_modalidades(
         )
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+
+        await cur.execute(
+            "SELECT modalidades_adesao, termo_desatualizado FROM escola_edicao_modalidades WHERE escola_id = %s AND edicao_id = %s",
+            (escola_id, resolved_edicao_id)
+        )
+        row_old = await cur.fetchone()
+        old_variantes_ids = []
+        termo_desatualizado = False
+        if row_old:
+            termo_desatualizado = row_old.get("termo_desatualizado", False)
+            if row_old.get("modalidades_adesao"):
+                old_variantes_ids = row_old["modalidades_adesao"].get("variante_ids", [])
+        
+        if set(old_variantes_ids) != set(data.variante_ids):
+            termo_desatualizado = True
+
         await cur.execute(
             """
-            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao)
-            VALUES (%s, %s, %s::jsonb)
+            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao, termo_desatualizado)
+            VALUES (%s, %s, %s::jsonb, %s)
             ON CONFLICT (escola_id, edicao_id) DO UPDATE
             SET modalidades_adesao = EXCLUDED.modalidades_adesao,
+                termo_desatualizado = EXCLUDED.termo_desatualizado,
                 updated_at = NOW()
             """,
-            (escola_id, resolved_edicao_id, modalidades_json),
+            (escola_id, resolved_edicao_id, modalidades_json, termo_desatualizado),
         )
         # Mantém compatibilidade com legado para edição ativa.
         ativa = await get_edicao_ativa(conn)
@@ -240,10 +270,10 @@ async def update_escola_modalidades(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Atualiza as modalidades (variantes) em que a escola está vinculada. Diretor só pode editar a própria escola."""
+    """Atualiza as modalidades (variantes) em que a escola está vinculada. Diretor/Coordenador só pode editar a própria escola."""
     role = current_user.get("role")
     user_escola_id = current_user.get("escola_id")
-    if role == "DIRETOR":
+    if role in ["DIRETOR", "COORDENADOR"]:
         if user_escola_id is None or int(escola_id) != int(user_escola_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -264,15 +294,32 @@ async def update_escola_modalidades(
         )
         if not await cur.fetchone():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+
+        await cur.execute(
+            "SELECT modalidades_adesao, termo_desatualizado FROM escola_edicao_modalidades WHERE escola_id = %s AND edicao_id = %s",
+            (escola_id, resolved_edicao_id)
+        )
+        row_old = await cur.fetchone()
+        old_variantes_ids = []
+        termo_desatualizado = False
+        if row_old:
+            termo_desatualizado = row_old.get("termo_desatualizado", False)
+            if row_old.get("modalidades_adesao"):
+                old_variantes_ids = row_old["modalidades_adesao"].get("variante_ids", [])
+        
+        if set(old_variantes_ids) != set(data.variante_ids):
+            termo_desatualizado = True
+
         await cur.execute(
             """
-            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao)
-            VALUES (%s, %s, %s::jsonb)
+            INSERT INTO escola_edicao_modalidades (escola_id, edicao_id, modalidades_adesao, termo_desatualizado)
+            VALUES (%s, %s, %s::jsonb, %s)
             ON CONFLICT (escola_id, edicao_id) DO UPDATE
             SET modalidades_adesao = EXCLUDED.modalidades_adesao,
+                termo_desatualizado = EXCLUDED.termo_desatualizado,
                 updated_at = NOW()
             """,
-            (escola_id, resolved_edicao_id, modalidades_json),
+            (escola_id, resolved_edicao_id, modalidades_json, termo_desatualizado),
         )
         ativa = await get_edicao_ativa(conn)
         if int(ativa["id"]) == resolved_edicao_id:
@@ -295,7 +342,7 @@ async def get_escola_detalhes(
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at, termo_assinatura_url "
+            "SELECT id, nome_escola, inep, cnpj, endereco, cidade, uf, email, telefone, created_at, updated_at, termo_assinatura_url, dados_diretor, dados_coordenador "
             "FROM escolas WHERE id = %s",
             (escola_id,),
         )
@@ -348,13 +395,17 @@ async def get_escola_detalhes(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT modalidades_adesao
+            SELECT modalidades_adesao, termo_desatualizado, termo_atualizado
             FROM escola_edicao_modalidades
             WHERE escola_id = %s AND edicao_id = %s
             """,
             (escola_id, resolved_edicao_id),
         )
         row_mod = await cur.fetchone()
+    
+    termo_desatualizado = False
+    termo_atualizado = False
+    
     if not row_mod:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -362,6 +413,10 @@ async def get_escola_detalhes(
                 (escola_id,),
             )
             row_mod = await cur.fetchone()
+    else:
+        termo_desatualizado = row_mod.get("termo_desatualizado", False)
+        termo_atualizado = row_mod.get("termo_atualizado", False)
+        
     if row_mod and row_mod.get("modalidades_adesao"):
         variante_ids = row_mod["modalidades_adesao"].get("variante_ids", [])
         if variante_ids:
@@ -404,7 +459,60 @@ async def get_escola_detalhes(
         "usuarios": usuarios,
         "modalidades": modalidades,
         "edicao_id": resolved_edicao_id,
+        "termo_desatualizado": termo_desatualizado,
+        "termo_atualizado": termo_atualizado,
     }
+
+
+@router.patch("/{escola_id}/termo-adesao", status_code=status.HTTP_200_OK)
+async def update_termo_adesao(
+    escola_id: int,
+    data: EscolaTermoAdesaoUpdate,
+    edicao_id: int | None = Query(None, description="Edição alvo; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Atualiza a URL do novo Termo de Adesão assinado da escola e reseta a flag de desatualização."""
+    role = current_user.get("role")
+    user_escola_id = current_user.get("escola_id")
+    if role in ["DIRETOR", "COORDENADOR"]:
+        if user_escola_id is None or int(escola_id) != int(user_escola_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode atualizar o termo da sua escola.",
+            )
+    elif role not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado.",
+        )
+
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+    
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT id, nome_escola FROM escolas WHERE id = %s", (escola_id,))
+        escola_row = await cur.fetchone()
+        if not escola_row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada")
+
+        # Atualizar a URL no cadastro da escola
+        await cur.execute(
+            "UPDATE escolas SET termo_assinatura_url = %s, updated_at = NOW() WHERE id = %s",
+            (data.termo_assinatura_url, escola_id),
+        )
+
+        # Resetar a flag `termo_desatualizado` para false e marcar como `termo_atualizado` na edição ativa
+        await cur.execute(
+            """
+            UPDATE escola_edicao_modalidades
+            SET termo_desatualizado = FALSE, termo_atualizado = TRUE, updated_at = NOW()
+            WHERE escola_id = %s AND edicao_id = %s
+            """,
+            (escola_id, resolved_edicao_id),
+        )
+        await conn.commit()
+    
+    return {"message": "Termo de adesão atualizado com sucesso.", "url": data.termo_assinatura_url}
 
 
 @router.get("/{escola_id}", response_model=EscolaResponse)

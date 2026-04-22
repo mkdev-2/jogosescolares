@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Building2, Search } from 'lucide-react'
-import { Input, Pagination } from 'antd'
+import { Building2, Search, AlertCircle } from 'lucide-react'
+import { Input, Pagination, Tooltip } from 'antd'
 import { escolasService } from '../../services/escolasService'
 
 function formatDate(str) {
@@ -116,9 +116,6 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       CNPJ
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      E-mail
-                    </th>
-                    <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
                       Telefone
                     </th>
                     <th className="text-left px-5 py-4 text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-[0.05em] bg-[#f8fafc] border-b border-[#e2e8f0]">
@@ -135,7 +132,7 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                   {paginatedLista.map((item) => (
                     <tr
                       key={item.id}
-                      className={`hover:bg-[#f8fafc] ${onViewEscola ? 'cursor-pointer' : ''}`}
+                      className={`hover:bg-[#f8fafc] ${onViewEscola ? 'cursor-pointer' : ''} ${item.termo_desatualizado ? 'bg-amber-50/30' : ''}`}
                       onClick={() => onViewEscola?.(item)}
                       role={onViewEscola ? 'button' : undefined}
                       tabIndex={onViewEscola ? 0 : undefined}
@@ -147,16 +144,20 @@ export default function EscolasList({ lista = [], loading, error, onGerarCredenc
                       }}
                     >
                       <td className="px-5 py-4 text-[0.9375rem] font-semibold text-[#042f2e] border-b border-[#f1f5f9]">
-                        {item.nome_escola || '-'}
+                        <div className="flex items-center gap-2">
+                          {item.nome_escola || '-'}
+                          {!!item.termo_desatualizado && (
+                            <Tooltip title="Pendente de Atualização de Termo">
+                              <AlertCircle size={16} className="text-[#f59e0b] shrink-0 active-alert-icon" />
+                            </Tooltip>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {item.inep || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {escolasService.formatCnpj(item.cnpj)}
-                      </td>
-                      <td className="px-5 py-4 text-[0.9375rem] text-[#334155] border-b border-[#f1f5f9]">
-                        {item.email || '-'}
                       </td>
                       <td className="px-5 py-4 text-[0.9375rem] text-[#334155] font-mono border-b border-[#f1f5f9]">
                         {escolasService.formatTelefone(item.telefone)}

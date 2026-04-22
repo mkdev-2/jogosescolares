@@ -62,11 +62,14 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "${AUTH_SERVICE_PORT}:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+    volumes:
+      - .:/app
     networks:
       - jogosescolares-network
     restart: unless-stopped

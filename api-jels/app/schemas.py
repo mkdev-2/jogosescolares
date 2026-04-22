@@ -347,6 +347,7 @@ class EscolaResponse(BaseModel):
     telefone: str
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    termo_desatualizado: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -355,6 +356,11 @@ class EscolaResponse(BaseModel):
 class EscolaModalidadesUpdate(BaseModel):
     """Atualização das modalidades (variantes) em que a escola está vinculada."""
     variante_ids: list[str] = Field(..., min_length=1, description="IDs das variantes de esportes em que a escola pretende competir")
+
+
+class EscolaTermoAdesaoUpdate(BaseModel):
+    """Atualização exclusiva do anexo de termo de adesão assinado (e cancelamento da flag de desatualização)."""
+    termo_assinatura_url: str = Field(..., max_length=500, description="URL do documento do novo termo de adesão assinado")
 
 
 class EscolaAdesaoResponse(BaseModel):
@@ -449,6 +455,12 @@ class ConfiguracoesUpdate(BaseModel):
     social_youtube: Optional[str] = None
     prefeito_nome: Optional[str] = None
     prefeito_descricao: Optional[str] = None
+    prefeito_foto: Optional[str] = None
+    logo_secretaria: Optional[str] = None
+    logo_jels: Optional[str] = None
+    bg_credencial: Optional[str] = None
+    bg_verso_credencial: Optional[str] = Field(None, description="Path da imagem do verso da credencial")
+    layout_credencial: Optional[str] = Field(None, description="JSON stringified com as posições e tamanhos dos elementos da credencial")
 
 
 class ConfiguracoesLogosUpdate(BaseModel):
@@ -480,7 +492,7 @@ class EstudanteAtletaCreate(BaseModel):
     responsavel_rg: str = Field(..., min_length=1, max_length=15)
     responsavel_celular: str = Field(..., min_length=1)
     responsavel_email: str = Field(..., min_length=1)
-    responsavel_nis: str = Field(..., min_length=1)
+    responsavel_nis: Optional[str] = None
     inep_instituicao: Optional[str] = None  # ignorado; escola vem do token
     # Confirmação de assinaturas e anexo da documentação assinada
     ficha_assinada: bool = Field(default=False, description="Assinaturas de Médico, Aluno, Responsável e Escola coletadas")
@@ -511,7 +523,7 @@ class EstudanteAtletaUpdate(BaseModel):
     responsavel_rg: Optional[str] = Field(None, min_length=1, max_length=15)
     responsavel_celular: Optional[str] = None
     responsavel_email: Optional[str] = Field(None, min_length=1)
-    responsavel_nis: Optional[str] = Field(None, min_length=1)
+    responsavel_nis: Optional[str] = None
     ficha_assinada: Optional[bool] = None
     documentacao_assinada_url: Optional[str] = Field(None, max_length=500)
     documentacao_rg_url: Optional[str] = Field(None, max_length=500)
@@ -539,7 +551,7 @@ class EstudanteAtletaResponse(BaseModel):
     responsavel_rg: Optional[str] = None
     responsavel_celular: Optional[str] = None
     responsavel_email: str
-    responsavel_nis: str
+    responsavel_nis: Optional[str] = None
     ficha_assinada: bool = False
     documentacao_assinada_url: Optional[str] = None
     documentacao_rg_url: Optional[str] = None

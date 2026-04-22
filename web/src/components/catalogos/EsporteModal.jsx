@@ -58,8 +58,6 @@ export default function EsporteModal({
         tipo_modalidade_ids: tipoIds,
       })
     } else {
-      const allCatIds = categorias.map((c) => c.id)
-      const allNaipeIds = naipes.map((n) => n.id)
       setFormData({
         nome: '',
         descricao: '',
@@ -68,8 +66,8 @@ export default function EsporteModal({
         minimo_atletas: 1,
         limite_atletas: 3,
         ativa: true,
-        categoria_ids: allCatIds,
-        naipe_ids: allNaipeIds,
+        categoria_ids: categorias.filter((c) => c.nome !== 'Geral').map((c) => c.id),
+        naipe_ids: naipes.filter((n) => n.nome !== 'MISTO').map((n) => n.id),
         tipo_modalidade_ids: [],
       })
     }

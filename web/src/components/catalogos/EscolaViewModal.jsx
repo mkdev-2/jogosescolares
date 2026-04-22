@@ -239,6 +239,15 @@ export default function EscolaViewModal({ open, onClose, escolaId, edicaoId = nu
                 <h3 className="text-sm font-semibold text-[#042f2e] m-0">
                   Termo de Adesão Anexado
                 </h3>
+                {dados.termo_desatualizado ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b] text-white uppercase tracking-wider">
+                    Pendente Atualização
+                  </span>
+                ) : dados.termo_atualizado ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0f766e] text-white uppercase tracking-wider">
+                    Versão Atualizada
+                  </span>
+                ) : null}
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-end pr-1">

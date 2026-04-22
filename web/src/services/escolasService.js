@@ -118,4 +118,13 @@ export const escolasService = {
     })
     return handleResponse(res, 'Erro ao atualizar modalidades')
   },
+
+  async updateTermoAdesao(escolaId, termoAssinaturaUrl, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${escolaId}/termo-adesao${qs}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ termo_assinatura_url: termoAssinaturaUrl }),
+    })
+    return handleResponse(res, 'Erro ao atualizar termo de adesão')
+  },
 }
