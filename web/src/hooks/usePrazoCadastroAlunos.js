@@ -40,10 +40,10 @@ export default function usePrazoCadastroAlunos() {
           return
         }
         setDataLimite(limitStr)
-        const limitDate = new Date(limitStr)
+        const [y, m, d] = limitStr.split('-').map(Number)
+        const limitDate = new Date(y, m - 1, d)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        limitDate.setHours(0, 0, 0, 0)
         setBloqueado(today > limitDate)
       })
       .catch(() => {

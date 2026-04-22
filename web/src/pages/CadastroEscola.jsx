@@ -247,8 +247,14 @@ export default function CadastroEscola() {
         setDataLimite(valor || null)
         if (valor) {
           const limit = valor.trim().slice(0, 10)
-          if (limit && new Date(limit) < new Date()) {
-            setFormEncerrado(true)
+          if (limit) {
+            const [y, m, d] = limit.split('-').map(Number)
+            const deadline = new Date(y, m - 1, d)
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            if (today > deadline) {
+              setFormEncerrado(true)
+            }
           }
         }
       })
