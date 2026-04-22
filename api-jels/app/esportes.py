@@ -135,13 +135,7 @@ async def _validar_tipos_modalidade_vs_limite(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Um esporte não pode combinar modalidade individual e coletiva.",
         )
-    if limite_atletas <= 1:
-        if "COLETIVAS" in codigos:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Com limite de 1 atleta por equipe, use apenas modalidade individual, não coletiva.",
-            )
-    else:
+    if limite_atletas > 1:
         if "INDIVIDUAIS" in codigos:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
