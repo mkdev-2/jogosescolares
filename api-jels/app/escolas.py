@@ -582,13 +582,13 @@ async def aprovar_adesao(
                 detail="Já existe um usuário cadastrado com o CPF do diretor.",
             )
         await cur.execute(
-            "SELECT id FROM escolas WHERE inep = %s OR cnpj = %s",
-            (row["inep"], row["cnpj"]),
+            "SELECT id FROM escolas WHERE inep = %s",
+            (row["inep"],),
         )
         if await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Escola já cadastrada com este INEP ou CNPJ.",
+                detail="Escola já cadastrada com este INEP.",
             )
         # 1. Criar escola
         modalidades = row.get("modalidades_adesao")
@@ -804,22 +804,22 @@ async def create_escola_publico(
     dados_coordenador_json = json.dumps(dados_coordenador)
 
     async with conn.cursor() as cur:
-        # Verificar se já existe escola com mesmo INEP/CNPJ
-        await cur.execute("SELECT id FROM escolas WHERE inep = %s OR cnpj = %s", (inep_clean, cnpj_clean))
+        # Verificar se já existe escola com mesmo INEP
+        await cur.execute("SELECT id FROM escolas WHERE inep = %s", (inep_clean,))
         if await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Escola já cadastrada com este INEP ou CNPJ",
+                detail="Escola já cadastrada com este INEP",
             )
-        # Verificar solicitação pendente duplicada (mesmo INEP/CNPJ)
+        # Verificar solicitação pendente duplicada (mesmo INEP)
         await cur.execute(
-            "SELECT id FROM solicitacoes WHERE (inep = %s OR cnpj = %s) AND status = 'PENDENTE'",
-            (inep_clean, cnpj_clean),
+            "SELECT id FROM solicitacoes WHERE inep = %s AND status = 'PENDENTE'",
+            (inep_clean,),
         )
         if await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Já existe uma solicitação pendente para este INEP ou CNPJ",
+                detail="Já existe uma solicitação pendente para este INEP",
             )
 
         await cur.execute(
