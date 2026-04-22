@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Image as ImageIcon, ImagePlus, User, Medal, Move, Save, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, ImagePlus, User, Medal as MedalIcon, Move, Save, Trash2 } from 'lucide-react'
 import { notification, Button, Spin, Popconfirm } from 'antd'
 import { motion } from 'framer-motion'
 import { configuracoesService } from '../../services/configuracoesService'
