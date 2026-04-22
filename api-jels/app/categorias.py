@@ -33,7 +33,7 @@ async def list_categorias(
     """Lista todas as categorias (faixas etárias)."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT id, nome, idade_min, idade_max, ativa, created_at, updated_at FROM categorias ORDER BY idade_min"
+            "SELECT id, nome, idade_min, idade_max, ativa, created_at, updated_at FROM categorias ORDER BY (idade_max - idade_min), idade_min"
         )
         rows = await cur.fetchall()
     return [_row_to_response(r) for r in rows]
