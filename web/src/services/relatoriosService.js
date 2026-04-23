@@ -17,6 +17,16 @@ function handleResponse(res, fallbackError = 'Erro ao processar requisição') {
 
 export const relatoriosService = {
   /**
+   * Retorna informações da escola + alunos inscritos em uma modalidade específica.
+   */
+  async getEscolaModalidadeAlunos(escolaId, varianteId, edicaoId = null) {
+    const params = new URLSearchParams({ escola_id: escolaId, variante_id: varianteId })
+    if (edicaoId) params.set('edicao_id', String(edicaoId))
+    const res = await apiFetch(`${BASE}/escola-modalidade-alunos?${params.toString()}`)
+    return handleResponse(res, 'Erro ao buscar alunos da escola')
+  },
+
+  /**
    * Retorna escolas agrupadas por modalidade (esporte_variante) para uma edição.
    * @param {number|null} edicaoId - ID da edição; usa a ativa se omitido.
    * @param {string|null} esporteId - UUID do esporte para filtrar (opcional).

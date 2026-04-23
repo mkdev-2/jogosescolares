@@ -39,42 +39,18 @@ async def escolas_por_modalidade(
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
-    where = "WHERE e.edicao_id = %s"
+    where = "WHERE edicao_id = %s"
     params: list = [resolved_edicao_id]
 
     if esporte_id:
-        where += " AND ev.esporte_id::text = %s"
+        where += " AND esporte_id = %s"
         params.append(str(esporte_id))
 
     sql = f"""
-        SELECT
-            ev.id::text              AS variante_id,
-            esp.id::text             AS esporte_id,
-            esp.nome                 AS esporte_nome,
-            esp.icone                AS esporte_icone,
-            c.nome                   AS categoria_nome,
-            n.nome                   AS naipe_nome,
-            n.codigo                 AS naipe_codigo,
-            tm.nome                  AS tipo_modalidade_nome,
-            tm.codigo                AS tipo_modalidade_codigo,
-            e.id                     AS equipe_id,
-            esc.id                   AS escola_id,
-            esc.nome_escola,
-            esc.inep,
-            (
-                SELECT COUNT(*)
-                FROM equipe_estudantes ee
-                WHERE ee.equipe_id = e.id
-            )                        AS total_atletas
-        FROM equipes e
-        JOIN esporte_variantes ev  ON ev.id  = e.esporte_variante_id
-        JOIN esportes esp          ON esp.id = ev.esporte_id
-        JOIN categorias c          ON c.id   = ev.categoria_id
-        JOIN naipes n              ON n.id   = ev.naipe_id
-        JOIN tipos_modalidade tm   ON tm.id  = ev.tipo_modalidade_id
-        JOIN escolas esc           ON esc.id = e.escola_id
+        SELECT *
+        FROM vw_escolas_por_modalidade
         {where}
-        ORDER BY esp.nome, c.nome, n.nome, tm.codigo, esc.nome_escola
+        ORDER BY esporte_nome, categoria_nome, naipe_nome, tipo_modalidade_codigo, nome_escola
     """
 
     async with conn.cursor() as cur:
@@ -111,3 +87,99 @@ async def escolas_por_modalidade(
         v["total_escolas"] = len(v["escolas"])
 
     return result
+
+
+@router.get("/escola-modalidade-alunos")
+async def escola_modalidade_alunos(
+    escola_id: int = Query(..., description="ID da escola"),
+    variante_id: str = Query(..., description="UUID da esporte_variante"),
+    edicao_id: int | None = Query(None, description="ID da edição; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Retorna informações da escola e lista de alunos inscritos em uma modalidade específica.
+    Utiliza a view vw_alunos_modalidade_escola.
+    Requer perfil ADMIN ou SUPER_ADMIN.
+    """
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    # Dados da escola
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, nome_escola, inep, cidade, uf, email, telefone, endereco
+            FROM escolas
+            WHERE id = %s
+            """,
+            (escola_id,),
+        )
+        escola_row = await cur.fetchone()
+
+    if not escola_row:
+        raise HTTPException(status_code=404, detail="Escola não encontrada.")
+
+    # Dados da variante (modalidade)
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT esp.nome AS esporte_nome, c.nome AS categoria_nome,
+                   n.nome AS naipe_nome, tm.nome AS tipo_modalidade_nome
+            FROM esporte_variantes ev
+            JOIN esportes        esp ON esp.id = ev.esporte_id
+            JOIN categorias      c   ON c.id   = ev.categoria_id
+            JOIN naipes          n   ON n.id   = ev.naipe_id
+            JOIN tipos_modalidade tm  ON tm.id  = ev.tipo_modalidade_id
+            WHERE ev.id = %s::uuid
+            """,
+            (variante_id,),
+        )
+        variante_row = await cur.fetchone()
+
+    if not variante_row:
+        raise HTTPException(status_code=404, detail="Modalidade não encontrada.")
+
+    # Alunos via view
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT estudante_id, estudante_nome, data_nascimento, sexo, cpf
+            FROM vw_alunos_modalidade_escola
+            WHERE escola_id = %s
+              AND esporte_variante_id = %s::uuid
+              AND edicao_id = %s
+            ORDER BY estudante_nome
+            """,
+            (escola_id, variante_id, resolved_edicao_id),
+        )
+        aluno_rows = await cur.fetchall()
+
+    def fmt_date(d):
+        return d.strftime("%d/%m/%Y") if d else None
+
+    alunos = [
+        {
+            "id": r["estudante_id"],
+            "nome": r["estudante_nome"],
+            "data_nascimento": fmt_date(r.get("data_nascimento")),
+            "sexo": r.get("sexo"),
+            "cpf": r.get("cpf"),
+        }
+        for r in aluno_rows
+    ]
+
+    return {
+        "escola": {
+            "id":          escola_row["id"],
+            "nome_escola": escola_row["nome_escola"],
+            "inep":        escola_row["inep"],
+            "cidade":      escola_row.get("cidade"),
+            "uf":          escola_row.get("uf"),
+            "email":       escola_row.get("email"),
+            "telefone":    escola_row.get("telefone"),
+            "endereco":    escola_row.get("endereco"),
+        },
+        "variante": dict(variante_row),
+        "alunos":   alunos,
+    }

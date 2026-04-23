@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { ConfigProvider } from 'antd'
+import ptBR from 'antd/locale/pt_BR'
 import { AuthProvider } from './contexts/AuthContext'
 
 const antdTheme = {
@@ -33,7 +34,7 @@ import Relatorios from './pages/Relatorios'
 
 function App() {
   return (
-    <ConfigProvider theme={antdTheme}>
+    <ConfigProvider theme={antdTheme} locale={ptBR}>
       <Analytics />
       <AuthProvider>
         <BrowserRouter>
