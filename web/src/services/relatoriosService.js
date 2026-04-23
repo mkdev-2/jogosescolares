@@ -31,12 +31,12 @@ export const relatoriosService = {
    * @param {number|null} edicaoId - ID da edição; usa a ativa se omitido.
    * @param {string|null} esporteId - UUID do esporte para filtrar (opcional).
    */
-  async getEscolasPorModalidade(edicaoId = null, esporteId = null) {
+  async getEscolasPorModalidade(edicaoId = null, esporteId = null, apenasComEquipes = true) {
     const params = new URLSearchParams()
     if (edicaoId) params.set('edicao_id', String(edicaoId))
     if (esporteId) params.set('esporte_id', String(esporteId))
-    const qs = params.toString() ? `?${params.toString()}` : ''
-    const res = await apiFetch(`${BASE}/escolas-por-modalidade${qs}`)
+    params.set('apenas_com_equipes', String(apenasComEquipes))
+    const res = await apiFetch(`${BASE}/escolas-por-modalidade?${params.toString()}`)
     const data = await handleResponse(res, 'Erro ao buscar escolas por modalidade')
     return Array.isArray(data) ? data : []
   },

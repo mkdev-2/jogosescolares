@@ -28,30 +28,73 @@ def _require_admin(current_user: dict) -> dict:
 async def escolas_por_modalidade(
     edicao_id: int | None = Query(None, description="ID da edição; se omitido usa a ativa"),
     esporte_id: str | None = Query(None, description="Filtra por esporte específico (UUID)"),
+    apenas_com_equipes: bool = Query(True, description="True = apenas escolas com equipes; False = todas com adesão"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """
     Retorna escolas agrupadas por modalidade (esporte + categoria + naipe + tipo).
-    Cada entrada lista as escolas que possuem equipes na respectiva modalidade.
+    - apenas_com_equipes=true  → base: equipes já formadas (vw_escolas_por_modalidade)
+    - apenas_com_equipes=false → base: adesões da escola, com LEFT JOIN nas equipes
     Requer perfil ADMIN ou SUPER_ADMIN.
     """
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
-    where = "WHERE edicao_id = %s"
-    params: list = [resolved_edicao_id]
-
-    if esporte_id:
-        where += " AND esporte_id = %s"
-        params.append(str(esporte_id))
-
-    sql = f"""
-        SELECT *
-        FROM vw_escolas_por_modalidade
-        {where}
-        ORDER BY esporte_nome, categoria_nome, naipe_nome, tipo_modalidade_codigo, nome_escola
-    """
+    if apenas_com_equipes:
+        where = "WHERE edicao_id = %s"
+        params: list = [resolved_edicao_id]
+        if esporte_id:
+            where += " AND esporte_id = %s"
+            params.append(str(esporte_id))
+        sql = f"""
+            SELECT *, true AS tem_equipe
+            FROM vw_escolas_por_modalidade
+            {where}
+            ORDER BY esporte_nome, categoria_nome, naipe_nome, tipo_modalidade_codigo, nome_escola
+        """
+    else:
+        esporte_filter = ""
+        params: list = []
+        if esporte_id:
+            esporte_filter = "AND esp.id::text = %s"
+            params.append(str(esporte_id))
+        sql = f"""
+            SELECT
+                ev.id::text              AS variante_id,
+                esp.id::text             AS esporte_id,
+                esp.nome                 AS esporte_nome,
+                esp.icone                AS esporte_icone,
+                c.nome                   AS categoria_nome,
+                n.nome                   AS naipe_nome,
+                n.codigo                 AS naipe_codigo,
+                tm.nome                  AS tipo_modalidade_nome,
+                tm.codigo                AS tipo_modalidade_codigo,
+                e.id                     AS equipe_id,
+                esc.id                   AS escola_id,
+                esc.nome_escola,
+                esc.inep,
+                eem.edicao_id,
+                COALESCE(
+                    (SELECT COUNT(*) FROM equipe_estudantes ee WHERE ee.equipe_id = e.id),
+                    0
+                )                        AS total_atletas,
+                (e.id IS NOT NULL)       AS tem_equipe
+            FROM escola_edicao_modalidades eem
+            CROSS JOIN LATERAL jsonb_array_elements_text(eem.modalidades_adesao->'variante_ids') AS vid(variante_id_text)
+            JOIN esporte_variantes ev  ON ev.id  = vid.variante_id_text::uuid
+            JOIN esportes esp          ON esp.id = ev.esporte_id {esporte_filter}
+            JOIN categorias c          ON c.id   = ev.categoria_id
+            JOIN naipes n              ON n.id   = ev.naipe_id
+            JOIN tipos_modalidade tm   ON tm.id  = ev.tipo_modalidade_id
+            JOIN escolas esc           ON esc.id = eem.escola_id
+            LEFT JOIN equipes e        ON e.escola_id          = eem.escola_id
+                                      AND e.esporte_variante_id = ev.id
+                                      AND e.edicao_id           = eem.edicao_id
+            WHERE eem.edicao_id = %s
+            ORDER BY esp.nome, c.nome, n.nome, tm.codigo, esc.nome_escola
+        """
+        params.append(resolved_edicao_id)
 
     async with conn.cursor() as cur:
         await cur.execute(sql, params)
@@ -80,6 +123,7 @@ async def escolas_por_modalidade(
             "escola_nome": row["nome_escola"],
             "escola_inep": row["inep"],
             "total_atletas": int(row["total_atletas"]) if row["total_atletas"] is not None else 0,
+            "tem_equipe": bool(row["tem_equipe"]),
         })
 
     result = list(variants.values())

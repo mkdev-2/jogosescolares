@@ -8,11 +8,11 @@ export default function useRelatorios() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const getEscolasPorModalidade = useCallback(async (edicaoId, esporteId = null) => {
+  const getEscolasPorModalidade = useCallback(async (edicaoId, esporteId = null, apenasComEquipes = true) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await relatoriosService.getEscolasPorModalidade(edicaoId, esporteId)
+      const data = await relatoriosService.getEscolasPorModalidade(edicaoId, esporteId, apenasComEquipes)
       return Array.isArray(data) ? data : []
     } catch (err) {
       const msg = err.message || 'Erro ao buscar dados'

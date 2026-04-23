@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import {
   Card, Form, Button, Space, Typography, Spin, Select,
   Row, Col, Table, Statistic, Collapse, Badge, Empty, Radio, Tag,
-  Modal, Divider, Avatar,
+  Modal, Divider, Avatar, Switch, Tooltip,
 } from 'antd'
 import { Building2, Download, RefreshCw, Trophy, Users, MapPin, Mail, Phone, Hash } from 'lucide-react'
 import useRelatorios from '../../hooks/useRelatorios'
@@ -38,10 +38,15 @@ const ESCOLA_COLUMNS = [
     key: 'escola_nome',
     sorter: (a, b) => (a.escola_nome || '').localeCompare(b.escola_nome || ''),
     showSorterTooltip: { title: '' },
-    render: (nome) => (
+    render: (nome, record) => (
       <Space size={6}>
         <Building2 size={14} className="text-[#0f766e]" />
         <Text strong style={{ fontSize: 13 }}>{nome || '–'}</Text>
+        {record.tem_equipe === false && (
+          <Tooltip title="Escola aderiu à modalidade mas ainda não formou equipe">
+            <Tag color="orange" style={{ fontSize: 11, marginInlineStart: 0 }}>Sem equipe</Tag>
+          </Tooltip>
+        )}
       </Space>
     ),
   },
@@ -109,7 +114,7 @@ const ModalidadeTable = memo(({ variante, onRowClick }) => (
   <Table
     dataSource={variante.escolas}
     columns={ESCOLA_COLUMNS}
-    rowKey="equipe_id"
+    rowKey={(r) => r.equipe_id != null ? `equipe-${r.equipe_id}` : `escola-${r.escola_id}`}
     pagination={false}
     size="small"
     bordered
@@ -135,6 +140,7 @@ const RelatorioEscolasPorModalidade = () => {
   const [esporteId, setEsporteId] = useState(null)
   const [dados, setDados] = useState([])
   const [format, setFormat] = useState('pdf')
+  const [apenasComEquipes, setApenasComEquipes] = useState(true)
 
   // Estado do modal de estudante
   const [estudanteModal, setEstudanteModal] = useState(null)
@@ -181,18 +187,18 @@ const RelatorioEscolasPorModalidade = () => {
     fetchEsportes()
   }, [form])
 
-  useEffect(() => { setDados([]) }, [edicaoId, esporteId])
+  useEffect(() => { setDados([]) }, [edicaoId, esporteId, apenasComEquipes])
 
   // Buscar dados principais
   const buscarDados = useCallback(async () => {
     if (!edicaoId) return
     try {
-      const resultado = await getEscolasPorModalidade(edicaoId, esporteId || null)
+      const resultado = await getEscolasPorModalidade(edicaoId, esporteId || null, apenasComEquipes)
       setDados(resultado)
     } catch (err) {
       console.error('Erro ao buscar dados:', err)
     }
-  }, [edicaoId, esporteId, getEscolasPorModalidade])
+  }, [edicaoId, esporteId, apenasComEquipes, getEscolasPorModalidade])
 
   // Abrir modal ao clicar em uma linha de escola — estável enquanto edicaoId não mudar
   const handleRowClick = useCallback(async (record, variante) => {
@@ -362,6 +368,25 @@ const RelatorioEscolasPorModalidade = () => {
                   >
                     {loading ? 'Buscando...' : 'Buscar'}
                   </Button>
+                </Form.Item>
+              </Col>
+              <Col xs={24}>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Space size={8}>
+                    <Switch
+                      checked={apenasComEquipes}
+                      onChange={setApenasComEquipes}
+                      size="small"
+                    />
+                    <Text style={{ fontSize: 13 }}>
+                      Apenas escolas com equipes formadas
+                    </Text>
+                    {!apenasComEquipes && (
+                      <Tag color="orange" style={{ fontSize: 11 }}>
+                        Inclui escolas que aderiram mas ainda não criaram equipes
+                      </Tag>
+                    )}
+                  </Space>
                 </Form.Item>
               </Col>
             </Row>
