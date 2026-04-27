@@ -716,6 +716,7 @@ class CampeonatoGrupoResponse(BaseModel):
     campeonato_id: int
     nome: str
     ordem: int
+    classificados_diretos: int = 1
     equipes: list[CampeonatoGrupoEquipeResponse] = Field(default_factory=list)
     created_at: Optional[str] = None
 
@@ -754,11 +755,30 @@ class CampeonatoPartidaResponse(BaseModel):
         from_attributes = True
 
 
+class WildcardCandidatoInfo(BaseModel):
+    """Candidato a wild card com ranking e critério decisivo."""
+    equipe_id: int
+    nome_escola: str
+    grupo_nome: str
+    posicao_no_grupo: int
+    pts: int
+    V: int
+    E: int
+    D: int
+    pro: int
+    contra: int
+    saldo: int
+    criterio_decisivo: Optional[str] = None
+    classificado_wildcard: bool = False
+
+
 class CampeonatoEstruturaResponse(BaseModel):
     """Schema de estrutura completa do campeonato."""
     campeonato_id: int
     grupos: list[CampeonatoGrupoResponse] = Field(default_factory=list)
     partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
+    wildcard_equipe_ids: list[int] = Field(default_factory=list)
+    wildcard_ranking: list[WildcardCandidatoInfo] = Field(default_factory=list)
 
 
 # ========== CAMPEONATOS — SORTEIO MANUAL ==========
@@ -779,7 +799,17 @@ class CampeonatoComSorteioCreate(BaseModel):
     """Payload do novo fluxo de criação com sorteio manual."""
     esporte_variante_id: str = Field(..., min_length=1)
     edicao_id: Optional[int] = None
-    grupos: list[GrupoSorteioInput] = Field(..., min_length=2)
+    grupos: list[GrupoSorteioInput] = Field(..., min_length=1)
+
+
+class EstruturaGruposPreviewResponse(BaseModel):
+    """Estrutura de grupos pré-calculada para o sorteio manual."""
+    total_equipes: int
+    regra: str
+    tamanhos_grupos: list[int]
+    classificados_por_grupo: list[int]
+    vagas_bracket: int
+    vagas_wildcard: int
 
 
 # ========== CAMPEONATOS — PONTUAÇÃO ==========

@@ -2,23 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Checkbox, Modal, Select, Spin, Tag, message } from 'antd'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { ArrowLeft, Trophy } from 'lucide-react'
+import { ArrowLeft, Search, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-function calcularGrupos(totalEquipes) {
-  const numGrupos = Math.ceil(totalEquipes / 4)
-  const tamanhos = Array(numGrupos).fill(3)
-  const extras = totalEquipes - numGrupos * 3
-  for (let i = 0; i < extras; i++) tamanhos[i]++
-  return tamanhos.map((tam, i) => ({
-    nome: String.fromCharCode(65 + i),
-    slots: Array(tam).fill(null),
-  }))
-}
 
 // ─── componentes DnD ────────────────────────────────────────────────────────
 
@@ -92,8 +79,15 @@ function DroppableSlot({ grupoIdx, slotIdx, equipe, onRemove }) {
   )
 }
 
-function DroppablePool({ pool }) {
+function DroppablePool({ pool, totalPool }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'pool' })
+
+  let emptyMsg = null
+  if (totalPool === 0) {
+    emptyMsg = 'Todas as equipes foram alocadas nos grupos'
+  } else if (pool.length === 0) {
+    emptyMsg = 'Nenhuma equipe corresponde à busca'
+  }
 
   return (
     <div
@@ -103,10 +97,8 @@ function DroppablePool({ pool }) {
         isOver ? 'border-[#0f766e] bg-[#f0fdfa]' : 'border-[#e2e8f0] bg-[#f8fafc]',
       ].join(' ')}
     >
-      {pool.length === 0 ? (
-        <span className="text-xs text-[#94a3b8] self-center w-full text-center">
-          Todas as equipes foram alocadas nos grupos
-        </span>
+      {emptyMsg ? (
+        <span className="text-xs text-[#94a3b8] self-center w-full text-center">{emptyMsg}</span>
       ) : (
         pool.map((equipe) => <DraggableCard key={equipe.id} equipe={equipe} />)
       )}
@@ -114,9 +106,15 @@ function DroppablePool({ pool }) {
   )
 }
 
-function TelaSorteio({ equipes, onSalvar, salvando }) {
-  const [grupos, setGrupos] = useState(() => calcularGrupos(equipes.length))
+function TelaSorteio({ equipes, estrutura, onSalvar, salvando }) {
+  const [grupos, setGrupos] = useState(() =>
+    estrutura.tamanhos_grupos.map((tam, i) => ({
+      nome: String.fromCharCode(65 + i),
+      slots: Array(tam).fill(null),
+    }))
+  )
   const [pool, setPool] = useState(equipes)
+  const [busca, setBusca] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -245,8 +243,23 @@ function TelaSorteio({ equipes, onSalvar, salvando }) {
                 </Tag>
               )}
             </p>
+            {pool.length > 0 && (
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar escola..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="pl-7 pr-3 py-1 text-xs rounded-lg border border-[#e2e8f0] bg-white text-[#1e293b] placeholder-[#94a3b8] focus:outline-none focus:border-[#0f766e] transition-colors w-48"
+                />
+              </div>
+            )}
           </div>
-          <DroppablePool pool={pool} />
+          <DroppablePool
+            pool={pool.filter((e) => e.nome_escola.toLowerCase().includes(busca.toLowerCase()))}
+            totalPool={pool.length}
+          />
         </div>
 
         {/* Ação */}
@@ -287,6 +300,7 @@ export default function CriarCampeonato() {
 
   const [etapa, setEtapa] = useState('selecao') // 'selecao' | 'sorteio'
   const [equipesSorteio, setEquipesSorteio] = useState([])
+  const [estrutura, setEstrutura] = useState(null)
 
   const [salvando, setSalvando] = useState(false)
 
@@ -341,10 +355,17 @@ export default function CriarCampeonato() {
     }
   }
 
-  function handleConfirmar() {
+  async function handleConfirmar() {
     const confirmadas = equipes.filter((e) => selecionadas.includes(e.id))
     if (confirmadas.length < 6) {
       message.warning('São necessárias ao menos 6 equipes para criar o campeonato.')
+      return
+    }
+    try {
+      const est = await campeonatosService.getEstruturaGruposPreview(varianteId, edicaoId, confirmadas.length)
+      setEstrutura(est)
+    } catch (err) {
+      message.error(err.message || 'Erro ao calcular estrutura de grupos')
       return
     }
     setConfirmacaoOpen(false)
@@ -457,8 +478,8 @@ export default function CriarCampeonato() {
         </div>
       )}
 
-      {etapa === 'sorteio' && (
-        <TelaSorteio equipes={equipesSorteio} onSalvar={handleSalvar} salvando={salvando} />
+      {etapa === 'sorteio' && estrutura && (
+        <TelaSorteio equipes={equipesSorteio} estrutura={estrutura} onSalvar={handleSalvar} salvando={salvando} />
       )}
 
       {/* Modal de confirmação de equipes */}

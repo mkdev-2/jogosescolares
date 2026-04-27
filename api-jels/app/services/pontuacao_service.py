@@ -115,6 +115,8 @@ def _pro_contra_partida(
     """
     if not p.get("resultado_tipo"):
         return 0, 0
+    if p["mandante_equipe_id"] != equipe_id and p["visitante_equipe_id"] != equipe_id:
+        return 0, 0
 
     is_mandante = p["mandante_equipe_id"] == equipe_id
 
@@ -279,6 +281,9 @@ def _ordenar_grupo_empatado(
     Aplica a lista de critérios, em ordem, a um grupo de equipes com mesma
     pontuação. Processa sub-grupos recursivamente até que todos estejam
     resolvidos ou os critérios se esgotem.
+
+    Anota `_criterio_decisivo` em cada equipe (exceto a última) com o critério
+    que determinou sua posição acima da equipe imediatamente abaixo.
     """
     if len(equipes) <= 1 or not criterios:
         return equipes
@@ -287,7 +292,10 @@ def _ordenar_grupo_empatado(
     restantes = criterios[1:]
 
     if criterio == "SORTEIO":
-        return equipes  # terminal — não desempatamos por sorteio aqui
+        # terminal: anota SORTEIO em todas exceto a última
+        for e in equipes[:-1]:
+            e.setdefault("_criterio_decisivo", "SORTEIO")
+        return equipes
 
     ids_grupo = {e["equipe_id"] for e in equipes}
 
@@ -300,7 +308,6 @@ def _ordenar_grupo_empatado(
 
     equipes_sorted = sorted(equipes, key=lambda e: chaves[e["equipe_id"]], reverse=True)
 
-    # Aplica critérios restantes a sub-grupos ainda empatados
     resultado: list[dict] = []
     i = 0
     while i < len(equipes_sorted):
@@ -315,6 +322,11 @@ def _ordenar_grupo_empatado(
             sub = _ordenar_grupo_empatado(sub, restantes, todas_partidas, config)
         resultado.extend(sub)
         i = j
+
+    # Anota o critério que separou cada equipe da seguinte (somente em fronteiras de sub-grupo)
+    for k in range(len(resultado) - 1):
+        if chaves.get(resultado[k]["equipe_id"]) != chaves.get(resultado[k + 1]["equipe_id"]):
+            resultado[k].setdefault("_criterio_decisivo", criterio)
 
     return resultado
 
@@ -416,6 +428,21 @@ async def calcular_classificacao_grupo(
     for pos, e in enumerate(resultado_final, start=1):
         e["posicao"] = pos
 
+    # Anota o critério decisivo de cada posição vs a imediatamente abaixo
+    for i, e in enumerate(resultado_final):
+        if i < len(resultado_final) - 1:
+            next_e = resultado_final[i + 1]
+            if e["pts"] != next_e["pts"]:
+                e["criterio_decisivo"] = "PONTOS"
+            else:
+                e["criterio_decisivo"] = e.pop("_criterio_decisivo", "SORTEIO")
+        else:
+            e["criterio_decisivo"] = e.pop("_criterio_decisivo", None)
+
+    concluido = await verificar_grupo_concluido(conn, grupo_id)
+    for e in resultado_final:
+        e["grupo_concluido"] = concluido
+
     return resultado_final
 
 
@@ -464,22 +491,30 @@ async def avancar_classificados_para_mata_mata(
     Estratégia: os seeds_no_grupo 1..N foram usados na geração para preencher
     os slots do chaveamento. Mapeamos seed_inicial[i] → classificado_real[i]
     e atualizamos as partidas de mata-mata correspondentes.
+
+    Se o campeonato tem vagas_wildcard > 0 e este for o último grupo a concluir,
+    também calcula e preenche os slots de wild card.
     """
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT classificam_por_grupo FROM campeonatos WHERE id = %s",
+            "SELECT vagas_wildcard FROM campeonatos WHERE id = %s",
             (campeonato_id,),
         )
         camp = await cur.fetchone()
         if not camp:
             return
-        classificam = int(camp["classificam_por_grupo"])
 
         await cur.execute(
-            """
-            SELECT equipe_id FROM campeonato_grupo_equipes
-            WHERE grupo_id = %s ORDER BY seed_no_grupo
-            """,
+            "SELECT classificados_diretos FROM campeonato_grupos WHERE id = %s",
+            (grupo_id,),
+        )
+        grupo_row = await cur.fetchone()
+        if not grupo_row:
+            return
+        classificam = int(grupo_row["classificados_diretos"])
+
+        await cur.execute(
+            "SELECT equipe_id FROM campeonato_grupo_equipes WHERE grupo_id = %s ORDER BY seed_no_grupo",
             (grupo_id,),
         )
         seeds = [r["equipe_id"] for r in await cur.fetchall()]
@@ -494,49 +529,348 @@ async def avancar_classificados_para_mata_mata(
     if len(classificados_reais) < len(seeds_no_bracket):
         return
 
-    # Apenas pares que de facto mudaram
     mapeamento = {
         seeds_no_bracket[i]: classificados_reais[i]
         for i in range(len(seeds_no_bracket))
         if seeds_no_bracket[i] != classificados_reais[i]
     }
-    if not mapeamento:
+    if mapeamento:
+        async with conn.cursor() as cur:
+            for old_id, new_id in mapeamento.items():
+                logger.info(
+                    "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
+                    campeonato_id, grupo_id, old_id, new_id,
+                )
+                await cur.execute(
+                    """
+                    UPDATE campeonato_partidas
+                    SET mandante_equipe_id = %s, updated_at = NOW()
+                    WHERE campeonato_id = %s AND grupo_id IS NULL
+                      AND mandante_equipe_id = %s
+                    """,
+                    (new_id, campeonato_id, old_id),
+                )
+                await cur.execute(
+                    """
+                    UPDATE campeonato_partidas
+                    SET visitante_equipe_id = %s, updated_at = NOW()
+                    WHERE campeonato_id = %s AND grupo_id IS NULL
+                      AND visitante_equipe_id = %s
+                    """,
+                    (new_id, campeonato_id, old_id),
+                )
+                await cur.execute(
+                    """
+                    UPDATE campeonato_partidas
+                    SET vencedor_equipe_id = %s, updated_at = NOW()
+                    WHERE campeonato_id = %s AND grupo_id IS NULL
+                      AND is_bye = TRUE AND vencedor_equipe_id = %s
+                    """,
+                    (new_id, campeonato_id, old_id),
+                )
+
+    # Wild card: se este for o último grupo a concluir, preenche os slots pendentes
+    vagas_wildcard = int(camp["vagas_wildcard"] or 0)
+    if vagas_wildcard == 0:
         return
 
+    todos_concluidos = await _verificar_todos_grupos_concluidos(conn, campeonato_id)
+    if not todos_concluidos:
+        return
+
+    await _preencher_wild_cards(conn, campeonato_id, vagas_wildcard, config)
+
+
+async def calcular_ranking_wildcards(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    vagas_wildcard: int,
+    config: Config | None,
+) -> list[dict]:
+    """
+    Retorna o ranking completo dos candidatos a wild card (equipe que ficou na
+    posição classificados_diretos + 1 em cada grupo), ordenado pelos mesmos
+    critérios aplicados em _preencher_wild_cards.
+
+    Cada item inclui:
+      equipe_id, nome_escola, grupo_nome, posicao_no_grupo,
+      pts, V, E, D, pro, contra, saldo,
+      criterio_decisivo, classificado_wildcard.
+    """
+    if vagas_wildcard <= 0:
+        return []
+
     async with conn.cursor() as cur:
-        for old_id, new_id in mapeamento.items():
-            logger.info(
-                "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
-                campeonato_id, grupo_id, old_id, new_id,
+        await cur.execute(
+            "SELECT id, nome, classificados_diretos FROM campeonato_grupos WHERE campeonato_id = %s ORDER BY ordem",
+            (campeonato_id,),
+        )
+        grupos_rows = await cur.fetchall()
+
+    if not grupos_rows:
+        return []
+
+    cfg = config if config is not None else _CONFIG_PADRAO
+    candidatos: list[dict] = []
+    todos_tamanhos: list[int] = []
+
+    for grupo_row in grupos_rows:
+        gid = int(grupo_row["id"])
+        classif_diretos = int(grupo_row["classificados_diretos"])
+        grupo_nome = grupo_row["nome"]
+
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT COUNT(*) AS total FROM campeonato_grupo_equipes WHERE grupo_id = %s",
+                (gid,),
             )
+            total_no_grupo = int((await cur.fetchone())["total"])
+
+        todos_tamanhos.append(total_no_grupo)
+        classificacao = await calcular_classificacao_grupo(conn, gid, config)
+
+        if len(classificacao) > classif_diretos:
+            raw = classificacao[classif_diretos]
+            # Copia apenas os campos de stats; remove anotações do ranking de grupo
+            candidato = {
+                k: v for k, v in raw.items()
+                if k not in ("criterio_decisivo", "_criterio_decisivo", "grupo_concluido", "posicao")
+            }
+            candidato["grupo_id"] = gid
+            candidato["grupo_nome"] = grupo_nome
+            candidato["grupo_tamanho"] = total_no_grupo
+            candidato["posicao_no_grupo"] = classif_diretos + 1
+            candidatos.append(candidato)
+
+    if not candidatos:
+        return []
+
+    tamanhos_distintos = len(set(todos_tamanhos)) > 1
+    if tamanhos_distintos:
+        candidatos = await _recalcular_stats_equalizados(conn, candidatos, cfg)
+
+    criterios_base = [
+        c for c in (cfg.get("criterios_desempate_3plus") or [])
+        if c != "CONFRONTO_DIRETO"
+    ]
+    if not criterios_base:
+        criterios_base = ["SALDO_GERAL", "MAIOR_PRO_GERAL", "SORTEIO"]
+
+    candidatos.sort(key=lambda e: e["pts"], reverse=True)
+
+    resultado: list[dict] = []
+    i = 0
+    while i < len(candidatos):
+        j = i + 1
+        while j < len(candidatos) and candidatos[j]["pts"] == candidatos[i]["pts"]:
+            j += 1
+        grupo_emp = candidatos[i:j]
+        if len(grupo_emp) > 1:
+            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg)
+        resultado.extend(grupo_emp)
+        i = j
+
+    for i, e in enumerate(resultado):
+        if i < len(resultado) - 1:
+            next_e = resultado[i + 1]
+            if e["pts"] != next_e["pts"]:
+                e["criterio_decisivo"] = "PONTOS"
+            else:
+                e["criterio_decisivo"] = e.pop("_criterio_decisivo", "SORTEIO")
+        else:
+            e["criterio_decisivo"] = e.pop("_criterio_decisivo", None)
+        e["classificado_wildcard"] = i < vagas_wildcard
+
+    return resultado
+
+
+async def _verificar_todos_grupos_concluidos(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+) -> bool:
+    """Retorna True quando todos os grupos do campeonato têm resultados completos."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id FROM campeonato_grupos WHERE campeonato_id = %s",
+            (campeonato_id,),
+        )
+        grupo_ids = [int(r["id"]) for r in await cur.fetchall()]
+
+    for gid in grupo_ids:
+        if not await verificar_grupo_concluido(conn, gid):
+            return False
+    return True
+
+
+async def _preencher_wild_cards(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    vagas_wildcard: int,
+    config: Config | None,
+) -> None:
+    """
+    Calcula os wild cards (melhores equipes não classificadas diretamente)
+    e preenche os slots WILDCARD pendentes no bracket.
+
+    Critérios aplicados em ordem:
+      1. Pontos acumulados (considerando apenas partidas entre equipes do grupo
+         equalizado, se houver grupos de tamanhos diferentes).
+      2. Critérios de desempate configurados para o esporte
+         (exceto CONFRONTO_DIRETO — comparação é entre grupos distintos).
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, classificados_diretos
+            FROM campeonato_grupos
+            WHERE campeonato_id = %s
+            ORDER BY ordem
+            """,
+            (campeonato_id,),
+        )
+        grupos_rows = await cur.fetchall()
+
+    cfg = config if config is not None else _CONFIG_PADRAO
+
+    # Coleta candidatos: equipe na posição (classificados_diretos + 1) de cada grupo
+    candidatos: list[dict] = []
+    todos_tamanhos: list[int] = []
+
+    for grupo_row in grupos_rows:
+        gid = int(grupo_row["id"])
+        classif_diretos = int(grupo_row["classificados_diretos"])
+
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT COUNT(*) AS total FROM campeonato_grupo_equipes WHERE grupo_id = %s",
+                (gid,),
+            )
+            total_no_grupo = int((await cur.fetchone())["total"])
+
+        todos_tamanhos.append(total_no_grupo)
+        classificacao = await calcular_classificacao_grupo(conn, gid, config)
+
+        if len(classificacao) > classif_diretos:
+            candidato = classificacao[classif_diretos]
+            candidato["grupo_id"] = gid
+            candidato["grupo_tamanho"] = total_no_grupo
+            candidatos.append(candidato)
+
+    if not candidatos:
+        return
+
+    # Equalização: se houver grupos de tamanhos distintos, recalcula stats
+    # ignorando partidas que envolvem a equipe de posição > 3 (o 4º membro de grupos de 4)
+    tamanhos_distintos = len(set(todos_tamanhos)) > 1
+    if tamanhos_distintos:
+        candidatos = await _recalcular_stats_equalizados(conn, candidatos, cfg)
+
+    # Ordena candidatos por critérios de desempate (sem CONFRONTO_DIRETO)
+    criterios_base = [c for c in (cfg.get("criterios_desempate_3plus") or []) if c != "CONFRONTO_DIRETO"]
+    if not criterios_base:
+        criterios_base = ["SALDO_GERAL", "MAIOR_PRO_GERAL", "SORTEIO"]
+
+    candidatos.sort(key=lambda e: e["pts"], reverse=True)
+
+    resultado: list[dict] = []
+    i = 0
+    while i < len(candidatos):
+        j = i + 1
+        while j < len(candidatos) and candidatos[j]["pts"] == candidatos[i]["pts"]:
+            j += 1
+        grupo_emp = candidatos[i:j]
+        if len(grupo_emp) > 1:
+            # Para desempate entre candidatos de grupos distintos, não há "confronto direto"
+            # Cria partidas_diretas vazio para critérios que dependem delas
+            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg)
+        resultado.extend(grupo_emp)
+        i = j
+
+    wild_cards_ordenados = [e["equipe_id"] for e in resultado[:vagas_wildcard]]
+    logger.info("Campeonato %s: wild cards calculados: %s", campeonato_id, wild_cards_ordenados)
+
+    # Preenche os slots WILDCARD_X pendentes no bracket.
+    # Os slots são inseridos na ordem SEED_1 vs WC_último, SEED_2 vs WC_penúltimo, etc.
+    # Portanto, invertemos a lista de wild cards para que o melhor WC enfrente o pior seed.
+    wild_cards_invertidos = list(reversed(wild_cards_ordenados))
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, mandante_equipe_id, visitante_equipe_id
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s AND grupo_id IS NULL AND is_wildcard_pending = TRUE
+            ORDER BY id
+            """,
+            (campeonato_id,),
+        )
+        partidas_wc = await cur.fetchall()
+
+    for i, partida in enumerate(partidas_wc):
+        if i >= len(wild_cards_invertidos):
+            break
+        equipe_id = wild_cards_invertidos[i]
+        pid = partida["id"]
+        async with conn.cursor() as cur:
+            if partida["mandante_equipe_id"] is None:
+                await cur.execute(
+                    "UPDATE campeonato_partidas SET mandante_equipe_id = %s, is_wildcard_pending = FALSE, updated_at = NOW() WHERE id = %s",
+                    (equipe_id, pid),
+                )
+            else:
+                await cur.execute(
+                    "UPDATE campeonato_partidas SET visitante_equipe_id = %s, is_wildcard_pending = FALSE, updated_at = NOW() WHERE id = %s",
+                    (equipe_id, pid),
+                )
+
+
+async def _recalcular_stats_equalizados(
+    conn: psycopg.AsyncConnection,
+    candidatos: list[dict],
+    config: Config,
+) -> list[dict]:
+    """
+    Para comparação justa entre candidatos de grupos de tamanhos diferentes,
+    recalcula as stats ignorando partidas envolvendo a 4ª equipe de grupos de 4.
+    """
+    resultado: list[dict] = []
+
+    for candidato in candidatos:
+        gid = candidato["grupo_id"]
+        tamanho = candidato["grupo_tamanho"]
+        equipe_id = candidato["equipe_id"]
+
+        if tamanho <= 3:
+            resultado.append(candidato)
+            continue
+
+        # Busca as 3 primeiras equipes do grupo (por seed) e filtra partidas entre elas
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT equipe_id FROM campeonato_grupo_equipes WHERE grupo_id = %s ORDER BY seed_no_grupo LIMIT 3",
+                (gid,),
+            )
+            top3_ids = {int(r["equipe_id"]) for r in await cur.fetchall()}
+
             await cur.execute(
                 """
-                UPDATE campeonato_partidas
-                SET mandante_equipe_id = %s, updated_at = NOW()
-                WHERE campeonato_id = %s AND grupo_id IS NULL
-                  AND mandante_equipe_id = %s
+                SELECT id, mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                       placar_mandante, placar_visitante, placar_mandante_sec, placar_visitante_sec,
+                       resultado_tipo
+                FROM campeonato_partidas
+                WHERE grupo_id = %s AND is_bye = FALSE
+                  AND mandante_equipe_id = ANY(%s) AND visitante_equipe_id = ANY(%s)
+                ORDER BY rodada
                 """,
-                (new_id, campeonato_id, old_id),
+                (gid, list(top3_ids), list(top3_ids)),
             )
-            await cur.execute(
-                """
-                UPDATE campeonato_partidas
-                SET visitante_equipe_id = %s, updated_at = NOW()
-                WHERE campeonato_id = %s AND grupo_id IS NULL
-                  AND visitante_equipe_id = %s
-                """,
-                (new_id, campeonato_id, old_id),
-            )
-            # BYE: atualiza vencedor também (avança automaticamente sem jogar)
-            await cur.execute(
-                """
-                UPDATE campeonato_partidas
-                SET vencedor_equipe_id = %s, updated_at = NOW()
-                WHERE campeonato_id = %s AND grupo_id IS NULL
-                  AND is_bye = TRUE AND vencedor_equipe_id = %s
-                """,
-                (new_id, campeonato_id, old_id),
-            )
+            partidas_equalizadas = [dict(p) for p in await cur.fetchall()]
+
+        stats = _aggregate_stats(equipe_id, partidas_equalizadas, config)
+        novo = {**candidato, **stats}
+        resultado.append(novo)
+
+    return resultado
 
 
 # ===========================================================================

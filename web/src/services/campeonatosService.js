@@ -69,6 +69,14 @@ export const campeonatosService = {
     return Array.isArray(data) ? data : []
   },
 
+  async getEstruturaGruposPreview(esporteVarianteId, edicaoId = null, totalEquipes = null) {
+    const params = new URLSearchParams({ esporte_variante_id: String(esporteVarianteId) })
+    if (edicaoId) params.set('edicao_id', String(edicaoId))
+    if (totalEquipes != null) params.set('total_equipes', String(totalEquipes))
+    const res = await apiFetch(`${BASE}/estrutura-grupos-preview?${params}`)
+    return handleResponse(res, 'Erro ao calcular estrutura de grupos')
+  },
+
   async criarComSorteio(payload) {
     const res = await apiFetch(`${BASE}/criar-com-sorteio`, {
       method: 'POST',

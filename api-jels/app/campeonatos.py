@@ -18,15 +18,19 @@ from app.schemas import (
     CampeonatoResponse,
     EquipeDaVarianteResponse,
     EsporteConfigPontuacaoResponse,
+    EstruturaGruposPreviewResponse,
     PartidaResultadoInput,
+    WildcardCandidatoInfo,
 )
 from app.services.chaveamentos_service import (
+    calcular_distribuicao_grupos,
     gerar_estrutura_campeonato,
     gerar_partidas_para_grupos_existentes,
 )
 from app.services.pontuacao_service import (
     get_config_pontuacao,
     calcular_classificacao_grupo,
+    calcular_ranking_wildcards,
     verificar_grupo_concluido,
     avancar_classificados_para_mata_mata,
     avancar_vencedor_knockout,
@@ -231,6 +235,92 @@ async def get_equipes_da_variante(
     ]
 
 
+@router.get("/estrutura-grupos-preview", response_model=EstruturaGruposPreviewResponse)
+async def get_estrutura_grupos_preview(
+    esporte_variante_id: str = Query(..., description="ID da variante COLETIVA"),
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
+    total_equipes: int | None = Query(None, description="Total real de equipes confirmadas; se omitido conta do banco"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Calcula e retorna a estrutura de grupos pré-definida para a variante.
+    Usado pelo frontend do sorteio manual para montar a UI antes do usuário
+    alocar equipes nos grupos.
+    """
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT ev.id
+            FROM esporte_variantes ev
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+            """,
+            (esporte_variante_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+            )
+
+        if total_equipes is None:
+            await cur.execute(
+                "SELECT COUNT(*) AS total FROM equipes WHERE esporte_variante_id = %s AND edicao_id = %s",
+                (esporte_variante_id, resolved_edicao_id),
+            )
+            total_equipes = int((await cur.fetchone())["total"])
+
+    if total_equipes == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nenhuma equipe inscrita para esta variante na edição.",
+        )
+
+    if total_equipes == 1:
+        return EstruturaGruposPreviewResponse(
+            total_equipes=1,
+            regra="DIRETO",
+            tamanhos_grupos=[],
+            classificados_por_grupo=[],
+            vagas_bracket=1,
+            vagas_wildcard=0,
+        )
+
+    if total_equipes in (2, 4):
+        return EstruturaGruposPreviewResponse(
+            total_equipes=total_equipes,
+            regra="DIRETO",
+            tamanhos_grupos=[],
+            classificados_por_grupo=[],
+            vagas_bracket=total_equipes,
+            vagas_wildcard=0,
+        )
+
+    if total_equipes in (3, 5):
+        return EstruturaGruposPreviewResponse(
+            total_equipes=total_equipes,
+            regra="UNICO",
+            tamanhos_grupos=[total_equipes],
+            classificados_por_grupo=[2],
+            vagas_bracket=2,
+            vagas_wildcard=0,
+        )
+
+    dist = calcular_distribuicao_grupos(total_equipes)
+    return EstruturaGruposPreviewResponse(
+        total_equipes=total_equipes,
+        regra=dist["regra"],
+        tamanhos_grupos=dist["tamanhos"],
+        classificados_por_grupo=dist["classificados_por_grupo"],
+        vagas_bracket=dist["vagas_bracket"],
+        vagas_wildcard=dist["vagas_wildcard"],
+    )
+
+
 @router.post("/criar-com-sorteio", response_model=CampeonatoResponse, status_code=status.HTTP_201_CREATED)
 async def criar_com_sorteio(
     data: CampeonatoComSorteioCreate,
@@ -244,14 +334,13 @@ async def criar_com_sorteio(
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id)
 
-    # Validações rápidas antes de abrir transação
     all_equipe_ids = [eid for grupo in data.grupos for eid in grupo.equipes]
     total_equipes = len(all_equipe_ids)
 
-    if total_equipes < 6:
+    if total_equipes < 3:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="São necessárias ao menos 6 equipes para criar um campeonato com fase de grupos.",
+            detail="São necessárias ao menos 3 equipes para criar um campeonato com sorteio manual.",
         )
     if len(set(all_equipe_ids)) != total_equipes:
         raise HTTPException(
@@ -259,11 +348,46 @@ async def criar_com_sorteio(
             detail="A mesma equipe foi alocada em mais de um grupo.",
         )
 
+    # Calcula a estrutura esperada e valida que os grupos enviados batem com ela
+    if total_equipes in (3, 5):
+        regra_distrib = "UNICO"
+        vagas_bracket_calc = 2
+        vagas_wc_calc = 0
+        tamanhos_esperados = [total_equipes]
+        classificados_por_grupo_calc = [2]
+    elif total_equipes >= 6:
+        dist = calcular_distribuicao_grupos(total_equipes)
+        regra_distrib = dist["regra"]
+        vagas_bracket_calc = dist["vagas_bracket"]
+        vagas_wc_calc = dist["vagas_wildcard"]
+        tamanhos_esperados = dist["tamanhos"]
+        classificados_por_grupo_calc = dist["classificados_por_grupo"]
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="N=2 e N=4 não utilizam fase de grupos. Use a geração automática.",
+        )
+
+    tamanhos_recebidos = sorted([len(g.equipes) for g in data.grupos])
+    tamanhos_esperados_sorted = sorted(tamanhos_esperados)
+    if tamanhos_recebidos != tamanhos_esperados_sorted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Tamanho dos grupos incompatível com a regra calculada. "
+                f"Esperado: {tamanhos_esperados_sorted}, recebido: {tamanhos_recebidos}."
+            ),
+        )
+
+    # Monta mapa de classificados por tamanho de grupo para atribuição
+    tamanho_para_classif: dict[int, int] = {}
+    for t, c in zip(tamanhos_esperados, classificados_por_grupo_calc):
+        tamanho_para_classif[t] = c
+
     campeonato_id: int
 
     async with conn.transaction():
         async with conn.cursor() as cur:
-            # Valida que a variante é COLETIVAS
             await cur.execute(
                 """
                 SELECT ev.id,
@@ -286,7 +410,6 @@ async def criar_com_sorteio(
                     detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
                 )
 
-            # Valida que não existe campeonato para esta variante+edição
             await cur.execute(
                 "SELECT id FROM campeonatos WHERE edicao_id = %s AND esporte_variante_id = %s",
                 (resolved_edicao_id, data.esporte_variante_id),
@@ -297,12 +420,8 @@ async def criar_com_sorteio(
                     detail="Já existe campeonato para esta edição e variante.",
                 )
 
-            # Valida que todas as equipes pertencem a esta variante+edição
             await cur.execute(
-                """
-                SELECT id FROM equipes
-                WHERE id = ANY(%s) AND esporte_variante_id = %s AND edicao_id = %s
-                """,
+                "SELECT id FROM equipes WHERE id = ANY(%s) AND esporte_variante_id = %s AND edicao_id = %s",
                 (all_equipe_ids, data.esporte_variante_id, resolved_edicao_id),
             )
             equipes_validas = {int(r["id"]) for r in await cur.fetchall()}
@@ -324,32 +443,37 @@ async def criar_com_sorteio(
                 INSERT INTO campeonatos (
                     edicao_id, esporte_variante_id, nome, status, formato,
                     grupo_tamanho_ideal, classificam_por_grupo, permite_melhores_terceiros,
+                    regra_distribuicao, vagas_bracket, vagas_wildcard,
                     geracao_autorizada_em, geracao_autorizada_por
                 )
-                VALUES (%s, %s, %s, 'RASCUNHO', 'GRUPOS_E_MATA_MATA', 4, 2, FALSE, NOW(), %s)
+                VALUES (%s, %s, %s, 'RASCUNHO', 'GRUPOS_E_MATA_MATA', 4, 2, FALSE,
+                        %s, %s, %s, NOW(), %s)
                 RETURNING id
                 """,
-                (resolved_edicao_id, data.esporte_variante_id, nome, current_user["id"]),
+                (
+                    resolved_edicao_id, data.esporte_variante_id, nome,
+                    regra_distrib, vagas_bracket_calc, vagas_wc_calc,
+                    current_user["id"],
+                ),
             )
             campeonato_id = (await cur.fetchone())["id"]
 
             for idx, grupo_input in enumerate(data.grupos):
+                tamanho_grupo = len(grupo_input.equipes)
+                classif_diretos = tamanho_para_classif.get(tamanho_grupo, 1)
                 await cur.execute(
                     """
-                    INSERT INTO campeonato_grupos (campeonato_id, nome, ordem)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO campeonato_grupos (campeonato_id, nome, ordem, classificados_diretos)
+                    VALUES (%s, %s, %s, %s)
                     RETURNING id
                     """,
-                    (campeonato_id, chr(ord("A") + idx), idx + 1),
+                    (campeonato_id, chr(ord("A") + idx), idx + 1, classif_diretos),
                 )
                 grupo_id = (await cur.fetchone())["id"]
 
                 for seed_idx, equipe_id in enumerate(grupo_input.equipes, start=1):
                     await cur.execute(
-                        """
-                        INSERT INTO campeonato_grupo_equipes (grupo_id, equipe_id, seed_no_grupo)
-                        VALUES (%s, %s, %s)
-                        """,
+                        "INSERT INTO campeonato_grupo_equipes (grupo_id, equipe_id, seed_no_grupo) VALUES (%s, %s, %s)",
                         (grupo_id, equipe_id, seed_idx),
                     )
 
@@ -545,13 +669,18 @@ async def get_estrutura(
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id FROM campeonatos WHERE id = %s AND edicao_id = %s", (campeonato_id, resolved_edicao_id))
-        if not await cur.fetchone():
+        await cur.execute(
+            "SELECT id, vagas_wildcard FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        camp_row = await cur.fetchone()
+        if not camp_row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+        vagas_wildcard_camp = int(camp_row["vagas_wildcard"] or 0)
 
         await cur.execute(
             """
-            SELECT id, campeonato_id, nome, ordem, created_at
+            SELECT id, campeonato_id, nome, ordem, classificados_diretos, created_at
             FROM campeonato_grupos
             WHERE campeonato_id = %s
             ORDER BY ordem
@@ -619,12 +748,29 @@ async def get_estrutura(
         )
         partidas_rows = await cur.fetchall()
 
+        # Equipes que avançaram via wild card (slots marcados como wildcard e já preenchidos)
+        await cur.execute(
+            """
+            SELECT mandante_equipe_id AS equipe_id
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s AND mandante_is_wildcard = TRUE AND mandante_equipe_id IS NOT NULL
+            UNION ALL
+            SELECT visitante_equipe_id AS equipe_id
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s AND visitante_is_wildcard = TRUE AND visitante_equipe_id IS NOT NULL
+            """,
+            (campeonato_id, campeonato_id),
+        )
+        wildcard_rows = await cur.fetchall()
+        wildcard_equipe_ids = [int(r["equipe_id"]) for r in wildcard_rows]
+
     grupos = [
         CampeonatoGrupoResponse(
             id=r["id"],
             campeonato_id=r["campeonato_id"],
             nome=r["nome"],
             ordem=r["ordem"],
+            classificados_diretos=r["classificados_diretos"],
             equipes=[
                 CampeonatoGrupoEquipeResponse(
                     equipe_id=e["equipe_id"],
@@ -666,10 +812,33 @@ async def get_estrutura(
         for r in partidas_rows
     ]
 
+    config = await get_config_pontuacao(conn, campeonato_id)
+    wc_ranking_raw = await calcular_ranking_wildcards(conn, campeonato_id, vagas_wildcard_camp, config)
+    wildcard_ranking = [
+        WildcardCandidatoInfo(
+            equipe_id=e["equipe_id"],
+            nome_escola=e["nome_escola"],
+            grupo_nome=e["grupo_nome"],
+            posicao_no_grupo=e["posicao_no_grupo"],
+            pts=e["pts"],
+            V=e["V"],
+            E=e["E"],
+            D=e["D"],
+            pro=e["pro"],
+            contra=e["contra"],
+            saldo=e["saldo"],
+            criterio_decisivo=e.get("criterio_decisivo"),
+            classificado_wildcard=bool(e.get("classificado_wildcard")),
+        )
+        for e in wc_ranking_raw
+    ]
+
     return CampeonatoEstruturaResponse(
         campeonato_id=campeonato_id,
         grupos=grupos,
         partidas=partidas,
+        wildcard_equipe_ids=wildcard_equipe_ids,
+        wildcard_ranking=wildcard_ranking,
     )
 
 
