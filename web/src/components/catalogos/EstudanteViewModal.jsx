@@ -389,11 +389,14 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
           className="relative"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-72 h-72 sm:w-96 sm:h-96 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20">
+          <div
+            className="rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black/10"
+            style={{ width: 'min(520px, 90vw)', height: 'min(520px, 80vh)' }}
+          >
             <StorageImage
               path={aluno.foto_url}
               alt={aluno.nome}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
           <button
