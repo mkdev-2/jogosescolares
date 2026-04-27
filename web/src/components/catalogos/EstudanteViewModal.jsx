@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { User, UserCircle, School, FileSignature, Check, X, Pencil, Paperclip, FileText, ShieldCheck, ShieldOff } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { User, UserCircle, School, FileSignature, Check, X, Pencil, Paperclip, FileText, ShieldCheck, ShieldOff, ZoomIn } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { estudantesService } from '../../services/estudantesService'
 import { fetchStorageBlob } from '../../services/storageService'
@@ -115,6 +116,19 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
 
   const [validando, setValidando] = useState(false)
   const [dadosEstudante, setDadosEstudante] = useState(null)
+  const [fotoExpandida, setFotoExpandida] = useState(false)
+
+  useEffect(() => {
+    if (!fotoExpandida) return
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        setFotoExpandida(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape, { capture: true })
+    return () => document.removeEventListener('keydown', handleEscape, { capture: true })
+  }, [fotoExpandida])
 
   // Usa o estado local se disponível (após uma validação nesta sessão), senão usa o prop
   const aluno = dadosEstudante || estudante
@@ -140,13 +154,23 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
   }
 
   const fotoOuIcone = aluno.foto_url ? (
-    <StorageImage
-      path={aluno.foto_url}
-      alt={aluno.nome}
-      className="w-16 h-16 rounded-full object-cover border-2 border-[#e2e8f0]"
-    />
+    <button
+      type="button"
+      onClick={() => setFotoExpandida(true)}
+      className="relative group w-16 h-16 rounded-full overflow-hidden border-2 border-[#e2e8f0] hover:border-[#0f766e] transition-colors focus:outline-none focus:ring-2 focus:ring-[#0f766e] shrink-0"
+      title="Ver foto ampliada"
+    >
+      <StorageImage
+        path={aluno.foto_url}
+        alt={aluno.nome}
+        className="w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <ZoomIn size={20} className="text-white" />
+      </div>
+    </button>
   ) : (
-    <div className="w-16 h-16 rounded-full bg-[#e2e8f0] flex items-center justify-center">
+    <div className="w-16 h-16 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0">
       <User size={32} className="text-[#94a3b8]" />
     </div>
   )
@@ -158,6 +182,7 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
   const temRgAluno = !!aluno.documentacao_rg_url
 
   return (
+    <>
     <Modal
       isOpen={open}
       onClose={onClose}
@@ -355,6 +380,35 @@ export default function EstudanteViewModal({ open, onClose, estudante, onEdit, o
         </div>
       </div>
     </Modal>
+    {fotoExpandida && aluno.foto_url && createPortal(
+      <div
+        className="fixed inset-0 bg-black/80 flex items-center justify-center z-[1200] p-6"
+        onClick={() => setFotoExpandida(false)}
+      >
+        <div
+          className="relative"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-72 h-72 sm:w-96 sm:h-96 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20">
+            <StorageImage
+              path={aluno.foto_url}
+              alt={aluno.nome}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setFotoExpandida(false)}
+            className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-[#334155] hover:bg-white hover:text-[#042f2e] transition-colors text-xl leading-none"
+            aria-label="Fechar foto"
+          >
+            ×
+          </button>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }
 
