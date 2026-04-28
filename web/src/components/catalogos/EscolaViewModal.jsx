@@ -15,8 +15,8 @@ const InfoRow = ({ label, value }) => (
 function formatDate(str) {
   if (!str) return '-'
   try {
-    const d = new Date(str)
-    return d.toLocaleDateString('pt-BR')
+    const [year, month, day] = str.split('-')
+    return new Date(+year, +month - 1, +day).toLocaleDateString('pt-BR')
   } catch {
     return str
   }

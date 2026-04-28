@@ -63,8 +63,8 @@ export default function FichaIndividualPrint({ dados, ano = new Date().getFullYe
   const formatDate = (dateStr) => {
     if (!dateStr) return '–'
     try {
-      const date = new Date(dateStr)
-      return date.toLocaleDateString('pt-BR')
+      const [year, month, day] = dateStr.split('-')
+      return new Date(+year, +month - 1, +day).toLocaleDateString('pt-BR')
     } catch {
       return dateStr
     }
