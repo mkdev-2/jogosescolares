@@ -584,3 +584,52 @@ async def gerar_partidas_para_grupos_existentes(
         "tamanho_chave": vagas_bracket,
         "total_partidas": total_partidas,
     }
+
+
+async def gerar_estrutura_direto(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    equipe_ids: list[int],
+    executor_user_id: int,
+) -> None:
+    """
+    Gera estrutura sem fase de grupos para N=1, N=2 ou N=4.
+    Não gerencia transação — depende do contexto do chamador.
+    """
+    total = len(equipe_ids)
+    async with conn.cursor() as cur:
+        if total == 1:
+            await cur.execute(
+                """
+                UPDATE campeonatos
+                SET status = 'FINALIZADO',
+                    regra_distribuicao = 'DIRETO',
+                    vagas_bracket = 1,
+                    vagas_wildcard = 0,
+                    geracao_autorizada_em = NOW(),
+                    geracao_autorizada_por = %s,
+                    geracao_executada_em = NOW(),
+                    geracao_executada_por = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                """,
+                (executor_user_id, executor_user_id, campeonato_id),
+            )
+        else:
+            await _gerar_bracket(cur, campeonato_id, equipe_ids, total, 0)
+            await cur.execute(
+                """
+                UPDATE campeonatos
+                SET status = 'GERADO',
+                    regra_distribuicao = 'DIRETO',
+                    vagas_bracket = %s,
+                    vagas_wildcard = 0,
+                    geracao_autorizada_em = NOW(),
+                    geracao_autorizada_por = %s,
+                    geracao_executada_em = NOW(),
+                    geracao_executada_por = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                """,
+                (total, executor_user_id, executor_user_id, campeonato_id),
+            )

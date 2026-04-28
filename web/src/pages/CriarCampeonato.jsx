@@ -303,6 +303,7 @@ export default function CriarCampeonato() {
   const [estrutura, setEstrutura] = useState(null)
 
   const [salvando, setSalvando] = useState(false)
+  const [diretoDlg, setDiretoDlg] = useState({ open: false, equipes: [], estrutura: null })
 
   useEffect(() => {
     const init = async () => {
@@ -357,20 +358,44 @@ export default function CriarCampeonato() {
 
   async function handleConfirmar() {
     const confirmadas = equipes.filter((e) => selecionadas.includes(e.id))
-    if (confirmadas.length < 6) {
-      message.warning('São necessárias ao menos 6 equipes para criar o campeonato.')
+    if (confirmadas.length < 1) {
+      message.warning('Selecione ao menos 1 equipe para criar o campeonato.')
       return
     }
+    let est
     try {
-      const est = await campeonatosService.getEstruturaGruposPreview(varianteId, edicaoId, confirmadas.length)
+      est = await campeonatosService.getEstruturaGruposPreview(varianteId, edicaoId, confirmadas.length)
       setEstrutura(est)
     } catch (err) {
       message.error(err.message || 'Erro ao calcular estrutura de grupos')
       return
     }
     setConfirmacaoOpen(false)
+
+    if (est.regra === 'DIRETO') {
+      setDiretoDlg({ open: true, equipes: confirmadas, estrutura: est })
+      return
+    }
+
     setEquipesSorteio(confirmadas)
     setEtapa('sorteio')
+  }
+
+  async function handleSalvarDireto(equipes) {
+    setSalvando(true)
+    try {
+      await campeonatosService.criarAutomatico({
+        esporte_variante_id: varianteId,
+        edicao_id: edicaoId || undefined,
+        equipe_ids: equipes.map((e) => e.id),
+      })
+      message.success('Campeonato criado com sucesso!')
+      navigate('/app/atividades?tab=campeonatos')
+    } catch (err) {
+      message.error(err.message || 'Erro ao salvar campeonato')
+    } finally {
+      setSalvando(false)
+    }
   }
 
   async function handleSalvar(grupos) {
@@ -493,13 +518,13 @@ export default function CriarCampeonato() {
             <span className="text-sm text-[#64748b]">
               {selecionadas.length} equipe{selecionadas.length !== 1 ? 's' : ''} confirmada
               {selecionadas.length !== 1 ? 's' : ''}
-              {selecionadas.length < 6 && (
-                <span className="text-red-500 ml-1">(mínimo 6)</span>
+              {selecionadas.length < 1 && (
+                <span className="text-red-500 ml-1">(mínimo 1)</span>
               )}
             </span>
             <Button
               type="primary"
-              disabled={selecionadas.length < 6}
+              disabled={selecionadas.length < 1}
               onClick={handleConfirmar}
             >
               Confirmar e sortear
@@ -529,6 +554,80 @@ export default function CriarCampeonato() {
             </label>
           ))}
         </div>
+      </Modal>
+
+      {/* Modal de criação direta (N=1, N=2, N=4) */}
+      <Modal
+        open={diretoDlg.open}
+        onCancel={() => setDiretoDlg((d) => ({ ...d, open: false }))}
+        width={420}
+        footer={null}
+        closable={!salvando}
+        maskClosable={!salvando}
+        styles={{ header: { display: 'none' } }}
+      >
+        {diretoDlg.estrutura && (
+          <div className="flex flex-col gap-5 pt-2">
+            {/* ícone + título */}
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#f0fdf4] border border-[#bbf7d0]">
+                <Trophy size={18} className="text-[#0f766e]" />
+              </div>
+              <div>
+                <p className="text-[0.9375rem] font-semibold text-[#042f2e] m-0 leading-snug">
+                  Criar campeonato com {diretoDlg.estrutura.total_equipes} equipe{diretoDlg.estrutura.total_equipes !== 1 ? 's' : ''}?
+                </p>
+                <p className="text-sm text-[#64748b] m-0 mt-0.5">
+                  {diretoDlg.estrutura.total_equipes === 1
+                    ? 'A única equipe será declarada campeã automaticamente, sem disputas.'
+                    : `Será disputada uma chave direta entre as ${diretoDlg.estrutura.total_equipes} equipes, sem fase de grupos.`}
+                </p>
+              </div>
+            </div>
+
+            {/* info box */}
+            <div className="rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] px-4 py-3">
+              <p className="text-xs text-[#166534] m-0 leading-relaxed">
+                {diretoDlg.estrutura.total_equipes === 1
+                  ? 'O campeonato será encerrado imediatamente após a criação com a equipe declarada campeã.'
+                  : 'O chaveamento eliminatório será gerado automaticamente com as equipes confirmadas.'}
+              </p>
+            </div>
+
+            {/* equipes */}
+            <div className="flex flex-col gap-1.5">
+              {diretoDlg.equipes.map((e) => (
+                <div
+                  key={e.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#0f766e] flex-shrink-0" />
+                  <span className="text-sm text-[#1e293b]">{e.nome_escola}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* ações */}
+            <div className="flex justify-end gap-2 pt-1 border-t border-[#e2e8f0]">
+              <Button
+                onClick={() => setDiretoDlg((d) => ({ ...d, open: false }))}
+                disabled={salvando}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="primary"
+                loading={salvando}
+                onClick={async () => {
+                  await handleSalvarDireto(diretoDlg.equipes)
+                  setDiretoDlg((d) => ({ ...d, open: false }))
+                }}
+              >
+                Criar campeonato
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

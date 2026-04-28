@@ -85,6 +85,14 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao criar campeonato')
   },
 
+  async criarAutomatico(payload) {
+    const res = await apiFetch(`${BASE}/criar-automatico`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar campeonato')
+  },
+
   async getConfigPontuacao(id, edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${id}/config-pontuacao${qs}`)

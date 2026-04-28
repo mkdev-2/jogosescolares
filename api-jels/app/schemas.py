@@ -802,6 +802,13 @@ class CampeonatoComSorteioCreate(BaseModel):
     grupos: list[GrupoSorteioInput] = Field(..., min_length=1)
 
 
+class CampeonatoAutoCreate(BaseModel):
+    """Payload para criação automática (sem grupos) de N=1, N=2 ou N=4 equipes."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    equipe_ids: list[int] = Field(..., min_length=1, max_length=4)
+
+
 class EstruturaGruposPreviewResponse(BaseModel):
     """Estrutura de grupos pré-calculada para o sorteio manual."""
     total_equipes: int
