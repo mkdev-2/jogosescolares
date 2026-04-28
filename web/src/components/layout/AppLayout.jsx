@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2, FileBarChart2 } from 'lucide-react'
 
 import { useAuth } from '../../contexts/AuthContext'
 import StorageImage from '../StorageImage'
@@ -41,6 +41,14 @@ const menuGroups = [
       { label: 'Edições', path: '/app/administrativo', icon: Calendar, tab: 'edicoes', adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
       { label: 'Auditoria', path: '/app/auditoria', icon: History, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Relatórios',
+    icon: FileBarChart2,
+    requiredRoles: ['SUPER_ADMIN', 'ADMIN'],
+    items: [
+      { label: 'Escolas por Modalidade', path: '/app/relatorios', icon: Trophy, tab: 'escolas-modalidade', adminOnly: true },
     ],
   },
 ]
@@ -139,7 +147,7 @@ export default function AppLayout({ children }) {
     navigate('/login')
   }
 
-  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios' }
+  const DEFAULT_TAB = { '/app/gestao': 'alunos', '/app/atividades': 'esportes', '/app/administrativo': 'usuarios', '/app/relatorios': 'escolas-modalidade' }
   const isActive = (path, item) => {
     if (path === '/app') return location.pathname === '/app'
     if (item?.tab) {
@@ -262,21 +270,23 @@ export default function AppLayout({ children }) {
                 </li>
               )
             })}
-            <li className="mt-auto pt-4 border-t border-[rgba(15,118,110,0.2)]">
-              <Link
-                to={menuFooterItem.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${location.pathname === menuFooterItem.path
-                  ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
-                  : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
-                  }`}
-              >
-                <UserCircle size={20} className="shrink-0" />
-                <span>{menuFooterItem.label}</span>
-              </Link>
-            </li>
           </ul>
         </nav>
+
+        {/* Minha conta — fixo fora do scroll, sempre visível */}
+        <div className="flex-shrink-0 px-3 py-3 border-t border-[rgba(15,118,110,0.2)]">
+          <Link
+            to={menuFooterItem.path}
+            onClick={() => setSidebarOpen(false)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-[12px] no-underline text-[0.9375rem] font-medium transition-colors ${location.pathname === menuFooterItem.path
+              ? 'bg-[linear-gradient(135deg,#0f766e_0%,#0d9488_100%)] text-white shadow-[0_4px_12px_rgba(15,118,110,0.35)]'
+              : 'text-[#475569] hover:bg-[rgba(15,118,110,0.08)] hover:text-[#0f766e]'
+              }`}
+          >
+            <UserCircle size={20} className="shrink-0" />
+            <span>{menuFooterItem.label}</span>
+          </Link>
+        </div>
       </aside>
 
       <div className="flex flex-col min-h-screen w-full lg:ml-[288px] lg:w-[calc(100%-288px)]">

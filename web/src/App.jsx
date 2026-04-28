@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { ConfigProvider } from 'antd'
+import ptBR from 'antd/locale/pt_BR'
 import { AuthProvider } from './contexts/AuthContext'
 
 const antdTheme = {
@@ -13,6 +14,7 @@ const antdTheme = {
     DatePicker: { zIndexPopup: 1200 },
   },
 }
+
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Login from './pages/Login'
@@ -31,10 +33,11 @@ import Equipes from './pages/Equipes'
 import MinhaConta from './pages/MinhaConta'
 import CriarCampeonato from './pages/CriarCampeonato'
 import CampeonatoDetalhe from './pages/CampeonatoDetalhe'
+import Relatorios from './pages/Relatorios'
 
 function App() {
   return (
-    <ConfigProvider theme={antdTheme}>
+    <ConfigProvider theme={antdTheme} locale={ptBR}>
       <Analytics />
       <AuthProvider>
         <BrowserRouter>
@@ -60,6 +63,7 @@ function App() {
             <Route path="/app/auditoria" element={<Auditoria />} />
             <Route path="/app/criar-campeonato" element={<CriarCampeonato />} />
             <Route path="/app/campeonatos/:id" element={<CampeonatoDetalhe />} />
+            <Route path="/app/relatorios" element={<Relatorios />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
