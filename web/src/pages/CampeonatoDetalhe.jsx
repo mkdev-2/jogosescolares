@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Form, InputNumber, Modal, Popover, Radio, Table, Tag, Tooltip, message, Spin } from 'antd'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
+import { equipesService } from '../services/equipesService'
 
 // ── Bracket layout constants ──────────────────────────────────────────────────
 const TEAM_H = 36
@@ -32,6 +33,15 @@ const STATUS_COLORS = {
   GERADO: 'blue',
   EM_ANDAMENTO: 'gold',
   FINALIZADO: 'green',
+  CANCELADO: 'red',
+}
+
+const STATUS_LABELS = {
+  RASCUNHO: 'Rascunho',
+  GERADO: 'Aguardando início',
+  EM_ANDAMENTO: 'Em andamento',
+  FINALIZADO: 'Finalizado',
+  CANCELADO: 'Cancelado',
 }
 
 // ── Bracket geometry helpers ──────────────────────────────────────────────────
@@ -431,6 +441,60 @@ function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, confi
   )
 }
 
+// ── VencedorBanner ────────────────────────────────────────────────────────────
+function VencedorBanner({ vencedorNome, equipe }) {
+  const atletas = equipe?.estudantes || []
+
+  return (
+    <div className="rounded-2xl overflow-hidden shadow-md border border-yellow-200">
+      {/* Header dourado */}
+      <div className="bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 px-8 py-6 flex items-center gap-5">
+        <div className="bg-white/25 rounded-full p-4 shrink-0">
+          <Trophy size={40} className="text-white drop-shadow" />
+        </div>
+        <div>
+          <p className="text-amber-100 text-[0.7rem] font-bold tracking-[0.2em] uppercase mb-1">
+            Campeão
+          </p>
+          <h2 className="text-white text-[1.75rem] font-extrabold leading-tight drop-shadow-sm">
+            {vencedorNome}
+          </h2>
+        </div>
+        {/* Estrelas decorativas */}
+        <div className="ml-auto text-white/30 text-[3rem] leading-none select-none hidden sm:block">
+          ★★★
+        </div>
+      </div>
+
+      {/* Atletas */}
+      <div className="bg-gradient-to-b from-amber-50 to-white px-8 py-5">
+        {atletas.length > 0 ? (
+          <>
+            <p className="text-amber-700 text-[0.7rem] font-bold tracking-widest uppercase mb-3">
+              Atletas campeões
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {atletas.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 bg-white rounded-lg px-3 py-2.5 border border-amber-100 shadow-sm"
+                >
+                  <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0 text-[0.6rem] font-bold text-amber-600">
+                    ★
+                  </span>
+                  <span className="text-sm text-slate-700 font-medium truncate">{a.nome}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-amber-500 text-sm">Carregando atletas...</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── GrupoSection ──────────────────────────────────────────────────────────────
 function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refreshKey, wildcardEquipeIds, wildcardRanking, bloqueado }) {
   const partidasGrupo = partidas.filter((p) => p.grupo_id === grupo.id && !p.is_bye)
@@ -549,15 +613,20 @@ function BracketTeamSlot({ name, score, isWinner }) {
 function BracketMatchBox({ partida, top, left, onRegister }) {
   const hasResult = !!partida.resultado_tipo
   const v = partida.vencedor_equipe_id
+  const isBye = partida.is_bye
+
+  const visitanteName = isBye && !partida.visitante_equipe_id
+    ? 'WO'
+    : partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)
 
   return (
     <div
       style={{ position: 'absolute', top, left, width: ROUND_W, height: MATCH_H }}
-      className={`rounded-lg overflow-hidden bg-white border transition-all cursor-pointer ${
-        hasResult ? 'border-slate-300' : 'border-slate-200'
-      } hover:border-teal-400 hover:shadow-sm`}
-      onClick={() => onRegister(partida)}
-      title={hasResult ? 'Editar resultado' : 'Registrar resultado'}
+      className={`rounded-lg overflow-hidden bg-white border transition-all ${
+        isBye ? 'cursor-default opacity-80' : 'cursor-pointer hover:border-teal-400 hover:shadow-sm'
+      } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
+      onClick={() => !isBye && onRegister(partida)}
+      title={isBye ? 'Classificado por WO' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
     >
       <BracketTeamSlot
         name={partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)}
@@ -566,7 +635,7 @@ function BracketMatchBox({ partida, top, left, onRegister }) {
       />
       <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
       <BracketTeamSlot
-        name={partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)}
+        name={visitanteName}
         score={hasResult ? partida.placar_visitante : null}
         isWinner={v !== null && v === partida.visitante_equipe_id}
       />
@@ -576,7 +645,9 @@ function BracketMatchBox({ partida, top, left, onRegister }) {
 
 // ── Tournament bracket ────────────────────────────────────────────────────────
 function TournamentBracket({ matches, onRegister }) {
-  const mainMatches = matches.filter((m) => BRACKET_PHASES.includes(m.fase) && !m.is_bye)
+  const mainMatches = matches.filter(
+    (m) => BRACKET_PHASES.includes(m.fase) && (!m.is_bye || m.vencedor_equipe_id !== null)
+  )
   const terceiroMatches = matches.filter((m) => m.fase === 'TERCEIRO' && !m.is_bye)
 
   const phasesPresent = BRACKET_PHASES.filter((p) => mainMatches.some((m) => m.fase === p))
@@ -685,6 +756,7 @@ export default function CampeonatoDetalhe() {
   const [activeTab, setActiveTab] = useState('grupos')
   const [modalPartida, setModalPartida] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [vencedorEquipe, setVencedorEquipe] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -718,12 +790,27 @@ export default function CampeonatoDetalhe() {
   }
 
   const hasGroups = (estrutura?.grupos?.length || 0) > 0
-  const hasKnockout = (estrutura?.partidas || []).some(
-    (p) => p.grupo_id === null && !p.is_bye
-  )
+  const hasKnockout = (estrutura?.partidas || []).some((p) => p.grupo_id === null)
   const gruposBloqueados = (estrutura?.partidas || []).some(
     (p) => p.grupo_id === null && !p.is_bye && !!p.resultado_tipo
   )
+
+  useEffect(() => {
+    if (estrutura && !hasGroups && hasKnockout) {
+      setActiveTab('eliminatorias')
+    }
+  }, [estrutura, hasGroups, hasKnockout])
+
+  useEffect(() => {
+    if (campeonato?.status !== 'FINALIZADO' || !estrutura) return
+    const finalPartida = (estrutura.partidas || []).find(
+      (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
+    )
+    if (!finalPartida) return
+    equipesService.getById(finalPartida.vencedor_equipe_id)
+      .then(setVencedorEquipe)
+      .catch(() => {})
+  }, [campeonato, estrutura])
 
   if (loading) {
     return (
@@ -767,7 +854,7 @@ export default function CampeonatoDetalhe() {
             </h1>
             {status && (
               <Tag color={STATUS_COLORS[status] || 'default'} className="ml-1">
-                {status}
+                {STATUS_LABELS[status] || status}
               </Tag>
             )}
           </div>
@@ -833,11 +920,24 @@ export default function CampeonatoDetalhe() {
       )}
 
       {activeTab === 'eliminatorias' && (
-        <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
-          <TournamentBracket
-            matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
-            onRegister={setModalPartida}
-          />
+        <div className="flex flex-col gap-4">
+          {campeonato?.status === 'FINALIZADO' && (() => {
+            const finalPartida = (estrutura.partidas || []).find(
+              (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
+            )
+            return finalPartida ? (
+              <VencedorBanner
+                vencedorNome={finalPartida.vencedor_nome || `Equipe ${finalPartida.vencedor_equipe_id}`}
+                equipe={vencedorEquipe}
+              />
+            ) : null
+          })()}
+          <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+            <TournamentBracket
+              matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
+              onRegister={setModalPartida}
+            />
+          </div>
         </div>
       )}
 

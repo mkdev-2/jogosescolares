@@ -1,0 +1,1 @@
+ALTER TYPE campeonato_status_enum ADD VALUE IF NOT EXISTS 'CANCELADO';

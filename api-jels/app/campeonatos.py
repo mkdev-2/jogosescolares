@@ -67,6 +67,7 @@ def _row_to_list_item(row: dict) -> CampeonatoListItemResponse:
         geracao_executada_por=row.get("geracao_executada_por"),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
         updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None,
+        num_equipes=row.get("num_equipes") or 0,
     )
 
 
@@ -90,7 +91,23 @@ def _base_select(where_clause: str = "") -> str:
                esp.nome AS esporte_nome,
                cat.nome AS categoria_nome,
                nai.nome AS naipe_nome,
-               tm.nome AS tipo_modalidade_nome
+               tm.nome AS tipo_modalidade_nome,
+               (CASE
+                    WHEN EXISTS (SELECT 1 FROM campeonato_grupos WHERE campeonato_id = c.id)
+                    THEN (SELECT COUNT(DISTINCT cge.equipe_id)::int
+                          FROM campeonato_grupo_equipes cge
+                          JOIN campeonato_grupos cg2 ON cg2.id = cge.grupo_id
+                          WHERE cg2.campeonato_id = c.id)
+                    ELSE (SELECT COUNT(DISTINCT equipe_id)::int FROM (
+                              SELECT mandante_equipe_id AS equipe_id
+                              FROM campeonato_partidas
+                              WHERE campeonato_id = c.id AND mandante_equipe_id IS NOT NULL
+                              UNION
+                              SELECT visitante_equipe_id
+                              FROM campeonato_partidas
+                              WHERE campeonato_id = c.id AND visitante_equipe_id IS NOT NULL
+                          ) AS t)
+                END) AS num_equipes
         FROM campeonatos c
         JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
         JOIN esportes esp ON esp.id = ev.esporte_id
@@ -742,6 +759,57 @@ async def revogar_autorizacao(
     return _row_to_response(dict(row))
 
 
+@router.post("/{campeonato_id}/cancelar", response_model=CampeonatoResponse)
+async def cancelar_campeonato(
+    campeonato_id: int,
+    edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT * FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        existing = await cur.fetchone()
+        if not existing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+        if existing["status"] in ("FINALIZADO", "CANCELADO"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Campeonato já está {existing['status'].lower()} e não pode ser cancelado.",
+            )
+
+        await cur.execute(
+            """
+            UPDATE campeonatos
+            SET status = 'CANCELADO', updated_at = NOW()
+            WHERE id = %s
+            RETURNING id
+            """,
+            (campeonato_id,),
+        )
+        await cur.fetchone()
+        await cur.execute(_base_select("WHERE c.id = %s"), (campeonato_id,))
+        row = await cur.fetchone()
+        await conn.commit()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="CAMPEONATO",
+        recurso_id=campeonato_id,
+        detalhes_antes=dict(existing),
+        detalhes_depois=dict(row) if row else None,
+        mensagem=f"Usuário {current_user['nome']} cancelou o campeonato {existing['nome']}.",
+    )
+    return _row_to_response(dict(row))
+
+
 @router.post("/{campeonato_id}/gerar-estrutura")
 async def gerar_estrutura(
     campeonato_id: int,
@@ -1108,6 +1176,14 @@ async def registrar_resultado_partida(
         )
         await conn.commit()
 
+    # Transição automática GERADO → EM_ANDAMENTO no primeiro resultado registrado
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO'",
+            (campeonato_id,),
+        )
+        await conn.commit()
+
     grupo_id = partida["grupo_id"]
     config = await get_config_pontuacao(conn, campeonato_id)
 
@@ -1125,6 +1201,26 @@ async def registrar_resultado_partida(
     elif vencedor_id is not None:
         await avancar_vencedor_knockout(conn, campeonato_id, partida_id, vencedor_id)
         await conn.commit()
+
+    # Auto-finalizar quando a FINAL tiver vencedor
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT 1 FROM campeonato_partidas
+            WHERE campeonato_id = %s AND fase = 'FINAL' AND vencedor_equipe_id IS NOT NULL
+            LIMIT 1
+            """,
+            (campeonato_id,),
+        )
+        if await cur.fetchone():
+            await cur.execute(
+                """
+                UPDATE campeonatos SET status = 'FINALIZADO', updated_at = NOW()
+                WHERE id = %s AND status IN ('GERADO', 'EM_ANDAMENTO')
+                """,
+                (campeonato_id,),
+            )
+            await conn.commit()
 
     return {
         "partida_id": partida_id,

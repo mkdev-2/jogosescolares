@@ -12,7 +12,7 @@ VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO
 VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 
 # Status/Formato/Fases do módulo de campeonatos
-CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO"]
+CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO", "CANCELADO"]
 CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
 CAMPEONATO_FASE = Literal[
     "GRUPOS",
@@ -689,6 +689,7 @@ class CampeonatoListItemResponse(BaseModel):
     geracao_executada_por: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    num_equipes: int = 0
 
     class Config:
         from_attributes = True

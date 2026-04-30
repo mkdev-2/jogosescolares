@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Select, Table, Tag, message } from 'antd'
+import { Button, Dropdown, Modal, Select, Table, Tag, message } from 'antd'
+import { EyeOutlined, MoreOutlined, StopOutlined } from '@ant-design/icons'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
@@ -10,6 +11,15 @@ const STATUS_COLORS = {
   GERADO: 'blue',
   EM_ANDAMENTO: 'gold',
   FINALIZADO: 'green',
+  CANCELADO: 'red',
+}
+
+const STATUS_LABELS = {
+  RASCUNHO: 'Rascunho',
+  GERADO: 'Aguardando início',
+  EM_ANDAMENTO: 'Em andamento',
+  FINALIZADO: 'Finalizado',
+  CANCELADO: 'Cancelado',
 }
 
 export default function Campeonatos({ embedded = false }) {
@@ -93,30 +103,62 @@ export default function Campeonatos({ embedded = false }) {
     loadVariantesFiltro()
   }, [filtroEdicaoId])
 
+  const handleCancelar = (row) => {
+    Modal.confirm({
+      title: 'Cancelar campeonato',
+      content: `Tem certeza que deseja cancelar "${row.nome}"? Esta ação não poderá ser desfeita.`,
+      okText: 'Cancelar campeonato',
+      okButtonProps: { danger: true },
+      cancelText: 'Voltar',
+      onOk: async () => {
+        try {
+          await campeonatosService.cancelar(row.id)
+          message.success('Campeonato cancelado.')
+          fetchCampeonatos()
+        } catch (err) {
+          message.error(err.message || 'Erro ao cancelar campeonato')
+        }
+      },
+    })
+  }
+
+  const buildMenuItems = (row) => [
+    { key: 'ver', label: 'Ver campeonato', icon: <EyeOutlined /> },
+    { key: 'cancelar', label: 'Cancelar', icon: <StopOutlined />, danger: true, disabled: ['FINALIZADO', 'CANCELADO'].includes(row.status) },
+  ]
+
+  const handleMenuClick = (key, row) => {
+    if (key === 'ver') navigate(`/app/campeonatos/${row.id}`)
+    if (key === 'cancelar') handleCancelar(row)
+  }
+
   const columns = [
     { title: 'Nome', dataIndex: 'nome', key: 'nome' },
     { title: 'Edição', dataIndex: 'edicao_id', key: 'edicao_id', width: 90 },
-    {
-      title: 'Modalidade',
-      dataIndex: 'esporte_variante_id',
-      key: 'esporte_variante_id',
-      render: (id) => varianteLabelById.get(id) || String(id),
-    },
+    { title: 'Equipes', dataIndex: 'num_equipes', key: 'num_equipes', width: 90, align: 'center' },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status) => <Tag color={STATUS_COLORS[status] || 'default'}>{status}</Tag>,
+      render: (s) => <Tag color={STATUS_COLORS[s] || 'default'}>{STATUS_LABELS[s] || s}</Tag>,
     },
     {
       title: 'Ações',
       key: 'acoes',
-      width: 160,
+      width: 120,
       render: (_, row) => (
-        <Button size="small" onClick={() => navigate(`/app/campeonatos/${row.id}`)}>
-          Ver campeonato
-        </Button>
+        <span onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: buildMenuItems(row),
+              onClick: ({ key }) => handleMenuClick(key, row),
+            }}
+            trigger={['click']}
+          >
+            <Button size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        </span>
       ),
     },
   ]
@@ -163,6 +205,10 @@ export default function Campeonatos({ embedded = false }) {
         columns={columns}
         dataSource={items}
         pagination={{ pageSize: 10 }}
+        onRow={(row) => ({
+          onClick: () => navigate(`/app/campeonatos/${row.id}`),
+          style: { cursor: 'pointer' },
+        })}
       />
 
     </div>

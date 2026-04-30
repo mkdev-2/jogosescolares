@@ -93,6 +93,12 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao criar campeonato')
   },
 
+  async cancelar(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}/cancelar${qs}`, { method: 'POST' })
+    return handleResponse(res, 'Erro ao cancelar campeonato')
+  },
+
   async getConfigPontuacao(id, edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${id}/config-pontuacao${qs}`)

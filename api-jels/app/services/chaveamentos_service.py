@@ -344,14 +344,15 @@ async def gerar_estrutura_campeonato(
             equipe_ids = [int(r["id"]) for r in await cur.fetchall()]
             total_equipes = len(equipe_ids)
 
-            # --- N = 1: campeão automático ---
+            # --- N = 1: campeão automático por WO ---
             if total_equipes == 1:
+                equipe_id = equipe_ids[0]
                 await cur.execute(
                     """
                     UPDATE campeonatos
                     SET status = 'FINALIZADO',
                         regra_distribuicao = 'DIRETO',
-                        vagas_bracket = 1,
+                        vagas_bracket = 2,
                         vagas_wildcard = 0,
                         geracao_executada_em = NOW(),
                         geracao_executada_por = %s,
@@ -360,14 +361,27 @@ async def gerar_estrutura_campeonato(
                     """,
                     (executor_user_id, campeonato_id),
                 )
+                # Cria partida BYE de FINAL para que o bracket seja exibível
+                await cur.execute(
+                    """
+                    INSERT INTO campeonato_partidas (
+                        campeonato_id, fase, rodada, grupo_id,
+                        mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                        is_bye, is_wildcard_pending,
+                        origem_slot_a, origem_slot_b
+                    )
+                    VALUES (%s, 'FINAL', 1, NULL, %s, NULL, %s, TRUE, FALSE, 'SEED_1', 'SEED_2')
+                    """,
+                    (campeonato_id, equipe_id, equipe_id),
+                )
                 return {
                     "campeonato_id": campeonato_id,
                     "total_equipes": 1,
                     "usa_grupos": False,
                     "total_grupos": 0,
                     "total_classificados_iniciais": 1,
-                    "tamanho_chave": 0,
-                    "total_partidas": 0,
+                    "tamanho_chave": 2,
+                    "total_partidas": 1,
                 }
 
             if total_equipes < 2:
