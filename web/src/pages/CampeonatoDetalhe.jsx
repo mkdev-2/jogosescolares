@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, DatePicker, Dropdown, Form, InputNumber, Modal, Popover, Radio, Table, Tag, Tooltip, message, Spin } from 'antd'
+import { Button, DatePicker, Dropdown, Form, Input, InputNumber, Modal, Popover, Radio, Select, Table, Tag, Tooltip, message, Spin } from 'antd'
 import {
   AppstoreOutlined,
   BarsOutlined,
@@ -724,23 +724,23 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
 
   const menuPartida = (partida) => ({
     items: [
-      {
+      onSchedule && {
         key: 'schedule',
         icon: <ClockCircleOutlined />,
         label: 'Definir Horário',
       },
-      {
+      onRegister && {
         key: 'result',
         icon: <EditOutlined />,
         label: 'Registrar Resultado',
       },
-    ],
+    ].filter(Boolean),
     onClick: ({ key }) => {
       if (key === 'schedule') {
-        onSchedule(partida)
+        onSchedule?.(partida)
         return
       }
-      onRegister(partida)
+      onRegister?.(partida)
     },
   })
 
@@ -808,14 +808,16 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
                               </span>
                             </div>
                           </div>
-                          <Dropdown menu={menuPartida(partida)} trigger={['click']} placement="bottomRight">
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<MoreOutlined />}
-                              aria-label="Ações da partida"
-                            />
-                          </Dropdown>
+                          {(onSchedule || onRegister) && (
+                            <Dropdown menu={menuPartida(partida)} trigger={['click']} placement="bottomRight">
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<MoreOutlined />}
+                                aria-label="Ações da partida"
+                              />
+                            </Dropdown>
+                          )}
                         </div>
                       </div>
                     )
@@ -835,6 +837,7 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
   const partidasGrupo = partidas.filter((p) => p.grupo_id === grupo.id && !p.is_bye)
 
   const handlePartidaClick = (p) => {
+    if (!onRegister) return
     if (bloqueado) {
       message.warning('A fase de grupos está encerrada. Resultados não podem ser alterados após o início das eliminatórias.')
       return
@@ -870,7 +873,7 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
               <div
                 key={p.id}
                 className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] transition-colors ${
-                  bloqueado ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-400'
+                  bloqueado || !onRegister ? 'cursor-default opacity-80' : 'cursor-pointer hover:border-teal-400'
                 }`}
                 onClick={() => handlePartidaClick(p)}
               >
@@ -958,9 +961,9 @@ function BracketMatchBox({ partida, top, left, onRegister }) {
     <div
       style={{ position: 'absolute', top, left, width: ROUND_W, height: MATCH_H }}
       className={`rounded-lg overflow-hidden bg-white border transition-all ${
-        isBye ? 'cursor-default opacity-80' : 'cursor-pointer hover:border-teal-400 hover:shadow-sm'
+        isBye || !onRegister ? 'cursor-default opacity-80' : 'cursor-pointer hover:border-teal-400 hover:shadow-sm'
       } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
-      onClick={() => !isBye && onRegister(partida)}
+      onClick={() => !isBye && onRegister?.(partida)}
       title={isBye ? 'Classificado por WO' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
     >
       <BracketTeamSlot
@@ -1056,8 +1059,10 @@ function TournamentBracket({ matches, onRegister }) {
             <div
               key={p.id}
               style={{ width: ROUND_W * 1.4 }}
-              className="border border-slate-200 rounded-lg overflow-hidden bg-white cursor-pointer hover:border-teal-400 hover:shadow-sm transition-all"
-              onClick={() => onRegister(p)}
+              className={`border border-slate-200 rounded-lg overflow-hidden bg-white transition-all ${
+                onRegister ? 'cursor-pointer hover:border-teal-400 hover:shadow-sm' : 'cursor-default opacity-80'
+              }`}
+              onClick={() => onRegister?.(p)}
             >
               <BracketTeamSlot
                 name={p.mandante_nome || (p.mandante_equipe_id ? `Equipe ${p.mandante_equipe_id}` : null)}
@@ -1078,6 +1083,252 @@ function TournamentBracket({ matches, onRegister }) {
   )
 }
 
+function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
+  const [modal, setModal] = useState({ tipo: null, record: null })
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm()
+
+  const participantes = useMemo(() => manualData?.participantes || [], [manualData])
+  const participanteOptions = participantes.map((p) => ({ value: p.id, label: p.nome_exibicao }))
+
+  const openModal = (tipo, record = null) => {
+    setModal({ tipo, record })
+    if (!record) {
+      form.resetFields()
+      if (tipo === 'classificacao') form.setFieldsValue({ grupo_nome: 'Geral', posicao: (manualData?.classificacao?.length || 0) + 1, ordem: 1 })
+      if (tipo === 'confronto') form.setFieldsValue({ fase: 'GRUPOS', rodada: 1, ordem: 1 })
+      return
+    }
+    form.setFieldsValue({
+      ...record,
+      inicio_em: record.inicio_em ? dayjs(record.inicio_em) : null,
+    })
+  }
+
+  const closeModal = () => {
+    setModal({ tipo: null, record: null })
+    form.resetFields()
+  }
+
+  const cleanPayload = (values) => {
+    const payload = { ...values }
+    if (payload.inicio_em) payload.inicio_em = payload.inicio_em.toISOString()
+    for (const key of ['grupo_nome']) {
+      if (typeof payload[key] === 'string') payload[key] = payload[key].trim()
+    }
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === '') payload[key] = null
+    })
+    return payload
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    const payload = cleanPayload(values)
+    setSaving(true)
+    try {
+      if (modal.tipo === 'confronto') {
+        if (modal.record) {
+          await campeonatosService.atualizarManualConfronto(campeonatoId, modal.record.id, payload)
+        } else {
+          await campeonatosService.criarManualConfronto(campeonatoId, payload)
+        }
+      }
+      if (modal.tipo === 'classificacao') {
+        if (modal.record) {
+          await campeonatosService.atualizarManualClassificacao(campeonatoId, modal.record.id, payload)
+        } else {
+          await campeonatosService.criarManualClassificacao(campeonatoId, payload)
+        }
+      }
+      message.success('Dados salvos.')
+      closeModal()
+      onRefresh()
+    } catch (err) {
+      message.error(err.message || 'Erro ao salvar dados manuais')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const confirmDelete = (tipo, record) => {
+    Modal.confirm({
+      title: 'Excluir registro',
+      content: 'Esta ação remove o item do campeonato manual.',
+      okText: 'Excluir',
+      okButtonProps: { danger: true },
+      cancelText: 'Voltar',
+      onOk: async () => {
+        if (tipo === 'confronto') await campeonatosService.excluirManualConfronto(campeonatoId, record.id)
+        if (tipo === 'classificacao') await campeonatosService.excluirManualClassificacao(campeonatoId, record.id)
+        onRefresh()
+      },
+    })
+  }
+
+  const actionRender = (tipo) => (_, record) => (
+    <div className="flex gap-2">
+      <Button size="small" onClick={() => openModal(tipo, record)}>Editar</Button>
+      <Button size="small" danger onClick={() => confirmDelete(tipo, record)}>Excluir</Button>
+    </div>
+  )
+
+  const modalTitle = {
+    confronto: modal.record ? 'Editar confronto' : 'Novo confronto',
+    classificacao: modal.record ? 'Editar classificação' : 'Nova classificação',
+  }[modal.tipo]
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <section className="bg-white rounded-[12px] border border-[#f1f5f9] p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="text-sm font-bold text-[#042f2e] m-0">Participantes</h3>
+        </div>
+        <Table
+          size="small"
+          rowKey="id"
+          pagination={false}
+          dataSource={participantes}
+          columns={[
+            { title: 'Nome', dataIndex: 'nome_exibicao', key: 'nome_exibicao' },
+            { title: 'Ordem', dataIndex: 'ordem', key: 'ordem', width: 70 },
+          ]}
+        />
+      </section>
+
+      <section className="bg-white rounded-[12px] border border-[#f1f5f9] p-4 xl:col-span-2">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="text-sm font-bold text-[#042f2e] m-0">Confrontos e resultados</h3>
+          <Button size="small" type="primary" onClick={() => openModal('confronto')}>Adicionar</Button>
+        </div>
+        <Table
+          size="small"
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+          dataSource={manualData?.confrontos || []}
+          columns={[
+            { title: 'Fase', dataIndex: 'fase', key: 'fase', render: (v) => FASE_LABEL[v] || v },
+            { title: 'Confronto', key: 'confronto', render: (_, r) => `${r.participante_a_nome || 'A definir'} x ${r.participante_b_nome || 'A definir'}` },
+            { title: 'Placar', key: 'placar', width: 90, render: (_, r) => r.resultado_tipo ? `${r.placar_a ?? '-'}-${r.placar_b ?? '-'}` : '-' },
+            { title: 'Ações', key: 'acoes', width: 140, render: actionRender('confronto') },
+          ]}
+        />
+      </section>
+
+      <section className="bg-white rounded-[12px] border border-[#f1f5f9] p-4 xl:col-span-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="text-sm font-bold text-[#042f2e] m-0">Classificação manual</h3>
+          <Button size="small" type="primary" onClick={() => openModal('classificacao')}>Adicionar</Button>
+        </div>
+        <Table
+          size="small"
+          rowKey="id"
+          pagination={false}
+          dataSource={manualData?.classificacao || []}
+          columns={[
+            { title: '#', dataIndex: 'posicao', key: 'posicao', width: 60 },
+            { title: 'Participante', dataIndex: 'nome_exibicao', key: 'nome_exibicao' },
+            { title: 'PTS', dataIndex: 'pontos', key: 'pontos', width: 70 },
+            { title: 'V', dataIndex: 'vitorias', key: 'vitorias', width: 60 },
+            { title: 'E', dataIndex: 'empates', key: 'empates', width: 60 },
+            { title: 'D', dataIndex: 'derrotas', key: 'derrotas', width: 60 },
+            { title: 'Saldo', dataIndex: 'saldo', key: 'saldo', width: 80 },
+            { title: 'Ações', key: 'acoes', width: 140, render: actionRender('classificacao') },
+          ]}
+        />
+      </section>
+
+      <Modal
+        open={!!modal.tipo}
+        title={modalTitle}
+        onCancel={closeModal}
+        onOk={handleSubmit}
+        confirmLoading={saving}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" preserve={false}>
+          {modal.tipo === 'confronto' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="fase" label="Fase" rules={[{ required: true }]}>
+                  <Select options={Object.entries(FASE_LABEL).map(([value, label]) => ({ value, label }))} />
+                </Form.Item>
+                <Form.Item name="rodada" label="Rodada" rules={[{ required: true }]}>
+                  <InputNumber min={1} className="w-full" />
+                </Form.Item>
+              </div>
+              <Form.Item name="participante_a_id" label="Participante A">
+                <Select allowClear options={participanteOptions} />
+              </Form.Item>
+              <Form.Item name="participante_b_id" label="Participante B">
+                <Select allowClear options={participanteOptions} />
+              </Form.Item>
+              <Form.Item name="inicio_em" label="Data e horário">
+                <DatePicker showTime format="DD/MM/YYYY HH:mm" className="w-full" />
+              </Form.Item>
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="placar_a" label="Placar A">
+                  <InputNumber min={0} className="w-full" />
+                </Form.Item>
+                <Form.Item name="placar_b" label="Placar B">
+                  <InputNumber min={0} className="w-full" />
+                </Form.Item>
+              </div>
+              <Form.Item name="resultado_tipo" label="Tipo de resultado">
+                <Select allowClear options={[
+                  { value: 'NORMAL', label: 'Normal' },
+                  { value: 'WXO', label: 'WxO' },
+                  { value: 'ADIADA', label: 'Adiada' },
+                  { value: 'CANCELADA', label: 'Cancelada' },
+                ]} />
+              </Form.Item>
+              <Form.Item name="vencedor_participante_id" label="Vencedor">
+                <Select allowClear options={participanteOptions} />
+              </Form.Item>
+              <Form.Item name="ordem" label="Ordem" rules={[{ required: true }]}>
+                <InputNumber min={1} className="w-full" />
+              </Form.Item>
+            </>
+          )}
+
+          {modal.tipo === 'classificacao' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="grupo_nome" label="Grupo" rules={[{ required: true }]}>
+                  <Input maxLength={40} />
+                </Form.Item>
+                <Form.Item name="posicao" label="Posição" rules={[{ required: true }]}>
+                  <InputNumber min={1} className="w-full" />
+                </Form.Item>
+              </div>
+              <Form.Item name="participante_id" label="Participante" rules={[{ required: true, message: 'Selecione o participante.' }]}>
+                <Select options={participanteOptions} />
+              </Form.Item>
+              <div className="grid grid-cols-4 gap-3">
+                <Form.Item name="pontos" label="PTS"><InputNumber className="w-full" /></Form.Item>
+                <Form.Item name="vitorias" label="V"><InputNumber min={0} className="w-full" /></Form.Item>
+                <Form.Item name="empates" label="E"><InputNumber min={0} className="w-full" /></Form.Item>
+                <Form.Item name="derrotas" label="D"><InputNumber min={0} className="w-full" /></Form.Item>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Form.Item name="pro" label="Pró"><InputNumber className="w-full" /></Form.Item>
+                <Form.Item name="contra" label="Contra"><InputNumber className="w-full" /></Form.Item>
+                <Form.Item name="saldo" label="Saldo"><InputNumber className="w-full" /></Form.Item>
+              </div>
+              <Form.Item name="observacao" label="Observação">
+                <Input maxLength={255} />
+              </Form.Item>
+              <Form.Item name="ordem" label="Ordem" rules={[{ required: true }]}>
+                <InputNumber min={1} className="w-full" />
+              </Form.Item>
+            </>
+          )}
+        </Form>
+      </Modal>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CampeonatoDetalhe() {
   const { id } = useParams()
@@ -1087,6 +1338,7 @@ export default function CampeonatoDetalhe() {
   const [loading, setLoading] = useState(true)
   const [estrutura, setEstrutura] = useState(null)
   const [campeonato, setCampeonato] = useState(null)
+  const [manualData, setManualData] = useState(null)
   const [config, setConfig] = useState(null)
   const [activeTab, setActiveTab] = useState('partidas')
   const [modalPartida, setModalPartida] = useState(null)
@@ -1102,6 +1354,12 @@ export default function CampeonatoDetalhe() {
       ])
       setEstrutura(estruturaData)
       setCampeonato(campeonatoData)
+      if (campeonatoData?.origem === 'MANUAL') {
+        const manual = await campeonatosService.getManual(campeonatoId)
+        setManualData(manual)
+      } else {
+        setManualData(null)
+      }
       try {
         const cfg = await campeonatosService.getConfigPontuacao(campeonatoId)
         setConfig(cfg)
@@ -1179,6 +1437,7 @@ export default function CampeonatoDetalhe() {
 
   const nomeCampeonato = campeonato?.nome || `Campeonato #${campeonatoId}`
   const status = campeonato?.status
+  const isManual = campeonato?.origem === 'MANUAL'
   const subtitulo = campeonato
     ? [campeonato.esporte_nome, campeonato.categoria_nome, campeonato.naipe_nome]
         .filter(Boolean)
@@ -1206,6 +1465,7 @@ export default function CampeonatoDetalhe() {
                   {STATUS_LABELS[status] || status}
                 </Tag>
               )}
+              {isManual && <Tag color="purple" className="ml-1">Manual</Tag>}
             </div>
             {subtitulo && (
               <p className="text-[0.9375rem] text-[#64748b] m-0 mt-0.5">{subtitulo}</p>
@@ -1259,13 +1519,23 @@ export default function CampeonatoDetalhe() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+        {isManual && (
+          <div className="mb-4">
+            <ManualDataEditor
+              campeonatoId={campeonatoId}
+              manualData={manualData}
+              onRefresh={fetchData}
+            />
+          </div>
+        )}
+
         {/* Tab content */}
         {activeTab === 'partidas' && (
           <PartidasTimeline
             partidas={estrutura.partidas}
             grupos={estrutura.grupos}
-            onSchedule={setModalAgendamento}
-            onRegister={setModalPartida}
+            onSchedule={isManual ? undefined : setModalAgendamento}
+            onRegister={isManual ? undefined : setModalPartida}
           />
         )}
 
@@ -1281,7 +1551,7 @@ export default function CampeonatoDetalhe() {
                   partidas={estrutura.partidas}
                   campeonatoId={campeonatoId}
                   config={config}
-                  onRegister={setModalPartida}
+                  onRegister={isManual ? undefined : setModalPartida}
                   refreshKey={refreshKey}
                   wildcardEquipeIds={estrutura.wildcard_equipe_ids ?? []}
                   wildcardRanking={estrutura.wildcard_ranking ?? []}
@@ -1308,7 +1578,7 @@ export default function CampeonatoDetalhe() {
             <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
               <TournamentBracket
                 matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
-                onRegister={setModalPartida}
+                onRegister={isManual ? undefined : setModalPartida}
               />
             </div>
           </div>

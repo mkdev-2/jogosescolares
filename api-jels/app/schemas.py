@@ -15,6 +15,7 @@ VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 # Status/Formato/Fases do módulo de campeonatos
 CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO", "CANCELADO"]
 CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
+CAMPEONATO_ORIGEM = Literal["AUTOMATICO", "MANUAL"]
 CAMPEONATO_FASE = Literal[
     "GRUPOS",
     "TRINTA_E_DOIS_AVOS",
@@ -680,10 +681,13 @@ class CampeonatoListItemResponse(BaseModel):
     esporte_variante_id: str
     nome: str
     status: CAMPEONATO_STATUS
+    origem: CAMPEONATO_ORIGEM = "AUTOMATICO"
     formato: CAMPEONATO_FORMATO
     grupo_tamanho_ideal: int
     classificam_por_grupo: int
     permite_melhores_terceiros: bool
+    tem_fase_grupos: Optional[bool] = None
+    vagas_eliminatoria: Optional[int] = None
     geracao_autorizada_em: Optional[str] = None
     geracao_autorizada_por: Optional[int] = None
     geracao_executada_em: Optional[str] = None
@@ -730,6 +734,7 @@ class CampeonatoPartidaResponse(BaseModel):
     """Schema de partida do campeonato."""
     id: int
     campeonato_id: int
+    origem: CAMPEONATO_ORIGEM = "AUTOMATICO"
     fase: CAMPEONATO_FASE
     rodada: int
     grupo_id: Optional[int] = None
@@ -782,6 +787,172 @@ class CampeonatoEstruturaResponse(BaseModel):
     partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
     wildcard_equipe_ids: list[int] = Field(default_factory=list)
     wildcard_ranking: list[WildcardCandidatoInfo] = Field(default_factory=list)
+
+
+class CampeonatoManualGrupoInput(BaseModel):
+    """Grupo definido pelo usuário na criação manual (fase de grupos)."""
+    nome: str = Field(..., min_length=1, max_length=80)
+    equipe_ids: list[int] = Field(..., min_length=1)
+
+
+class CampeonatoManualCreate(BaseModel):
+    """Criação de campeonato manual para publicação de torneio externo."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    equipe_ids: list[int] = Field(..., min_length=1)
+    tem_fase_grupos: bool = False
+    vagas_eliminatoria: Literal[2, 4, 8, 16] = 8
+    grupos: Optional[list[CampeonatoManualGrupoInput]] = None
+    chaveamento_equipe_ids: Optional[list[int]] = None
+
+    @model_validator(mode="after")
+    def validate_manual_criacao(self) -> "CampeonatoManualCreate":
+        if len(self.equipe_ids) != len(set(self.equipe_ids)):
+            raise ValueError("Lista equipe_ids contém IDs duplicados.")
+        ids_set = set(self.equipe_ids)
+        if self.tem_fase_grupos:
+            if not self.grupos:
+                raise ValueError("Informe os grupos quando a fase de grupos estiver ativa.")
+            if self.chaveamento_equipe_ids is not None:
+                raise ValueError("Não envie chaveamento_equipe_ids quando houver fase de grupos.")
+            seen: set[int] = set()
+            for g in self.grupos:
+                for eid in g.equipe_ids:
+                    if eid in seen:
+                        raise ValueError("Uma equipe aparece em mais de um grupo.")
+                    seen.add(eid)
+            if seen != ids_set:
+                raise ValueError("A união das equipes dos grupos deve coincidir exatamente com equipe_ids.")
+        else:
+            if self.grupos:
+                raise ValueError("Não envie grupos quando não houver fase de grupos.")
+            v = self.vagas_eliminatoria
+            if len(self.equipe_ids) != v:
+                raise ValueError(f"Sem fase de grupos são necessárias exatamente {v} equipes (uma por vaga da chave).")
+            if not self.chaveamento_equipe_ids or len(self.chaveamento_equipe_ids) != v:
+                raise ValueError(f"chaveamento_equipe_ids deve listar exatamente {v} equipes (ordem dos seeds na chave).")
+            if set(self.chaveamento_equipe_ids) != ids_set:
+                raise ValueError("chaveamento_equipe_ids deve ser uma permutação de equipe_ids.")
+        return self
+
+
+class CampeonatoManualParticipanteResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    equipe_id: Optional[int] = None
+    escola_id: Optional[int] = None
+    nome_exibicao: str
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualConfrontoInput(BaseModel):
+    fase: CAMPEONATO_FASE = "GRUPOS"
+    rodada: int = Field(default=1, ge=1)
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    vencedor_participante_id: Optional[int] = None
+    inicio_em: Optional[datetime] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = Field(None, max_length=20)
+    ordem: int = Field(default=1, ge=1)
+
+
+class CampeonatoManualConfrontoUpdate(BaseModel):
+    fase: Optional[CAMPEONATO_FASE] = None
+    rodada: Optional[int] = Field(None, ge=1)
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    vencedor_participante_id: Optional[int] = None
+    inicio_em: Optional[datetime] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = Field(None, max_length=20)
+    ordem: Optional[int] = Field(None, ge=1)
+
+
+class CampeonatoManualConfrontoResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    fase: CAMPEONATO_FASE
+    rodada: int
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    participante_a_nome: Optional[str] = None
+    participante_b_nome: Optional[str] = None
+    vencedor_participante_id: Optional[int] = None
+    vencedor_nome: Optional[str] = None
+    inicio_em: Optional[str] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = None
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualClassificacaoInput(BaseModel):
+    grupo_nome: str = Field(default="Geral", min_length=1, max_length=40)
+    participante_id: int
+    posicao: int = Field(..., ge=1)
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = Field(None, max_length=255)
+    ordem: int = Field(default=1, ge=1)
+
+
+class CampeonatoManualClassificacaoUpdate(BaseModel):
+    grupo_nome: Optional[str] = Field(None, min_length=1, max_length=40)
+    participante_id: Optional[int] = None
+    posicao: Optional[int] = Field(None, ge=1)
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = Field(None, max_length=255)
+    ordem: Optional[int] = Field(None, ge=1)
+
+
+class CampeonatoManualClassificacaoResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    grupo_nome: str
+    participante_id: Optional[int] = None
+    nome_exibicao: Optional[str] = None
+    posicao: int
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = None
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualDetalheResponse(BaseModel):
+    participantes: list[CampeonatoManualParticipanteResponse] = Field(default_factory=list)
+    confrontos: list[CampeonatoManualConfrontoResponse] = Field(default_factory=list)
+    classificacao: list[CampeonatoManualClassificacaoResponse] = Field(default_factory=list)
 
 
 # ========== CAMPEONATOS — SORTEIO MANUAL ==========

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Dropdown, Modal, Select, Table, Tag, message } from 'antd'
-import { EyeOutlined, MoreOutlined, StopOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EyeOutlined, MoreOutlined, StopOutlined } from '@ant-design/icons'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
@@ -122,20 +122,52 @@ export default function Campeonatos({ embedded = false }) {
     })
   }
 
+  const handleExcluir = (row) => {
+    Modal.confirm({
+      title: 'Excluir campeonato',
+      content: `Tem certeza que deseja excluir "${row.nome}"? Grupos, partidas, participantes, confrontos e classificações relacionados também serão removidos.`,
+      okText: 'Excluir campeonato',
+      okButtonProps: { danger: true },
+      cancelText: 'Voltar',
+      onOk: async () => {
+        try {
+          await campeonatosService.excluir(row.id)
+          message.success('Campeonato excluído.')
+          fetchCampeonatos()
+        } catch (err) {
+          message.error(err.message || 'Erro ao excluir campeonato')
+        }
+      },
+    })
+  }
+
   const buildMenuItems = (row) => [
     { key: 'ver', label: 'Ver campeonato', icon: <EyeOutlined /> },
     { key: 'cancelar', label: 'Cancelar', icon: <StopOutlined />, danger: true, disabled: ['FINALIZADO', 'CANCELADO'].includes(row.status) },
+    { key: 'excluir', label: 'Excluir Campeonato', icon: <DeleteOutlined />, danger: true },
   ]
 
   const handleMenuClick = (key, row) => {
     if (key === 'ver') navigate(`/app/campeonatos/${row.id}`)
     if (key === 'cancelar') handleCancelar(row)
+    if (key === 'excluir') handleExcluir(row)
   }
 
   const columns = [
     { title: 'Nome', dataIndex: 'nome', key: 'nome' },
     { title: 'Edição', dataIndex: 'edicao_id', key: 'edicao_id', width: 90 },
     { title: 'Equipes', dataIndex: 'num_equipes', key: 'num_equipes', width: 90, align: 'center' },
+    {
+      title: 'Origem',
+      dataIndex: 'origem',
+      key: 'origem',
+      width: 110,
+      render: (origem) => (
+        <Tag color={origem === 'MANUAL' ? 'purple' : 'blue'}>
+          {origem === 'MANUAL' ? 'Manual' : 'Automático'}
+        </Tag>
+      ),
+    },
     {
       title: 'Status',
       dataIndex: 'status',

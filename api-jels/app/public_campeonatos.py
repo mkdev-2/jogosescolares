@@ -18,6 +18,141 @@ router = APIRouter(prefix="/api/public/campeonatos", tags=["public"])
 _STATUSES_VISIVEIS = ("GERADO", "EM_ANDAMENTO", "FINALIZADO")
 
 
+def _iso(value) -> str | None:
+    return value.isoformat() if value else None
+
+
+async def _manual_classificacao_rows(conn: psycopg.AsyncConnection, campeonato_id: int) -> list[dict]:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT cmcl.*,
+                   COALESCE(p.nome_exibicao, cmcl.nome_exibicao) AS nome_exibicao
+            FROM campeonato_manual_classificacao cmcl
+            LEFT JOIN campeonato_manual_participantes p ON p.id = cmcl.participante_id
+            WHERE cmcl.campeonato_id = %s
+            ORDER BY cmcl.posicao, cmcl.ordem, cmcl.id
+            """,
+            (campeonato_id,),
+        )
+        rows = await cur.fetchall()
+
+    return [
+        {
+            "posicao": r["posicao"],
+            "equipe_id": r.get("participante_id") or r["id"],
+            "nome_escola": r.get("nome_exibicao") or f"Participante {r['id']}",
+            "seed": r.get("ordem") or r["posicao"],
+            "J": (r.get("vitorias") or 0) + (r.get("empates") or 0) + (r.get("derrotas") or 0),
+            "V": r.get("vitorias") or 0,
+            "E": r.get("empates") or 0,
+            "D": r.get("derrotas") or 0,
+            "pts": r.get("pontos") or 0,
+            "pro": r.get("pro") or 0,
+            "contra": r.get("contra") or 0,
+            "saldo": r.get("saldo") if r.get("saldo") is not None else (r.get("pro") or 0) - (r.get("contra") or 0),
+            "pro_sec": None,
+            "contra_sec": None,
+            "grupo_concluido": True,
+            "criterio_decisivo": r.get("observacao"),
+        }
+        for r in rows
+    ]
+
+
+async def _manual_estrutura_publica(conn: psycopg.AsyncConnection, campeonato_id: int) -> dict:
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT *
+            FROM campeonato_manual_participantes
+            WHERE campeonato_id = %s
+            ORDER BY ordem, id
+            """,
+            (campeonato_id,),
+        )
+        participantes = [dict(r) for r in await cur.fetchall()]
+
+        await cur.execute(
+            """
+            SELECT cmc.*,
+                   COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS participante_a_nome,
+                   COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS participante_b_nome,
+                   COALESCE(pv.nome_exibicao, cmc.vencedor_nome) AS vencedor_nome
+            FROM campeonato_manual_confrontos cmc
+            LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
+            LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
+            LEFT JOIN campeonato_manual_participantes pv ON pv.id = cmc.vencedor_participante_id
+            WHERE cmc.campeonato_id = %s
+            ORDER BY cmc.fase, cmc.rodada, cmc.ordem, cmc.id
+            """,
+            (campeonato_id,),
+        )
+        confrontos = [dict(r) for r in await cur.fetchall()]
+
+        await cur.execute(
+            """
+            SELECT DISTINCT grupo_nome
+            FROM campeonato_manual_classificacao
+            WHERE campeonato_id = %s
+            ORDER BY grupo_nome
+            """,
+            (campeonato_id,),
+        )
+        grupos_nomes = [r["grupo_nome"] for r in await cur.fetchall()] or ["Geral"]
+
+    grupos = [
+        {
+            "id": idx,
+            "nome": nome,
+            "ordem": idx + 1,
+            "classificados_diretos": 0,
+            "equipes": [
+                {
+                    "grupo_id": idx,
+                    "equipe_id": p.get("equipe_id") or p["id"],
+                    "escola_id": p.get("escola_id") or 0,
+                    "seed_no_grupo": p["ordem"],
+                    "nome_escola": p["nome_exibicao"],
+                }
+                for p in participantes
+            ],
+        }
+        for idx, nome in enumerate(grupos_nomes)
+    ]
+    partidas = [
+        {
+            "id": c["id"],
+            "origem": "MANUAL",
+            "fase": c["fase"],
+            "rodada": c["rodada"],
+            "grupo_id": 0 if c["fase"] == "GRUPOS" else None,
+            "mandante_equipe_id": None,
+            "visitante_equipe_id": None,
+            "vencedor_equipe_id": None,
+            "is_bye": False,
+            "origem_slot_a": None,
+            "origem_slot_b": None,
+            "inicio_em": _iso(c.get("inicio_em")),
+            "mandante_nome": c.get("participante_a_nome"),
+            "visitante_nome": c.get("participante_b_nome"),
+            "vencedor_nome": c.get("vencedor_nome"),
+            "placar_mandante": c.get("placar_a"),
+            "placar_visitante": c.get("placar_b"),
+            "placar_mandante_sec": c.get("placar_a_sec"),
+            "placar_visitante_sec": c.get("placar_b_sec"),
+            "resultado_tipo": c.get("resultado_tipo"),
+        }
+        for c in confrontos
+    ]
+    return {
+        "grupos": grupos,
+        "partidas": partidas,
+        "wildcard_equipe_ids": [],
+        "wildcard_ranking": [],
+    }
+
+
 @router.get("")
 async def list_campeonatos_publico(
     edicao_id: int | None = Query(None),
@@ -29,13 +164,17 @@ async def list_campeonatos_publico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT c.id, c.uuid::text AS uuid, c.nome, c.status, c.formato,
+            SELECT c.id, c.uuid::text AS uuid, c.nome, c.status, c.origem, c.formato,
                    esp.nome AS esporte_nome,
                    cat.nome AS categoria_nome,
                    nai.nome AS naipe_nome,
                    tm.nome  AS tipo_modalidade_nome,
                    tm.codigo AS tipo_modalidade_codigo,
                    (CASE
+                        WHEN c.origem = 'MANUAL'
+                        THEN (SELECT COUNT(*)::int
+                              FROM campeonato_manual_participantes cmp
+                              WHERE cmp.campeonato_id = c.id)
                         WHEN EXISTS (SELECT 1 FROM campeonato_grupos WHERE campeonato_id = c.id)
                         THEN (SELECT COUNT(DISTINCT cge.equipe_id)::int
                               FROM campeonato_grupo_equipes cge
@@ -89,6 +228,7 @@ async def list_esportes_com_campeonatos(
                 c.id              AS campeonato_id,
                 c.uuid::text      AS campeonato_uuid,
                 c.status::text    AS campeonato_status,
+                c.origem::text    AS campeonato_origem,
                 c.nome            AS campeonato_nome
             FROM esportes esp
             JOIN esporte_variantes ev
@@ -127,6 +267,7 @@ async def list_esportes_com_campeonatos(
                 "id": r["campeonato_id"],
                 "uuid": r["campeonato_uuid"],
                 "status": r["campeonato_status"],
+                "origem": r["campeonato_origem"],
                 "nome": r["campeonato_nome"],
             } if r["campeonato_id"] is not None else None,
         })
@@ -155,6 +296,7 @@ async def list_proximos_confrontos(
             f"""
             SELECT
                 cp.id           AS partida_id,
+                c.origem::text  AS origem,
                 cp.fase::text   AS fase,
                 cp.rodada,
                 esc_m.nome_escola AS mandante_nome,
@@ -187,9 +329,45 @@ async def list_proximos_confrontos(
             """,
             params,
         )
-        rows = await cur.fetchall()
+        rows = [dict(r) for r in await cur.fetchall()]
 
-    return [dict(r) for r in rows]
+        await cur.execute(
+            f"""
+            SELECT
+                cmc.id           AS partida_id,
+                'MANUAL'         AS origem,
+                cmc.fase::text   AS fase,
+                cmc.rodada,
+                COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS mandante_nome,
+                COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS visitante_nome,
+                c.id             AS campeonato_id,
+                c.nome           AS campeonato_nome,
+                esp.nome         AS esporte_nome,
+                esp.icone,
+                cat.nome         AS categoria_nome,
+                nai.nome         AS naipe_nome
+            FROM campeonato_manual_confrontos cmc
+            JOIN campeonatos c ON c.id = cmc.campeonato_id
+            JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
+            JOIN categorias cat ON cat.id = ev.categoria_id
+            JOIN naipes nai ON nai.id = ev.naipe_id
+            LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
+            LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
+            WHERE c.status::text = 'EM_ANDAMENTO'
+              AND cmc.resultado_tipo IS NULL
+              AND COALESCE(pa.nome_exibicao, cmc.participante_a_nome) IS NOT NULL
+              AND COALESCE(pb.nome_exibicao, cmc.participante_b_nome) IS NOT NULL
+              AND c.edicao_id = %s
+              {extra_where}
+            ORDER BY cmc.ordem, cmc.id
+            LIMIT %s
+            """,
+            params,
+        )
+        rows.extend(dict(r) for r in await cur.fetchall())
+
+    return rows[:limite]
 
 
 @router.get("/{campeonato_id}")
@@ -207,7 +385,7 @@ async def get_campeonato_publico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT c.id, c.uuid::text AS uuid, c.nome, c.status, c.formato,
+            SELECT c.id, c.uuid::text AS uuid, c.nome, c.status, c.origem, c.formato,
                    c.vagas_wildcard,
                    esp.nome AS esporte_nome,
                    cat.nome AS categoria_nome,
@@ -229,6 +407,13 @@ async def get_campeonato_publico(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
 
     camp = dict(camp_row)
+    if camp.get("origem") == "MANUAL":
+        camp.pop("vagas_wildcard", None)
+        return {
+            **camp,
+            "estrutura": await _manual_estrutura_publica(conn, campeonato_id),
+            "config": None,
+        }
     vagas_wildcard = int(camp.pop("vagas_wildcard") or 0)
 
     async with conn.cursor() as cur:
@@ -329,6 +514,7 @@ async def get_campeonato_publico(
     partidas = [
         {
             "id": r["id"],
+            "origem": "AUTOMATICO",
             "fase": r["fase"],
             "rodada": r["rodada"],
             "grupo_id": r.get("grupo_id"),
@@ -388,19 +574,31 @@ async def get_classificacao_grupo_publico(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT cg.id
-            FROM campeonato_grupos cg
-            JOIN campeonatos c ON c.id = cg.campeonato_id
-            WHERE cg.id = %s AND cg.campeonato_id = %s
-              AND c.edicao_id = %s AND c.status = ANY(%s)
+            SELECT c.origem
+            FROM campeonatos c
+            WHERE c.id = %s AND c.edicao_id = %s AND c.status = ANY(%s)
             """,
-            (grupo_id, campeonato_id, resolved_edicao_id, list(_STATUSES_VISIVEIS)),
+            (campeonato_id, resolved_edicao_id, list(_STATUSES_VISIVEIS)),
         )
-        if not await cur.fetchone():
+        camp = await cur.fetchone()
+        if not camp:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Grupo não encontrado.",
+                detail="Campeonato não encontrado.",
             )
+        if camp.get("origem") == "MANUAL":
+            return await _manual_classificacao_rows(conn, campeonato_id)
+
+        await cur.execute(
+            """
+            SELECT cg.id
+            FROM campeonato_grupos cg
+            WHERE cg.id = %s AND cg.campeonato_id = %s
+            """,
+            (grupo_id, campeonato_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo não encontrado.")
 
     config = await get_config_pontuacao(conn, campeonato_id)
     return await calcular_classificacao_grupo(conn, grupo_id, config)

@@ -31,6 +31,14 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao criar campeonato')
   },
 
+  async criarManual(payload) {
+    const res = await apiFetch(`${BASE}/manual`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar campeonato manual')
+  },
+
   async autorizarGeracao(id, edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${id}/autorizar-geracao${qs}`, { method: 'POST' })
@@ -59,6 +67,60 @@ export const campeonatosService = {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${id}${qs}`)
     return handleResponse(res, 'Erro ao buscar campeonato')
+  },
+
+  async getManual(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}/manual${qs}`)
+    return handleResponse(res, 'Erro ao buscar dados manuais')
+  },
+
+  async criarManualConfronto(campeonatoId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/confrontos${qs}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar confronto')
+  },
+
+  async atualizarManualConfronto(campeonatoId, confrontoId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/confrontos/${confrontoId}${qs}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao atualizar confronto')
+  },
+
+  async excluirManualConfronto(campeonatoId, confrontoId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/confrontos/${confrontoId}${qs}`, { method: 'DELETE' })
+    return handleResponse(res, 'Erro ao excluir confronto')
+  },
+
+  async criarManualClassificacao(campeonatoId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/classificacao${qs}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao criar classificação')
+  },
+
+  async atualizarManualClassificacao(campeonatoId, classificacaoId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/classificacao/${classificacaoId}${qs}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao atualizar classificação')
+  },
+
+  async excluirManualClassificacao(campeonatoId, classificacaoId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/manual/classificacao/${classificacaoId}${qs}`, { method: 'DELETE' })
+    return handleResponse(res, 'Erro ao excluir classificação')
   },
 
   async getEquipesDaVariante(esporteVarianteId, edicaoId = null) {
@@ -97,6 +159,12 @@ export const campeonatosService = {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${id}/cancelar${qs}`, { method: 'POST' })
     return handleResponse(res, 'Erro ao cancelar campeonato')
+  },
+
+  async excluir(id, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${id}${qs}`, { method: 'DELETE' })
+    return handleResponse(res, 'Erro ao excluir campeonato')
   },
 
   async getConfigPontuacao(id, edicaoId = null) {
