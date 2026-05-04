@@ -114,6 +114,15 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao registrar resultado')
   },
 
+  async agendarPartida(campeonatoId, partidaId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/agendamento${qs}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao agendar partida')
+  },
+
   async getClassificacaoGrupo(campeonatoId, grupoId, edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${campeonatoId}/grupos/${grupoId}/classificacao${qs}`)

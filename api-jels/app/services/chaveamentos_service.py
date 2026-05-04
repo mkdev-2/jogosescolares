@@ -613,12 +613,13 @@ async def gerar_estrutura_direto(
     total = len(equipe_ids)
     async with conn.cursor() as cur:
         if total == 1:
+            equipe_id = equipe_ids[0]
             await cur.execute(
                 """
                 UPDATE campeonatos
                 SET status = 'FINALIZADO',
                     regra_distribuicao = 'DIRETO',
-                    vagas_bracket = 1,
+                    vagas_bracket = 2,
                     vagas_wildcard = 0,
                     geracao_autorizada_em = NOW(),
                     geracao_autorizada_por = %s,
@@ -628,6 +629,18 @@ async def gerar_estrutura_direto(
                 WHERE id = %s
                 """,
                 (executor_user_id, executor_user_id, campeonato_id),
+            )
+            await cur.execute(
+                """
+                INSERT INTO campeonato_partidas (
+                    campeonato_id, fase, rodada, grupo_id,
+                    mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
+                    is_bye, is_wildcard_pending,
+                    origem_slot_a, origem_slot_b
+                )
+                VALUES (%s, 'FINAL', 1, NULL, %s, NULL, %s, TRUE, FALSE, 'SEED_1', 'SEED_2')
+                """,
+                (campeonato_id, equipe_id, equipe_id),
             )
         else:
             await _gerar_bracket(cur, campeonato_id, equipe_ids, total, 0)

@@ -42,7 +42,7 @@
   --               sets avg geral → pts avg geral → sorteio
   -- ----------------------------------------------------------------
   (
-      '9c748574-5241-432c-a872-68d7c2c8e9e4', -- Vôlei
+      '99109e26-ae65-458a-aa06-a5d57afccc7a', -- Vôlei
       1,
       'SETS', 'PONTOS',
       3,   -- pts_vitoria (2x0)
@@ -55,23 +55,21 @@
       50, 0, -- wxo placar pontos totais pro / contra (25x0 + 25x0)
       FALSE,
       '["CONFRONTO_DIRETO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","AVERAGE_SEC_DIRETO","AVERAGE_GERAL","
-  AVERAGE_SEC_GERAL","SORTEIO"]'
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","AVERAGE_SEC_DIRETO","AVERAGE_GERAL","AVERAGE_SEC_GERAL","SORTEIO"]'
   ),
 
   -- ----------------------------------------------------------------
   -- VOLEI DE PRAIA (mesmas regras do Voleibol)
   -- ----------------------------------------------------------------
   (
-      'fe280c86-2432-40bb-bede-4da92c4b7d7b', -- Volei de Praia
+      '4e45bb9e-5ade-4f7a-92d6-102486f15182', -- Volei de Praia
       1,
       'SETS', 'PONTOS',
       3, 2, 0, 1, FALSE,
       3, 0, 2, 0, 50, 0,
       FALSE,
       '["CONFRONTO_DIRETO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","AVERAGE_SEC_DIRETO","AVERAGE_GERAL","
-  AVERAGE_SEC_GERAL","SORTEIO"]'
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","AVERAGE_SEC_DIRETO","AVERAGE_GERAL","AVERAGE_SEC_GERAL","SORTEIO"]'
   ),
 
   -- ----------------------------------------------------------------
@@ -83,7 +81,7 @@
   --               menor cestas contra geral → sorteio
   -- ----------------------------------------------------------------
   (
-      '6ef0c850-b6cb-441e-8188-47cbfad14c1d', -- Basquete
+      'd1dd4ec6-cd1f-4594-877e-e00c1e72eb1c', -- Basquete
       1,
       'CESTAS', NULL,
       2,   -- pts_vitoria
@@ -91,14 +89,12 @@
       0,   -- pts_empate (sem empate)
       1,   -- pts_derrota
       FALSE,
-      2, 0,   -- wxo pts vencedor / perdedor (derrota WxO = 0, diferente da
-  derrota normal)
+      2, 0,   -- wxo pts vencedor / perdedor (derrota WxO = 0, diferente da derrota normal)
       20, 0,  -- wxo placar cestas pro / contra
       NULL, NULL,
       FALSE,
       '["CONFRONTO_DIRETO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","S
-  ORTEIO"]'
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","SORTEIO"]'
   ),
 
   -- ----------------------------------------------------------------
@@ -111,32 +107,28 @@
   --               menor contra → maior pró → sorteio
   -- ----------------------------------------------------------------
   (
-      'bba52825-4374-4fbf-85b3-b7604a98522c', -- Futsal
+      '1e910b2f-dfe8-4aeb-8f02-64458eee7b51', -- Futsal
       1,
       'GOLS', NULL,
       3, NULL, 1, 0, TRUE,
       3, 0, 1, 0, NULL, NULL,
       FALSE,
-      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]'
+      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]',
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]'
   ),
 
   -- ----------------------------------------------------------------
   -- FUTEBOL DE CAMPO (mesmas regras do Futsal)
   -- ----------------------------------------------------------------
   (
-      'd9a74115-3837-4b73-8712-1e1dbf5c8e04', -- Futebol de Campo
+      '7a824f02-86a0-4a57-a760-4ba564d78fe3', -- Futebol de Campo
       1,
       'GOLS', NULL,
       3, NULL, 1, 0, TRUE,
       3, 0, 1, 0, NULL, NULL,
       FALSE,
-      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]'
+      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]',
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]'
   ),
 
   -- ----------------------------------------------------------------
@@ -147,16 +139,14 @@
   -- Critérios idênticos ao Futsal
   -- ----------------------------------------------------------------
   (
-      'fab59920-a75d-4402-9551-e203355b14fd', -- Handebol
+      'a5533add-f245-450f-bd48-dfb774cb019c', -- Handebol
       1,
       'GOLS', NULL,
       3, NULL, 2, 1, TRUE,
       3, 0, 1, 0, NULL, NULL,
       TRUE, -- gols de prorrogação NÃO são computados
-      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]',
-      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","M
-  AIOR_PRO_GERAL","SORTEIO"]'
+      '["CONFRONTO_DIRETO","AVERAGE_GERAL","SALDO_GERAL","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]',
+      '["MAIOR_VITORIAS","AVERAGE_DIRETO","SALDO_DIRETO","MENOR_CONTRA_GERAL","MAIOR_PRO_GERAL","SORTEIO"]'
   )
 
   ON CONFLICT (esporte_id, edicao_id) DO UPDATE SET

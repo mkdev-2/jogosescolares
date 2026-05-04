@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script para criar equipes e vincular estudantes.
-Regras: idade (faixa da categoria), sexo alinhado ao naipe (M/F), 1 individual + 1 coletiva por aluno,
+Regras: idade (faixa da categoria), sexo alinhado ao naipe (M/F; X aceita ambos), 1 individual + 1 coletiva por aluno,
 limite_atletas do esporte. Equipes só são criadas se houver pelo menos o mínimo de membros definido em esportes.minimo_atletas,
 exceto quando o limite é tratado como ilimitado (999), onde o mínimo é 1.
 
@@ -35,6 +35,11 @@ def _fmt_dur(seconds: float) -> str:
     if seconds >= 60:
         return f"{int(seconds // 60)}m{int(seconds % 60)}s"
     return f"{seconds:.1f}s"
+
+
+def _naipe_aceita_estudante(naipe: str, sexo: str) -> bool:
+    """Mesmo critério do trigger: M/F exigem correspondência; X (misto) aceita M ou F."""
+    return naipe == "X" or sexo == naipe
 
 
 async def seed_equipes(limite_variantes: int) -> None:
@@ -106,6 +111,19 @@ async def seed_equipes(limite_variantes: int) -> None:
             for r in await cur.fetchall():
                 estudante_tipos.setdefault(r["estudante_id"], set()).add(r["tipo"])
 
+            await cur.execute(
+                """
+                SELECT escola_id, esporte_variante_id, id
+                FROM equipes
+                WHERE edicao_id = %s
+                """,
+                (edicao_id,),
+            )
+            equipes_existentes = {
+                (r["escola_id"], str(r["esporte_variante_id"])): r["id"]
+                for r in await cur.fetchall()
+            }
+
             n_escolas = len(escola_ids)
             n_var = len(variantes)
             total_passos = n_escolas * n_var
@@ -124,6 +142,7 @@ async def seed_equipes(limite_variantes: int) -> None:
             vinculos_total = 0
             variantes_puladas = 0
             escolas_sem_prof = 0
+            equipes_ja_existentes = 0
 
             for escola_idx, escola_id in enumerate(escola_ids):
                 t_escola = time.perf_counter()
@@ -167,6 +186,18 @@ async def seed_equipes(limite_variantes: int) -> None:
                         tipo = ev["tipo"]
                         limite_atletas = ev.get("limite_atletas") or 999
                         minimo_membros = ev.get("minimo_atletas") or 1
+                        chave_equipe = (escola_id, str(ev["id"]))
+
+                        if chave_equipe in equipes_existentes:
+                            equipes_ja_existentes += 1
+                            if n_var <= 30 or ev_idx % max(1, n_var // 10) == 0:
+                                print(
+                                    f"    [{ev_idx + 1}/{n_var}] {ev.get('esporte_nome', '?')} ({tipo}): "
+                                    f"PULADA — equipe já existe (id={equipes_existentes[chave_equipe]})",
+                                    flush=True,
+                                )
+                            await cur.execute(f"RELEASE SAVEPOINT {sp}")
+                            continue
 
                         candidatos = []
                         for est in estudantes_escola:
@@ -176,7 +207,7 @@ async def seed_equipes(limite_variantes: int) -> None:
                             idade = calcular_idade_anos_completos(est["data_nascimento"])
                             if idade < idade_min or idade > idade_max:
                                 continue
-                            if est["sexo"] != naipe:
+                            if not _naipe_aceita_estudante(naipe, est["sexo"]):
                                 continue
                             candidatos.append(est)
 
@@ -192,12 +223,19 @@ async def seed_equipes(limite_variantes: int) -> None:
                             await cur.execute(f"RELEASE SAVEPOINT {sp}")
                             continue
 
+                        professor_tecnico_id = random.choice(profs_escola)
+                        professor_auxiliar_id = None
+                        if tipo == "COLETIVAS" and len(profs_escola) > 1:
+                            auxiliares = [p for p in profs_escola if p != professor_tecnico_id]
+                            professor_auxiliar_id = random.choice(auxiliares) if auxiliares else None
+
                         await cur.execute(
                             """
-                            INSERT INTO equipes (escola_id, esporte_variante_id, professor_tecnico_id, edicao_id)
-                            VALUES (%s, %s, %s, %s) RETURNING id
+                            INSERT INTO equipes
+                                (escola_id, esporte_variante_id, professor_tecnico_id, professor_auxiliar_id, edicao_id)
+                            VALUES (%s, %s, %s, %s, %s) RETURNING id
                             """,
-                            (escola_id, ev["id"], random.choice(profs_escola), edicao_id),
+                            (escola_id, ev["id"], professor_tecnico_id, professor_auxiliar_id, edicao_id),
                         )
                         equipe_id = (await cur.fetchone())["id"]
                         equipes_criadas += 1
@@ -235,6 +273,7 @@ async def seed_equipes(limite_variantes: int) -> None:
                                     or "modalidade coletiva" in err_msg
                                 ):
                                     await cur.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
+                                    await cur.execute(f"RELEASE SAVEPOINT {sp_name}")
                                     estudante_tipos.setdefault(est["id"], set()).add(tipo)
                                     continue
                                 await cur.execute(f"ROLLBACK TO SAVEPOINT {sp}")
@@ -246,8 +285,29 @@ async def seed_equipes(limite_variantes: int) -> None:
                                 break
 
                         if vinculos_falhou:
+                            equipes_criadas -= 1
+                            eq_escola -= 1
+                            vinculos_total -= vinculos_equipe
+                            vin_escola -= vinculos_equipe
                             await cur.execute(f"RELEASE SAVEPOINT {sp}")
                             continue
+
+                        if vinculos_equipe < minimo_membros:
+                            await cur.execute("DELETE FROM equipes WHERE id = %s", (equipe_id,))
+                            equipes_criadas -= 1
+                            eq_escola -= 1
+                            vinculos_total -= vinculos_equipe
+                            vin_escola -= vinculos_equipe
+                            variantes_puladas += 1
+                            print(
+                                f"    [{ev_idx + 1}/{n_var}] {ev.get('esporte_nome', '?')} ({tipo}): "
+                                f"PULADA — {vinculos_equipe} vínculo(s) efetivo(s), mínimo {minimo_membros}",
+                                flush=True,
+                            )
+                            await cur.execute(f"RELEASE SAVEPOINT {sp}")
+                            continue
+
+                        equipes_existentes[chave_equipe] = equipe_id
 
                         limite_info = f" (limite {limite_atletas})" if limite_atletas < 999 else ""
                         if n_var <= 40 or ev_idx % max(1, n_var // 15) == 0 or vinculos_equipe > 0:
@@ -277,6 +337,7 @@ async def seed_equipes(limite_variantes: int) -> None:
             print(
                 f"\nResumo: {equipes_criadas} equipe(s), {vinculos_total} vínculo(s), "
                 f"{variantes_puladas} variante(s) sem candidatos suficientes, "
+                f"{equipes_ja_existentes} equipe(s) já existente(s), "
                 f"{escolas_sem_prof} escola(s) sem professor.",
                 flush=True,
             )

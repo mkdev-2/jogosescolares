@@ -1,6 +1,7 @@
 """
 Modelos Pydantic para validação de dados de entrada e saída.
 """
+from datetime import datetime
 from typing import Optional, Literal, Union
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -738,6 +739,7 @@ class CampeonatoPartidaResponse(BaseModel):
     is_bye: bool = False
     origem_slot_a: Optional[str] = None
     origem_slot_b: Optional[str] = None
+    inicio_em: Optional[str] = None
     # Nomes das equipes (resolvidos via JOIN)
     mandante_nome: Optional[str] = None
     visitante_nome: Optional[str] = None
@@ -866,6 +868,11 @@ class EsporteConfigPontuacaoInput(BaseModel):
 
 
 RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
+
+
+class PartidaAgendamentoInput(BaseModel):
+    """Payload para definir ou limpar a data/hora de uma partida."""
+    inicio_em: Optional[datetime] = None
 
 
 class PartidaResultadoInput(BaseModel):

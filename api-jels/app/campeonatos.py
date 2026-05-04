@@ -20,6 +20,7 @@ from app.schemas import (
     EquipeDaVarianteResponse,
     EsporteConfigPontuacaoResponse,
     EstruturaGruposPreviewResponse,
+    PartidaAgendamentoInput,
     PartidaResultadoInput,
     WildcardCandidatoInfo,
 )
@@ -900,6 +901,7 @@ async def get_estrutura(
             SELECT cp.id, cp.campeonato_id, cp.fase, cp.rodada, cp.grupo_id,
                    cp.mandante_equipe_id, cp.visitante_equipe_id, cp.vencedor_equipe_id,
                    cp.is_bye, cp.origem_slot_a, cp.origem_slot_b,
+                   cp.inicio_em,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
                    cp.resultado_tipo, cp.registrado_em,
@@ -983,6 +985,7 @@ async def get_estrutura(
             is_bye=bool(r.get("is_bye")),
             origem_slot_a=r.get("origem_slot_a"),
             origem_slot_b=r.get("origem_slot_b"),
+            inicio_em=r["inicio_em"].isoformat() if r.get("inicio_em") else None,
             mandante_nome=r.get("mandante_nome"),
             visitante_nome=r.get("visitante_nome"),
             vencedor_nome=r.get("vencedor_nome"),
@@ -1086,6 +1089,78 @@ async def get_config_pontuacao_endpoint(
         criterios_desempate_2=config["criterios_desempate_2"] or [],
         criterios_desempate_3plus=config["criterios_desempate_3plus"] or [],
     )
+
+
+@router.patch("/{campeonato_id}/partidas/{partida_id}/agendamento")
+async def agendar_partida(
+    campeonato_id: int,
+    partida_id: int,
+    data: PartidaAgendamentoInput,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Define ou remove a data/hora planejada de uma partida."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+
+        await cur.execute(
+            """
+            SELECT id, campeonato_id, is_bye, inicio_em
+            FROM campeonato_partidas
+            WHERE id = %s AND campeonato_id = %s
+            """,
+            (partida_id, campeonato_id),
+        )
+        partida = await cur.fetchone()
+        if not partida:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+        if partida["is_bye"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ser agendada.")
+
+        await cur.execute(
+            """
+            UPDATE campeonato_partidas
+            SET inicio_em = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, inicio_em, updated_at
+            """,
+            (data.inicio_em, partida_id),
+        )
+        updated = await cur.fetchone()
+        await conn.commit()
+
+    await log_audit(
+        conn=conn,
+        user_id=current_user["id"],
+        acao="UPDATE",
+        tipo_recurso="CAMPEONATO_PARTIDA",
+        recurso_id=partida_id,
+        detalhes_antes={
+            "campeonato_id": campeonato_id,
+            "inicio_em": partida["inicio_em"],
+        },
+        detalhes_depois={
+            "campeonato_id": campeonato_id,
+            "inicio_em": updated["inicio_em"],
+        },
+        mensagem=f"Usuário {current_user['nome']} alterou o agendamento da partida {partida_id}.",
+    )
+
+    return {
+        "partida_id": updated["id"],
+        "inicio_em": updated["inicio_em"].isoformat() if updated.get("inicio_em") else None,
+        "updated_at": updated["updated_at"].isoformat() if updated.get("updated_at") else None,
+    }
 
 
 @router.patch("/{campeonato_id}/partidas/{partida_id}/resultado")

@@ -1,6 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Form, InputNumber, Modal, Popover, Radio, Table, Tag, Tooltip, message, Spin } from 'antd'
+import { Button, DatePicker, Dropdown, Form, InputNumber, Modal, Popover, Radio, Table, Tag, Tooltip, message, Spin } from 'antd'
+import {
+  AppstoreOutlined,
+  BarsOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
+  MoreOutlined,
+  PartitionOutlined,
+} from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { ArrowLeft, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { equipesService } from '../services/equipesService'
@@ -19,6 +28,7 @@ const BRACKET_PHASES = [
 ]
 
 const FASE_LABEL = {
+  GRUPOS: 'Fase de Grupos',
   TRINTA_E_DOIS_AVOS: '1/32 de Final',
   DEZESSEIS_AVOS: '1/16 de Final',
   OITAVAS: 'Oitavas',
@@ -42,6 +52,35 @@ const STATUS_LABELS = {
   EM_ANDAMENTO: 'Em andamento',
   FINALIZADO: 'Finalizado',
   CANCELADO: 'Cancelado',
+}
+
+const FASE_ORDER = {
+  GRUPOS: 1,
+  TRINTA_E_DOIS_AVOS: 2,
+  DEZESSEIS_AVOS: 3,
+  OITAVAS: 4,
+  QUARTAS: 5,
+  SEMI: 6,
+  FINAL: 7,
+  TERCEIRO: 8,
+}
+
+function equipeNome(partida, lado) {
+  const nomeKey = lado === 'mandante' ? 'mandante_nome' : 'visitante_nome'
+  const idKey = lado === 'mandante' ? 'mandante_equipe_id' : 'visitante_equipe_id'
+  return partida[nomeKey] || (partida[idKey] ? `Equipe ${partida[idKey]}` : 'A definir')
+}
+
+function formatDia(value) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  }).format(new Date(value))
+}
+
+function sortPartidasOperacional(a, b) {
+  return (FASE_ORDER[a.fase] || 99) - (FASE_ORDER[b.fase] || 99) || a.rodada - b.rodada || a.id - b.id
 }
 
 // ── Bracket geometry helpers ──────────────────────────────────────────────────
@@ -358,10 +397,9 @@ function ClassificadoPopoverContent({ record, isWildcard, wildcardRanking }) {
 // ── ClassificacaoGrupo ────────────────────────────────────────────────────────
 function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, config, refreshKey, wildcardEquipeIds, wildcardRanking }) {
   const [classificacao, setClassificacao] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     campeonatosService
       .getClassificacaoGrupo(campeonatoId, grupoId)
       .then(setClassificacao)
@@ -491,6 +529,303 @@ function VencedorBanner({ vencedorNome, equipe }) {
           <p className="text-amber-500 text-sm">Carregando atletas...</p>
         )}
       </div>
+    </div>
+  )
+}
+
+function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose }) {
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+
+  const initialValues = {
+    inicio_em: partida.inicio_em ? dayjs(partida.inicio_em) : null,
+  }
+
+  const saveAgendamento = async (inicioEm) => {
+    setSaving(true)
+    try {
+      await campeonatosService.agendarPartida(campeonatoId, partida.id, {
+        inicio_em: inicioEm ? inicioEm.second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss') : null,
+      })
+      message.success(inicioEm ? 'Partida agendada com sucesso' : 'Agendamento removido')
+      onSuccess()
+    } catch (err) {
+      message.error(err.message || 'Erro ao agendar partida')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      await saveAgendamento(values.inicio_em)
+    } catch (err) {
+      if (err?.errorFields) return
+      message.error(err.message || 'Erro ao agendar partida')
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title="Agendar partida"
+      onCancel={onClose}
+      destroyOnClose
+      width={460}
+      footer={(
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            danger
+            type="text"
+            disabled={saving || !partida.inicio_em}
+            onClick={() => saveAgendamento(null)}
+          >
+            Limpar horário
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="primary" onClick={handleSave} loading={saving}>
+              Salvar
+            </Button>
+          </div>
+        </div>
+      )}
+    >
+      <p className="text-sm text-[#64748b] mb-4">
+        <strong>{equipeNome(partida, 'mandante')}</strong>
+        {' vs '}
+        <strong>{equipeNome(partida, 'visitante')}</strong>
+      </p>
+      <Form form={form} layout="vertical" initialValues={initialValues}>
+        <Form.Item name="inicio_em" label="Data e horário do jogo">
+          <DatePicker
+            showTime={{ format: 'HH:mm' }}
+            format="DD/MM/YYYY HH:mm"
+            placeholder="Selecionar data e horário"
+            className="w-full"
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
+function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
+  const hojeRef = useRef(null)
+  const hojeKey = dayjs().format('YYYY-MM-DD')
+
+  const partidasValidas = useMemo(() => {
+    return (partidas || [])
+      .filter((partida) => !partida.is_bye)
+      .slice()
+      .sort((a, b) => {
+        if (a.inicio_em && b.inicio_em) return new Date(a.inicio_em) - new Date(b.inicio_em)
+        if (a.inicio_em) return -1
+        if (b.inicio_em) return 1
+        return sortPartidasOperacional(a, b)
+      })
+  }, [partidas])
+
+  const gruposPorId = useMemo(() => {
+    const map = new Map()
+    ;(grupos || []).forEach((grupo) => map.set(grupo.id, grupo))
+    return map
+  }, [grupos])
+
+  const gruposTimeline = useMemo(() => {
+    const datedMap = new Map()
+    const semData = []
+    partidasValidas.forEach((partida) => {
+      if (!partida.inicio_em) {
+        semData.push(partida)
+        return
+      }
+
+      const key = dayjs(partida.inicio_em).format('YYYY-MM-DD')
+      if (!datedMap.has(key)) datedMap.set(key, [])
+      datedMap.get(key).push(partida)
+    })
+
+    if (!datedMap.has(hojeKey)) {
+      datedMap.set(hojeKey, [])
+    }
+
+    const datedGroups = Array.from(datedMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, items]) => ({ key, items }))
+
+    if (semData.length > 0) {
+      datedGroups.push({
+        key: 'sem-data',
+        items: semData.sort(sortPartidasOperacional),
+      })
+    }
+
+    return datedGroups
+  }, [hojeKey, partidasValidas])
+
+  useEffect(() => {
+    if (!hojeRef.current) return
+    requestAnimationFrame(() => {
+      hojeRef.current?.scrollIntoView({ block: 'start' })
+    })
+  }, [gruposTimeline])
+
+  if (partidasValidas.length === 0) {
+    return (
+      <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+        <p className="text-sm text-slate-400 m-0">Nenhuma partida gerada para este campeonato.</p>
+      </div>
+    )
+  }
+
+  const descricaoFase = (partida) => {
+    if (partida.grupo_id) {
+      const grupo = gruposPorId.get(partida.grupo_id)
+      return `Grupo ${grupo?.nome || partida.grupo_id} · Rodada ${partida.rodada}`
+    }
+    return `${FASE_LABEL[partida.fase] || partida.fase} · Rodada ${partida.rodada}`
+  }
+
+  const tituloDia = (key) => {
+    if (key === 'sem-data') return 'A definir horário'
+    if (key === hojeKey) return 'Hoje'
+    if (dayjs(key).isSame(dayjs().add(1, 'day'), 'day')) return 'Amanhã'
+    return formatDia(`${key}T12:00:00`)
+  }
+
+  const placarOuVs = (partida) => {
+    if (!partida.resultado_tipo) {
+      return <span className="text-xl font-bold leading-none text-[#94a3b8]">-</span>
+    }
+    return (
+      <span className="font-mono text-xl leading-none text-[#334155] font-bold">
+        {partida.placar_mandante}–{partida.placar_visitante}
+      </span>
+    )
+  }
+
+  const criarSlotsHorario = (items) => {
+    const map = new Map()
+    items.forEach((partida) => {
+      const key = partida.inicio_em ? dayjs(partida.inicio_em).format('HH:mm') : 'sem-horario'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(partida)
+    })
+    return Array.from(map.entries()).map(([key, slotItems]) => ({
+      key,
+      label: key === 'sem-horario' ? '--:--' : key,
+      items: slotItems.sort((a, b) => sortPartidasOperacional(a, b)),
+    }))
+  }
+
+  const menuPartida = (partida) => ({
+    items: [
+      {
+        key: 'schedule',
+        icon: <ClockCircleOutlined />,
+        label: 'Definir Horário',
+      },
+      {
+        key: 'result',
+        icon: <EditOutlined />,
+        label: 'Registrar Resultado',
+      },
+    ],
+    onClick: ({ key }) => {
+      if (key === 'schedule') {
+        onSchedule(partida)
+        return
+      }
+      onRegister(partida)
+    },
+  })
+
+  return (
+    <div className="flex flex-col gap-5">
+      {gruposTimeline.map(({ key, items }) => (
+        <section
+          key={key}
+          ref={key === hojeKey ? hojeRef : null}
+          className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden scroll-mt-4"
+        >
+          <div className="px-5 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]">
+            <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider m-0">
+              {items.length} partida{items.length !== 1 ? 's' : ''}
+            </p>
+            <h2 className="text-base font-bold text-[#042f2e] m-0 mt-0.5">
+              {tituloDia(key)}
+            </h2>
+          </div>
+
+          <div className="relative">
+            <div className="absolute left-[4.55rem] top-0 bottom-0 w-px bg-[#e2e8f0]" />
+            {items.length === 0 && key === hojeKey ? (
+              <div className="relative flex gap-4 px-5 py-4">
+                <div className="w-16 shrink-0" />
+                <div className="relative shrink-0 pt-2">
+                  <span className="block w-3 h-3 rounded-full bg-white border-2 border-[#cbd5e1]" />
+                </div>
+                <div className="flex-1 min-w-0 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-4">
+                  <p className="text-sm font-semibold text-[#334155] m-0">Nenhuma partida agendada hoje</p>
+                </div>
+              </div>
+            ) : criarSlotsHorario(items).map((slot) => (
+              <div key={slot.key} className="relative flex gap-4 px-5 py-4 border-b border-[#f8fafc] last:border-b-0">
+                <div className="w-16 shrink-0 text-right pt-1">
+                  <span className={`text-sm font-bold ${slot.key === 'sem-horario' ? 'text-[#94a3b8]' : 'text-[#0f766e]'}`}>
+                    {slot.label}
+                  </span>
+                </div>
+                <div className="relative shrink-0 pt-2">
+                  <span className="block w-3 h-3 rounded-full bg-white border-2 border-[#0f766e]" />
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-3">
+                  {slot.items.map((partida) => {
+                    const finalizada = !!partida.resultado_tipo
+                    return (
+                      <div key={partida.id} className="rounded-xl border border-[#e2e8f0] bg-white px-4 py-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider">
+                                {descricaoFase(partida)}
+                              </span>
+                              {finalizada && <Tag color="green" className="m-0">Resultado registrado</Tag>}
+                            </div>
+                            <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_minmax(0,1fr)] items-center gap-3">
+                              <span className={`text-sm truncate ${partida.vencedor_equipe_id === partida.mandante_equipe_id ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                                {equipeNome(partida, 'mandante')}
+                              </span>
+                              <span className="text-center whitespace-nowrap">
+                                {placarOuVs(partida)}
+                              </span>
+                              <span className={`text-sm truncate text-right ${partida.vencedor_equipe_id === partida.visitante_equipe_id ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                                {equipeNome(partida, 'visitante')}
+                              </span>
+                            </div>
+                          </div>
+                          <Dropdown menu={menuPartida(partida)} trigger={['click']} placement="bottomRight">
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<MoreOutlined />}
+                              aria-label="Ações da partida"
+                            />
+                          </Dropdown>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
@@ -753,8 +1088,9 @@ export default function CampeonatoDetalhe() {
   const [estrutura, setEstrutura] = useState(null)
   const [campeonato, setCampeonato] = useState(null)
   const [config, setConfig] = useState(null)
-  const [activeTab, setActiveTab] = useState('grupos')
+  const [activeTab, setActiveTab] = useState('partidas')
   const [modalPartida, setModalPartida] = useState(null)
+  const [modalAgendamento, setModalAgendamento] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [vencedorEquipe, setVencedorEquipe] = useState(null)
 
@@ -789,17 +1125,29 @@ export default function CampeonatoDetalhe() {
     fetchData()
   }
 
+  const handleAgendamentoSalvo = () => {
+    setModalAgendamento(null)
+    fetchData()
+  }
+
   const hasGroups = (estrutura?.grupos?.length || 0) > 0
   const hasKnockout = (estrutura?.partidas || []).some((p) => p.grupo_id === null)
+  const hasPlayablePartidas = (estrutura?.partidas || []).some((p) => !p.is_bye)
   const gruposBloqueados = (estrutura?.partidas || []).some(
     (p) => p.grupo_id === null && !p.is_bye && !!p.resultado_tipo
   )
 
   useEffect(() => {
-    if (estrutura && !hasGroups && hasKnockout) {
+    if (estrutura && activeTab === 'grupos' && !hasGroups && hasKnockout) {
       setActiveTab('eliminatorias')
     }
-  }, [estrutura, hasGroups, hasKnockout])
+  }, [estrutura, activeTab, hasGroups, hasKnockout])
+
+  useEffect(() => {
+    if (estrutura && activeTab === 'partidas' && !hasGroups && hasKnockout && !hasPlayablePartidas) {
+      setActiveTab('eliminatorias')
+    }
+  }, [estrutura, activeTab, hasGroups, hasKnockout, hasPlayablePartidas])
 
   useEffect(() => {
     if (campeonato?.status !== 'FINALIZADO' || !estrutura) return
@@ -838,108 +1186,134 @@ export default function CampeonatoDetalhe() {
     : ''
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <header className="flex items-start gap-3">
-        <Button
-          icon={<ArrowLeft size={16} />}
-          type="text"
-          onClick={() => navigate(-1)}
-          className="mt-1 px-2 shrink-0"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-              {nomeCampeonato}
-            </h1>
-            {status && (
-              <Tag color={STATUS_COLORS[status] || 'default'} className="ml-1">
-                {STATUS_LABELS[status] || status}
-              </Tag>
+    <div className="flex h-[calc(100vh-8.5rem)] min-h-[520px] flex-col gap-4 overflow-hidden">
+      <div className="shrink-0 bg-[#f8fafc]">
+        {/* Header */}
+        <header className="flex items-start gap-3">
+          <Button
+            icon={<ArrowLeft size={16} />}
+            type="text"
+            onClick={() => navigate(-1)}
+            className="mt-1 px-2 shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
+                {nomeCampeonato}
+              </h1>
+              {status && (
+                <Tag color={STATUS_COLORS[status] || 'default'} className="ml-1">
+                  {STATUS_LABELS[status] || status}
+                </Tag>
+              )}
+            </div>
+            {subtitulo && (
+              <p className="text-[0.9375rem] text-[#64748b] m-0 mt-0.5">{subtitulo}</p>
             )}
           </div>
-          {subtitulo && (
-            <p className="text-[0.9375rem] text-[#64748b] m-0 mt-0.5">{subtitulo}</p>
-          )}
-        </div>
-      </header>
+        </header>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="flex gap-0 p-2 border-b border-[#f1f5f9]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('grupos')}
-            disabled={!hasGroups}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              activeTab === 'grupos'
-                ? 'bg-[#f1f5f9] text-[#0f766e]'
-                : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
-            }`}
-          >
-            Fase de Grupos
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('eliminatorias')}
-            disabled={!hasKnockout}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              activeTab === 'eliminatorias'
-                ? 'bg-[#f1f5f9] text-[#0f766e]'
-                : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
-            }`}
-          >
-            <Trophy size={16} />
-            Eliminatórias
-          </button>
+        {/* Tabs */}
+        <div className="mt-4 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="flex gap-0 p-2 border-b border-[#f1f5f9]">
+            <button
+              type="button"
+              onClick={() => setActiveTab('partidas')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer ${
+                activeTab === 'partidas'
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+              }`}
+            >
+              <BarsOutlined />
+              Partidas
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('grupos')}
+              disabled={!hasGroups}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                activeTab === 'grupos'
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+              }`}
+            >
+              <AppstoreOutlined />
+              Fase de Grupos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('eliminatorias')}
+              disabled={!hasKnockout}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                activeTab === 'eliminatorias'
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+              }`}
+            >
+              <PartitionOutlined />
+              Eliminatórias
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'grupos' && (
-        <div className="flex flex-col gap-4">
-          {!hasGroups ? (
-            <p className="text-sm text-slate-400">Este campeonato não possui fase de grupos.</p>
-          ) : (
-            estrutura.grupos.map((grupo) => (
-              <GrupoSection
-                key={grupo.id}
-                grupo={grupo}
-                partidas={estrutura.partidas}
-                campeonatoId={campeonatoId}
-                config={config}
-                onRegister={setModalPartida}
-                refreshKey={refreshKey}
-                wildcardEquipeIds={estrutura.wildcard_equipe_ids ?? []}
-                wildcardRanking={estrutura.wildcard_ranking ?? []}
-                bloqueado={gruposBloqueados}
-              />
-            ))
-          )}
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+        {/* Tab content */}
+        {activeTab === 'partidas' && (
+          <PartidasTimeline
+            partidas={estrutura.partidas}
+            grupos={estrutura.grupos}
+            onSchedule={setModalAgendamento}
+            onRegister={setModalPartida}
+          />
+        )}
 
-      {activeTab === 'eliminatorias' && (
-        <div className="flex flex-col gap-4">
-          {campeonato?.status === 'FINALIZADO' && (() => {
-            const finalPartida = (estrutura.partidas || []).find(
-              (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
-            )
-            return finalPartida ? (
-              <VencedorBanner
-                vencedorNome={finalPartida.vencedor_nome || `Equipe ${finalPartida.vencedor_equipe_id}`}
-                equipe={vencedorEquipe}
-              />
-            ) : null
-          })()}
-          <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
-            <TournamentBracket
-              matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
-              onRegister={setModalPartida}
-            />
+        {activeTab === 'grupos' && (
+          <div className="flex flex-col gap-4">
+            {!hasGroups ? (
+              <p className="text-sm text-slate-400">Este campeonato não possui fase de grupos.</p>
+            ) : (
+              estrutura.grupos.map((grupo) => (
+                <GrupoSection
+                  key={grupo.id}
+                  grupo={grupo}
+                  partidas={estrutura.partidas}
+                  campeonatoId={campeonatoId}
+                  config={config}
+                  onRegister={setModalPartida}
+                  refreshKey={refreshKey}
+                  wildcardEquipeIds={estrutura.wildcard_equipe_ids ?? []}
+                  wildcardRanking={estrutura.wildcard_ranking ?? []}
+                  bloqueado={gruposBloqueados}
+                />
+              ))
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'eliminatorias' && (
+          <div className="flex flex-col gap-4">
+            {campeonato?.status === 'FINALIZADO' && (() => {
+              const finalPartida = (estrutura.partidas || []).find(
+                (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
+              )
+              return finalPartida ? (
+                <VencedorBanner
+                  vencedorNome={finalPartida.vencedor_nome || `Equipe ${finalPartida.vencedor_equipe_id}`}
+                  equipe={vencedorEquipe}
+                />
+              ) : null
+            })()}
+            <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
+              <TournamentBracket
+                matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
+                onRegister={setModalPartida}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Result modal */}
       {modalPartida && (
@@ -949,6 +1323,15 @@ export default function CampeonatoDetalhe() {
           campeonatoId={campeonatoId}
           onSuccess={handleResultadoSalvo}
           onClose={() => setModalPartida(null)}
+        />
+      )}
+
+      {modalAgendamento && (
+        <AgendarPartidaModal
+          partida={modalAgendamento}
+          campeonatoId={campeonatoId}
+          onSuccess={handleAgendamentoSalvo}
+          onClose={() => setModalAgendamento(null)}
         />
       )}
     </div>
