@@ -141,10 +141,28 @@ async def seed_escolas(quantidade_escolas: int, quantidade_coordenadores: int = 
                         break
                 await cur.execute(
                     """INSERT INTO users (cpf, email, password_hash, nome, role, escola_id, status)
-                       VALUES (%s, %s, %s, %s, 'COORDENADOR', %s, 'ATIVO')
-                       ON CONFLICT (cpf) DO NOTHING""",
-                    (cpf, f"coordenador.escola{i+1}@jogosescolares.local", hash_senha, f"Coordenador Escola {i+1}", escola_id)
+                       VALUES (%s, %s, %s, %s, 'COORDENADOR', NULL, 'ATIVO')
+                       ON CONFLICT (cpf) DO NOTHING
+                       RETURNING id""",
+                    (cpf, f"coordenador.escola{i+1}@jogosescolares.local", hash_senha, f"Coordenador Escola {i+1}")
                 )
+                row = await cur.fetchone()
+                if row:
+                    await cur.execute(
+                        """INSERT INTO coordenadores_escolas (user_id, escola_id, ativo)
+                           VALUES (%s, %s, TRUE)
+                           ON CONFLICT (user_id, escola_id) DO UPDATE SET ativo = TRUE""",
+                        (row["id"], escola_id),
+                    )
+
+            # Corrige coordenadores criados por versões antigas do seed, que gravavam escola_id em users.
+            await cur.execute(
+                """INSERT INTO coordenadores_escolas (user_id, escola_id, ativo)
+                   SELECT id, escola_id, TRUE
+                   FROM users
+                   WHERE role = 'COORDENADOR' AND escola_id IS NOT NULL
+                   ON CONFLICT (user_id, escola_id) DO UPDATE SET ativo = TRUE"""
+            )
 
             print(f"  -> Admin + {diretores_criados} diretores (novos) + {coord_count} coordenadores", flush=True)
 
