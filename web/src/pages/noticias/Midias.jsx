@@ -5,8 +5,12 @@ import { motion } from 'framer-motion'
 import { configuracoesService } from '../../services/configuracoesService'
 import { uploadLogoMidias, fetchStorageBlob } from '../../services/storageService'
 import StorageImage from '../../components/StorageImage'
+import CredencialModalidadeBadge from '../../components/catalogos/CredencialModalidadeBadge'
 
 const ACCEPT_IMAGES = 'image/png,image/jpeg,image/jpg,image/webp'
+
+/** Exemplo fixo no editor — mesma aparência das modalidades no PDF gerado. */
+const DEMO_MODALIDADES_PREVIEW = [{ esporte_nome: 'Futsal' }, { esporte_nome: 'Judô' }]
 
 export default function Midias({ embedded }) {
   const [config, setConfig] = useState({
@@ -38,7 +42,7 @@ export default function Midias({ embedded }) {
     logos: { x: 80, y: 179.2, w: 160, h: 32 },
     nome: { x: 0, y: 249.6, fontSize: 24 },
     info: { x: 0, y: 294.4, fontSize: 12 },
-    modalidades: { x: 32, y: 336, w: 256, h: 70.4, fontSize: 20 }
+    modalidades: { x: 32, y: 320, w: 256, h: 70.4, fontSize: 20 }
   }
 
   const [positions, setPositions] = useState(defaultPositions)
@@ -323,18 +327,16 @@ export default function Midias({ embedded }) {
               onDragEnd={(_, info) => handleDragEnd('modalidades', info)}
               style={{ left: positions.modalidades.x, top: positions.modalidades.y, width: positions.modalidades.w, height: positions.modalidades.h }}
             >
-              <div className="w-full h-full bg-white rounded-2xl shadow-xl border border-blue-100 overflow-hidden">
-                <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    <tr>
-                      <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
-                        <div className="text-[#1d4ed8] font-black leading-none" style={{ fontSize: positions.modalidades.fontSize, fontFamily: "'Sora', sans-serif" }}>FUTSAL</div>
-                        <div className="h-1" />
-                        <div className="text-[#1d4ed8] font-black leading-none" style={{ fontSize: positions.modalidades.fontSize, fontFamily: "'Sora', sans-serif" }}>JUDÔ</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="w-full h-full relative overflow-visible">
+                <div className="flex flex-wrap gap-1.5 justify-center items-start content-start px-0.5 w-full h-full min-h-0 box-border overflow-visible">
+                  {DEMO_MODALIDADES_PREVIEW.map((m) => (
+                    <CredencialModalidadeBadge
+                      key={m.esporte_nome}
+                      esporteNome={m.esporte_nome}
+                      layoutFontSize={positions.modalidades.fontSize}
+                    />
+                  ))}
+                </div>
                 <ResizeHandle elementKey="modalidades" type="both" />
               </div>
             </motion.div>
@@ -349,7 +351,7 @@ export default function Midias({ embedded }) {
             <ul className="space-y-4 text-[11px] text-slate-500 p-0 m-0 list-none mb-10">
               <li className="flex gap-3"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" /><span>Arraste os elementos para as posições desejadas na frente.</span></li>
               <li className="flex gap-3"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" /><span>Use as <b>bolas azuis</b> para mudar o tamanho.</span></li>
-              <li className="flex gap-3"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" /><span>O verso será uma imagem estática preenchendo o fundo.</span></li>
+              <li className="flex gap-3"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" /><span>As <b>modalidades</b> aparecem em badge branco só com o nome (igual na credencial impressa).</span></li>
             </ul>
 
             <Button type="primary" size="large" icon={<Save size={20} />} loading={savingLayout} onClick={handleSaveLayout} className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 border-none shadow-xl shadow-emerald-700/20 font-black rounded-2xl uppercase tracking-widest">

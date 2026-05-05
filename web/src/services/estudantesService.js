@@ -11,6 +11,24 @@ function formatCpf(str) {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
 
+/** Primeiro e último nome por extenso; demais partes como inicial (ex.: João C. P. Souza). */
+function formatNomeParaCredencial(nome) {
+  if (!nome || typeof nome !== 'string') return '–'
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '–'
+  if (parts.length <= 2) return parts.join(' ')
+  const first = parts[0]
+  const last = parts[parts.length - 1]
+  const abbreviated = parts
+    .slice(1, -1)
+    .map((p) => {
+      const c = p.charAt(0)
+      return c ? `${c.toUpperCase()}.` : ''
+    })
+    .filter(Boolean)
+  return [first, ...abbreviated, last].join(' ')
+}
+
 export const estudantesService = {
   /**
    * Lista estudantes-atletas da instituição do coordenador logado.
@@ -48,6 +66,7 @@ export const estudantesService = {
   },
 
   formatCpf,
+  formatNomeParaCredencial,
 
   /**
    * Cria um novo estudante.
