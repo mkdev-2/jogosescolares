@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Checkbox, Modal, Radio, Select, Spin, Switch, Tabs, Tag, message } from 'antd'
+import { AutoComplete, Button, Checkbox, Modal, Radio, Select, Spin, Switch, Tabs, Tag, Tooltip, message } from 'antd'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { ArrowLeft, Search, Trophy } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Trash2, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
@@ -256,7 +256,10 @@ function ManualGruposPanel({ todosConfirmados, grupos, setGrupos }) {
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap gap-2 items-center">
           <Button
+            type="primary"
             size="small"
+            icon={<Plus size={13} />}
+            style={{ backgroundColor: '#0f766e', borderColor: '#0f766e' }}
             onClick={() =>
               setGrupos((prev) => [
                 ...prev,
@@ -271,39 +274,46 @@ function ManualGruposPanel({ todosConfirmados, grupos, setGrupos }) {
           </Button>
         </div>
 
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         {grupos.map((g, gi) => (
           <div key={g.key} className="rounded-xl border border-[#e2e8f0] p-3 bg-white flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
+              <Tooltip title="Remover grupo">
+                <button
+                  type="button"
+                  disabled={grupos.length <= 1}
+                  onClick={() => setGrupos((prev) => prev.filter((_, i) => i !== gi))}
+                  className={[
+                    'flex items-center justify-center rounded p-1 transition-colors',
+                    grupos.length <= 1
+                      ? 'text-[#cbd5e1] cursor-not-allowed'
+                      : 'text-[#ef4444] hover:bg-[#fef2f2]',
+                  ].join(' ')}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </Tooltip>
               <span className="text-xs font-bold text-white bg-[#0f766e] rounded px-2 py-0.5">
                 Grupo {nomeGrupoLabel(gi)}
               </span>
-              <Select
+              <AutoComplete
                 placeholder="Adicionar equipe…"
-                className="min-w-[200px]"
-                value={null}
-                options={pool.map((e) => ({ value: e.id, label: e.nome_escola }))}
-                onChange={(id) => {
-                  const eq = pool.find((e) => e.id === id)
+                className="min-w-[180px] flex-1"
+                value=""
+                options={pool.map((e) => ({ value: String(e.id), label: e.nome_escola }))}
+                filterOption={(input, option) =>
+                  option.label.toLowerCase().includes(input.toLowerCase())
+                }
+                onSelect={(val) => {
+                  const eq = pool.find((e) => e.id === parseInt(val, 10))
                   if (!eq) return
                   setGrupos((prev) =>
                     prev.map((x, i) => (i === gi ? { ...x, equipes: [...x.equipes, eq] } : x))
                   )
                 }}
               />
-              {grupos.length > 1 && (
-                <Button
-                  size="small"
-                  danger
-                  type="text"
-                  onClick={() => {
-                    setGrupos((prev) => prev.filter((_, i) => i !== gi))
-                  }}
-                >
-                  Remover grupo
-                </Button>
-              )}
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+            <div className="flex flex-col gap-2">
               {g.equipes.map((eq, si) => (
                 <DroppableGrupoSlot key={`${g.key}-${eq.id}-${si}`} gi={gi} si={si} equipe={eq} />
               ))}
@@ -311,6 +321,7 @@ function ManualGruposPanel({ todosConfirmados, grupos, setGrupos }) {
             </div>
           </div>
         ))}
+        </div>
 
         <div>
           <p className="text-sm font-semibold text-[#334155] mb-2">Ainda não alocadas</p>

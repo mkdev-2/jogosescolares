@@ -10,7 +10,7 @@ import {
   PartitionOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { ArrowLeft, Trophy } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { equipesService } from '../services/equipesService'
 
@@ -63,6 +63,23 @@ const FASE_ORDER = {
   SEMI: 6,
   FINAL: 7,
   TERCEIRO: 8,
+}
+
+// Fases disponíveis no modal de confronto manual (sem 1/32 e 1/16)
+const FASE_OPTIONS_CONFRONTO = Object.entries(FASE_LABEL)
+  .filter(([v]) => v !== 'TRINTA_E_DOIS_AVOS' && v !== 'DEZESSEIS_AVOS')
+  .map(([value, label]) => ({ value, label }))
+
+function ladoVenceu(partida, lado) {
+  const idKey = lado === 'mandante' ? 'mandante_equipe_id' : 'visitante_equipe_id'
+  if (partida.vencedor_equipe_id != null && partida[idKey] != null) {
+    return partida.vencedor_equipe_id === partida[idKey]
+  }
+  if (partida.vencedor_nome != null) {
+    const nomeKey = lado === 'mandante' ? 'mandante_nome' : 'visitante_nome'
+    return partida.vencedor_nome === partida[nomeKey]
+  }
+  return false
 }
 
 function equipeNome(partida, lado) {
@@ -533,7 +550,7 @@ function VencedorBanner({ vencedorNome, equipe }) {
   )
 }
 
-function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose }) {
+function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOverride }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
@@ -543,10 +560,13 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose }) {
 
   const saveAgendamento = async (inicioEm) => {
     setSaving(true)
+    const isoValue = inicioEm ? inicioEm.second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss') : null
     try {
-      await campeonatosService.agendarPartida(campeonatoId, partida.id, {
-        inicio_em: inicioEm ? inicioEm.second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss') : null,
-      })
+      if (saveOverride) {
+        await saveOverride(partida.id, isoValue)
+      } else {
+        await campeonatosService.agendarPartida(campeonatoId, partida.id, { inicio_em: isoValue })
+      }
       message.success(inicioEm ? 'Partida agendada com sucesso' : 'Agendamento removido')
       onSuccess()
     } catch (err) {
@@ -608,6 +628,127 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose }) {
             className="w-full"
           />
         </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
+function RegistrarResultadoManualModal({ partida, campeonatoId, onSuccess, onClose }) {
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+  const tipo = Form.useWatch('resultado_tipo', form)
+  const placarA = Form.useWatch('placar_a', form)
+  const placarB = Form.useWatch('placar_b', form)
+  const desistente = Form.useWatch('desistente_wxo', form)
+  const isEditing = !!partida.resultado_tipo
+
+  const initialValues = (() => {
+    if (!partida.resultado_tipo) return { resultado_tipo: 'NORMAL' }
+    return {
+      resultado_tipo: partida.resultado_tipo,
+      placar_a: partida.placar_mandante,
+      placar_b: partida.placar_visitante,
+      desistente_wxo: partida.resultado_tipo === 'WXO'
+        ? (partida.vencedor_nome === partida.visitante_nome ? 'A' : 'B')
+        : undefined,
+    }
+  })()
+
+  const vencedorLabel = useMemo(() => {
+    if (tipo === 'WXO' && desistente) return desistente === 'A' ? partida.visitante_nome : partida.mandante_nome
+    if (tipo === 'NORMAL' && placarA != null && placarB != null) {
+      if (placarA > placarB) return partida.mandante_nome
+      if (placarB > placarA) return partida.visitante_nome
+    }
+    return null
+  }, [tipo, placarA, placarB, desistente, partida])
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      setSaving(true)
+      const isWxo = values.resultado_tipo === 'WXO'
+      let vencedorId = null
+      if (isWxo && values.desistente_wxo) {
+        vencedorId = values.desistente_wxo === 'A' ? partida.participante_b_id : partida.participante_a_id
+      } else if (!isWxo && values.placar_a != null && values.placar_b != null) {
+        if (values.placar_a > values.placar_b) vencedorId = partida.participante_a_id
+        else if (values.placar_b > values.placar_a) vencedorId = partida.participante_b_id
+      }
+      await campeonatosService.atualizarManualConfronto(campeonatoId, partida.id, {
+        resultado_tipo: values.resultado_tipo,
+        placar_a: isWxo ? null : values.placar_a,
+        placar_b: isWxo ? null : values.placar_b,
+        vencedor_participante_id: vencedorId,
+      })
+      message.success('Resultado registrado com sucesso')
+      onSuccess()
+    } catch (err) {
+      if (err?.errorFields) return
+      message.error(err.message || 'Erro ao registrar resultado')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title={isEditing ? 'Editar resultado' : 'Registrar resultado'}
+      onCancel={onClose}
+      onOk={handleSave}
+      okText={isEditing ? 'Alterar' : 'Salvar'}
+      confirmLoading={saving}
+      destroyOnClose
+      width={420}
+    >
+      <p className="text-sm text-[#64748b] mb-4">
+        <strong>{partida.mandante_nome || 'A'}</strong>{' vs '}<strong>{partida.visitante_nome || 'B'}</strong>
+      </p>
+      <Form form={form} layout="vertical" initialValues={initialValues}>
+        <Form.Item name="resultado_tipo" label="Tipo de resultado">
+          <Radio.Group>
+            <Radio value="NORMAL">Normal</Radio>
+            <Radio value="WXO">W.O.</Radio>
+          </Radio.Group>
+        </Form.Item>
+        {tipo !== 'WXO' && (
+          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+            <Form.Item
+              name="placar_a"
+              label={partida.mandante_nome || 'A'}
+              rules={[{ required: true, message: 'Obrigatório' }]}
+            >
+              <InputNumber min={0} className="w-full" />
+            </Form.Item>
+            <div className="pb-[5px] text-[#94a3b8] font-semibold text-sm text-center">vs</div>
+            <Form.Item
+              name="placar_b"
+              label={partida.visitante_nome || 'B'}
+              rules={[{ required: true, message: 'Obrigatório' }]}
+            >
+              <InputNumber min={0} className="w-full" />
+            </Form.Item>
+          </div>
+        )}
+        {tipo === 'WXO' && (
+          <Form.Item
+            name="desistente_wxo"
+            label="Qual equipe cometeu o W.O.?"
+            rules={[{ required: true, message: 'Selecione' }]}
+          >
+            <Radio.Group>
+              <Radio value="A">{partida.mandante_nome}</Radio>
+              <Radio value="B">{partida.visitante_nome}</Radio>
+            </Radio.Group>
+          </Form.Item>
+        )}
+        {vencedorLabel && (
+          <div className="flex items-center gap-2 text-sm bg-emerald-50 text-emerald-700 rounded-lg px-3 py-2 mt-1">
+            <Trophy size={13} className="shrink-0" />
+            <span>Vencedor: <strong>{vencedorLabel}</strong></span>
+          </div>
+        )}
       </Form>
     </Modal>
   )
@@ -797,13 +938,13 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
                               {finalizada && <Tag color="green" className="m-0">Resultado registrado</Tag>}
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_minmax(0,1fr)] items-center gap-3">
-                              <span className={`text-sm truncate ${partida.vencedor_equipe_id === partida.mandante_equipe_id ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                              <span className={`text-sm truncate ${ladoVenceu(partida, 'mandante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
                                 {equipeNome(partida, 'mandante')}
                               </span>
                               <span className="text-center whitespace-nowrap">
                                 {placarOuVs(partida)}
                               </span>
-                              <span className={`text-sm truncate text-right ${partida.vencedor_equipe_id === partida.visitante_equipe_id ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                              <span className={`text-sm truncate text-right ${ladoVenceu(partida, 'visitante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
                                 {equipeNome(partida, 'visitante')}
                               </span>
                             </div>
@@ -833,7 +974,7 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
 }
 
 // ── GrupoSection ──────────────────────────────────────────────────────────────
-function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refreshKey, wildcardEquipeIds, wildcardRanking, bloqueado }) {
+function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refreshKey, wildcardEquipeIds, wildcardRanking, bloqueado, isManual }) {
   const partidasGrupo = partidas.filter((p) => p.grupo_id === grupo.id && !p.is_bye)
 
   const handlePartidaClick = (p) => {
@@ -843,6 +984,39 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
       return
     }
     onRegister(p)
+  }
+
+  if (isManual) {
+    const equipes = grupo.equipes || []
+    return (
+      <div className="border border-[#e2e8f0] rounded-xl overflow-hidden">
+        <div className="bg-[#f8fafc] px-4 py-3 border-b border-[#e2e8f0]">
+          <h3 className="font-bold text-[#042f2e] m-0 text-sm">GRUPO {grupo.nome}</h3>
+        </div>
+        <div className="p-4">
+          <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-2">
+            Equipes ({equipes.length})
+          </p>
+          {equipes.length === 0 ? (
+            <p className="text-sm text-[#94a3b8]">Nenhuma equipe neste grupo.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {equipes.map((eq, idx) => (
+                <div
+                  key={eq.equipe_id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0]"
+                >
+                  <span className="text-xs font-bold text-[#94a3b8] w-5 shrink-0 text-center">
+                    {idx + 1}
+                  </span>
+                  <span className="text-sm text-[#1e293b] truncate">{eq.nome_escola}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -948,14 +1122,27 @@ function BracketTeamSlot({ name, score, isWinner }) {
 }
 
 // ── Bracket match box ─────────────────────────────────────────────────────────
-function BracketMatchBox({ partida, top, left, onRegister }) {
+function BracketMatchBox({ partida, top, left, onRegister, slotConcluidoMap }) {
   const hasResult = !!partida.resultado_tipo
   const v = partida.vencedor_equipe_id
   const isBye = partida.is_bye
 
+  // Verifica se o slot (SEED_N) já teve seu grupo classificatório concluído.
+  // Slots de rodadas posteriores (R1M1 etc.) sempre retornam true — já são preenchidos
+  // pelo backend apenas quando o vencedor é determinado.
+  function slotOk(origemSlot) {
+    if (hasResult || !origemSlot || !slotConcluidoMap) return true
+    const m = origemSlot.match(/^SEED_(\d+)$/)
+    if (!m) return true
+    return slotConcluidoMap[parseInt(m[1])] ?? true
+  }
+
+  const mandanteOk = slotOk(partida.origem_slot_a)
+  const visitanteOk = slotOk(partida.origem_slot_b)
+
   const visitanteName = isBye && !partida.visitante_equipe_id
     ? 'WO'
-    : partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)
+    : visitanteOk ? (partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)) : null
 
   return (
     <div
@@ -967,22 +1154,22 @@ function BracketMatchBox({ partida, top, left, onRegister }) {
       title={isBye ? 'Classificado por WO' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
     >
       <BracketTeamSlot
-        name={partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)}
+        name={mandanteOk ? (partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)) : null}
         score={hasResult ? partida.placar_mandante : null}
-        isWinner={v !== null && v === partida.mandante_equipe_id}
+        isWinner={mandanteOk && v !== null && v === partida.mandante_equipe_id}
       />
       <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
       <BracketTeamSlot
         name={visitanteName}
         score={hasResult ? partida.placar_visitante : null}
-        isWinner={v !== null && v === partida.visitante_equipe_id}
+        isWinner={visitanteOk && v !== null && v === partida.visitante_equipe_id}
       />
     </div>
   )
 }
 
 // ── Tournament bracket ────────────────────────────────────────────────────────
-function TournamentBracket({ matches, onRegister }) {
+function TournamentBracket({ matches, onRegister, slotConcluidoMap }) {
   const mainMatches = matches.filter(
     (m) => BRACKET_PHASES.includes(m.fase) && (!m.is_bye || m.vencedor_equipe_id !== null)
   )
@@ -1043,6 +1230,7 @@ function TournamentBracket({ matches, onRegister }) {
                 top={matchTop(rIdx, mIdx)}
                 left={columnLeft(rIdx)}
                 onRegister={onRegister}
+                slotConcluidoMap={slotConcluidoMap}
               />
             ))
           )}
@@ -1091,12 +1279,44 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
   const participantes = useMemo(() => manualData?.participantes || [], [manualData])
   const participanteOptions = participantes.map((p) => ({ value: p.id, label: p.nome_exibicao }))
 
+  // Watches para o form de confronto
+  const modalResultadoTipo = Form.useWatch('resultado_tipo', form)
+  const modalPlacarA = Form.useWatch('placar_a', form)
+  const modalPlacarB = Form.useWatch('placar_b', form)
+  const modalParA = Form.useWatch('participante_a_id', form)
+  const modalParB = Form.useWatch('participante_b_id', form)
+
+  // Opções do select "Vencedor" — só os dois participantes escolhidos
+  const vencedorOptions = useMemo(() => {
+    const opts = []
+    if (modalParA) {
+      const p = participantes.find((p) => p.id === modalParA)
+      if (p) opts.push({ value: p.id, label: p.nome_exibicao })
+    }
+    if (modalParB) {
+      const p = participantes.find((p) => p.id === modalParB)
+      if (p) opts.push({ value: p.id, label: p.nome_exibicao })
+    }
+    return opts
+  }, [modalParA, modalParB, participantes])
+
+  // Auto-preenche vencedor com base nos placares
+  useEffect(() => {
+    if (modal.tipo !== 'confronto' || modalResultadoTipo !== 'NORMAL') return
+    if (modalPlacarA == null || modalPlacarB == null) return
+    if (modalPlacarA > modalPlacarB && modalParA) {
+      form.setFieldValue('vencedor_participante_id', modalParA)
+    } else if (modalPlacarB > modalPlacarA && modalParB) {
+      form.setFieldValue('vencedor_participante_id', modalParB)
+    }
+  }, [modalResultadoTipo, modalPlacarA, modalPlacarB, modalParA, modalParB, modal.tipo, form])
+
   const openModal = (tipo, record = null) => {
     setModal({ tipo, record })
     if (!record) {
       form.resetFields()
       if (tipo === 'classificacao') form.setFieldsValue({ grupo_nome: 'Geral', posicao: (manualData?.classificacao?.length || 0) + 1, ordem: 1 })
-      if (tipo === 'confronto') form.setFieldsValue({ fase: 'GRUPOS', rodada: 1, ordem: 1 })
+      if (tipo === 'confronto') form.setFieldsValue({ fase: 'GRUPOS', rodada: 1, ordem: 1, resultado_tipo: 'NORMAL' })
       return
     }
     form.setFieldsValue({
@@ -1251,41 +1471,79 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <Form.Item name="fase" label="Fase" rules={[{ required: true }]}>
-                  <Select options={Object.entries(FASE_LABEL).map(([value, label]) => ({ value, label }))} />
+                  <Select options={FASE_OPTIONS_CONFRONTO} />
                 </Form.Item>
                 <Form.Item name="rodada" label="Rodada" rules={[{ required: true }]}>
                   <InputNumber min={1} className="w-full" />
                 </Form.Item>
               </div>
-              <Form.Item name="participante_a_id" label="Participante A">
-                <Select allowClear options={participanteOptions} />
+              <Form.Item
+                name="participante_a_id"
+                label="Participante A"
+                rules={[{ required: true, message: 'Selecione o Participante A' }]}
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Buscar escola..."
+                  options={participanteOptions}
+                  onChange={() => form.setFieldValue('vencedor_participante_id', undefined)}
+                />
               </Form.Item>
-              <Form.Item name="participante_b_id" label="Participante B">
-                <Select allowClear options={participanteOptions} />
-              </Form.Item>
-              <Form.Item name="inicio_em" label="Data e horário">
-                <DatePicker showTime format="DD/MM/YYYY HH:mm" className="w-full" />
+              <Form.Item
+                name="participante_b_id"
+                label="Participante B"
+                rules={[{ required: true, message: 'Selecione o Participante B' }]}
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Buscar escola..."
+                  options={participanteOptions}
+                  onChange={() => form.setFieldValue('vencedor_participante_id', undefined)}
+                />
               </Form.Item>
               <div className="grid grid-cols-2 gap-3">
-                <Form.Item name="placar_a" label="Placar A">
-                  <InputNumber min={0} className="w-full" />
+                <Form.Item name="inicio_em" label="Data e horário">
+                  <DatePicker showTime format="DD/MM/YYYY HH:mm" className="w-full" />
                 </Form.Item>
-                <Form.Item name="placar_b" label="Placar B">
-                  <InputNumber min={0} className="w-full" />
+                <Form.Item name="resultado_tipo" label="Resultado">
+                  <Select
+                    allowClear
+                    options={[
+                      { value: 'NORMAL', label: 'Normal' },
+                      { value: 'WXO', label: 'W.O.' },
+                      { value: 'ADIADA', label: 'Adiada' },
+                      { value: 'CANCELADA', label: 'Cancelada' },
+                    ]}
+                  />
                 </Form.Item>
               </div>
-              <Form.Item name="resultado_tipo" label="Tipo de resultado">
-                <Select allowClear options={[
-                  { value: 'NORMAL', label: 'Normal' },
-                  { value: 'WXO', label: 'WxO' },
-                  { value: 'ADIADA', label: 'Adiada' },
-                  { value: 'CANCELADA', label: 'Cancelada' },
-                ]} />
-              </Form.Item>
+              {modalResultadoTipo === 'NORMAL' && (
+                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                  <Form.Item
+                    name="placar_a"
+                    label={participantes.find((p) => p.id === modalParA)?.nome_exibicao || 'Placar A'}
+                  >
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+                  <div className="pb-[5px] text-[#94a3b8] font-semibold text-sm text-center">vs</div>
+                  <Form.Item
+                    name="placar_b"
+                    label={participantes.find((p) => p.id === modalParB)?.nome_exibicao || 'Placar B'}
+                  >
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+                </div>
+              )}
               <Form.Item name="vencedor_participante_id" label="Vencedor">
-                <Select allowClear options={participanteOptions} />
+                <Select
+                  allowClear
+                  options={vencedorOptions}
+                  placeholder={vencedorOptions.length === 0 ? 'Selecione os participantes primeiro' : 'Selecionar vencedor'}
+                />
               </Form.Item>
-              <Form.Item name="ordem" label="Ordem" rules={[{ required: true }]}>
+              <Form.Item name="ordem" label="Ordem de exibição" rules={[{ required: true }]}>
                 <InputNumber min={1} className="w-full" />
               </Form.Item>
             </>
@@ -1341,10 +1599,13 @@ export default function CampeonatoDetalhe() {
   const [manualData, setManualData] = useState(null)
   const [config, setConfig] = useState(null)
   const [activeTab, setActiveTab] = useState('partidas')
+  const [manualOpen, setManualOpen] = useState(true)
   const [modalPartida, setModalPartida] = useState(null)
   const [modalAgendamento, setModalAgendamento] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [vencedorEquipe, setVencedorEquipe] = useState(null)
+  const [modalManualPartida, setModalManualPartida] = useState(null)
+  const [modalManualAgendamento, setModalManualAgendamento] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -1388,9 +1649,51 @@ export default function CampeonatoDetalhe() {
     fetchData()
   }
 
+  const handleManualResultadoSalvo = () => {
+    setModalManualPartida(null)
+    fetchData()
+  }
+
+  const handleManualAgendamentoSalvo = () => {
+    setModalManualAgendamento(null)
+    fetchData()
+  }
+
+  const handleManualRegister = useCallback((partida) => {
+    const confronto = (manualData?.confrontos || []).find((c) => c.id === partida.id)
+    setModalManualPartida({
+      ...partida,
+      participante_a_id: confronto?.participante_a_id ?? null,
+      participante_b_id: confronto?.participante_b_id ?? null,
+    })
+  }, [manualData])
+
+  const handleManualAgendarSave = useCallback(async (confrontoId, inicioEm) => {
+    await campeonatosService.atualizarManualConfronto(campeonatoId, confrontoId, { inicio_em: inicioEm })
+  }, [campeonatoId])
+
   const hasGroups = (estrutura?.grupos?.length || 0) > 0
   const hasKnockout = (estrutura?.partidas || []).some((p) => p.grupo_id === null)
   const hasPlayablePartidas = (estrutura?.partidas || []).some((p) => !p.is_bye)
+  // Mapeia seed number → se o grupo que o originou já concluiu todas as partidas.
+  // Seeds são atribuídos sequencialmente pelos grupos ordenados por `ordem`,
+  // cada grupo contribuindo `classificados_diretos` seeds.
+  // Slots wildcard (equipe_id já é NULL no banco) não precisam de mascaramento aqui.
+  const slotConcluidoMap = useMemo(() => {
+    if (!hasGroups || !estrutura) return null
+    const grupos = [...(estrutura.grupos || [])].sort((a, b) => a.ordem - b.ordem)
+    const map = {}
+    let seedIdx = 1
+    for (const grupo of grupos) {
+      const partidasGrupo = (estrutura.partidas || []).filter((p) => p.grupo_id === grupo.id && !p.is_bye)
+      const concluido = partidasGrupo.length > 0 && partidasGrupo.every((p) => !!p.resultado_tipo)
+      for (let i = 0; i < (grupo.classificados_diretos || 1); i++) {
+        map[seedIdx] = concluido
+        seedIdx++
+      }
+    }
+    return map
+  }, [hasGroups, estrutura])
   const gruposBloqueados = (estrutura?.partidas || []).some(
     (p) => p.grupo_id === null && !p.is_bye && !!p.resultado_tipo
   )
@@ -1516,31 +1819,50 @@ export default function CampeonatoDetalhe() {
             </button>
           </div>
         </div>
+
+        {/* Manual data collapsible */}
+        {isManual && (
+          <div className="mt-4 bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setManualOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#f8fafc] transition-colors border-0 cursor-pointer bg-transparent"
+            >
+              <span className="text-sm font-semibold text-[#042f2e]">
+                Participantes · Confrontos e Resultados · Classificação Manual
+              </span>
+              <ChevronDown
+                size={15}
+                className="text-[#64748b] shrink-0 transition-transform duration-200"
+                style={{ transform: manualOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
+            </button>
+            {manualOpen && (
+              <div className="border-t border-[#f1f5f9] p-4 max-h-[42vh] overflow-y-auto">
+                <ManualDataEditor
+                  campeonatoId={campeonatoId}
+                  manualData={manualData}
+                  onRefresh={fetchData}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
-        {isManual && (
-          <div className="mb-4">
-            <ManualDataEditor
-              campeonatoId={campeonatoId}
-              manualData={manualData}
-              onRefresh={fetchData}
-            />
-          </div>
-        )}
-
         {/* Tab content */}
         {activeTab === 'partidas' && (
           <PartidasTimeline
             partidas={estrutura.partidas}
             grupos={estrutura.grupos}
-            onSchedule={isManual ? undefined : setModalAgendamento}
-            onRegister={isManual ? undefined : setModalPartida}
+            onSchedule={isManual ? setModalManualAgendamento : setModalAgendamento}
+            onRegister={isManual ? handleManualRegister : setModalPartida}
           />
         )}
 
         {activeTab === 'grupos' && (
-          <div className="flex flex-col gap-4">
+          <div className={isManual ? 'grid grid-cols-2 lg:grid-cols-3 gap-4 items-start' : 'flex flex-col gap-4'}>
             {!hasGroups ? (
               <p className="text-sm text-slate-400">Este campeonato não possui fase de grupos.</p>
             ) : (
@@ -1556,6 +1878,7 @@ export default function CampeonatoDetalhe() {
                   wildcardEquipeIds={estrutura.wildcard_equipe_ids ?? []}
                   wildcardRanking={estrutura.wildcard_ranking ?? []}
                   bloqueado={gruposBloqueados}
+                  isManual={isManual}
                 />
               ))
             )}
@@ -1579,6 +1902,7 @@ export default function CampeonatoDetalhe() {
               <TournamentBracket
                 matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
                 onRegister={isManual ? undefined : setModalPartida}
+                slotConcluidoMap={slotConcluidoMap}
               />
             </div>
           </div>
@@ -1602,6 +1926,25 @@ export default function CampeonatoDetalhe() {
           campeonatoId={campeonatoId}
           onSuccess={handleAgendamentoSalvo}
           onClose={() => setModalAgendamento(null)}
+        />
+      )}
+
+      {modalManualPartida && (
+        <RegistrarResultadoManualModal
+          partida={modalManualPartida}
+          campeonatoId={campeonatoId}
+          onSuccess={handleManualResultadoSalvo}
+          onClose={() => setModalManualPartida(null)}
+        />
+      )}
+
+      {modalManualAgendamento && (
+        <AgendarPartidaModal
+          partida={modalManualAgendamento}
+          campeonatoId={campeonatoId}
+          onSuccess={handleManualAgendamentoSalvo}
+          onClose={() => setModalManualAgendamento(null)}
+          saveOverride={handleManualAgendarSave}
         />
       )}
     </div>
