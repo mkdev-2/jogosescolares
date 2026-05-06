@@ -1,40 +1,78 @@
 import { useEffect, useState } from 'react'
-import { Spin, Tag, Select } from 'antd'
-import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users } from 'lucide-react'
+import { Spin, Select } from 'antd'
+import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users, Dumbbell } from 'lucide-react'
 import { publicCampeonatosService } from '../services/publicCampeonatosService'
 import PublicHeader from '../components/landing/PublicHeader'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
-import { STATUS_COLORS, STATUS_LABELS } from '../components/campeonato/statusConfig'
+import { STATUS_LABELS } from '../components/campeonato/statusConfig'
 import { FASE_LABEL } from '../components/campeonato/TournamentBracket'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import GrupoSection from '../components/campeonato/GrupoSection'
 import TournamentBracket from '../components/campeonato/TournamentBracket'
 import VencedorBanner from '../components/campeonato/VencedorBanner'
+import PartidasTimeline from '../components/campeonato/PartidasTimeline'
+
+const STATUS_PILL = {
+  GERADO: 'bg-blue-100 text-blue-700',
+  EM_ANDAMENTO: 'bg-amber-100 text-amber-700',
+  FINALIZADO: 'bg-emerald-100 text-emerald-700',
+}
+
+function StatusPill({ status }) {
+  return (
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${STATUS_PILL[status] || 'bg-slate-100 text-slate-600'}`}>
+      {STATUS_LABELS[status] || status}
+    </span>
+  )
+}
+
+function StatBadge({ icon: Icon, value, label }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="p-1.5 rounded-lg bg-white/10">
+        <Icon size={14} className="text-teal-200" />
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-xl font-extrabold text-white leading-none tabular-nums">{value}</span>
+        <span className="text-teal-200/80 text-xs">{label}</span>
+      </div>
+    </div>
+  )
+}
 
 function ConfrontoCard({ confronto, showSport }) {
+  const hasScore = confronto.placar_mandante != null && confronto.placar_visitante != null
   return (
-    <div className="shrink-0 w-52 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:border-teal-300 transition-all">
-      <div className="h-1 bg-teal-500" />
-      <div className="p-3 flex flex-col gap-2 flex-1">
+    <div className="shrink-0 w-56 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-teal-300 transition-all duration-200">
+      <div className="h-1 bg-gradient-to-r from-teal-600 to-teal-400" />
+      <div className="p-3 flex flex-col gap-2.5 flex-1">
         {showSport && (
           <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider truncate">
             {confronto.esporte_nome} · {confronto.categoria_nome}
           </span>
         )}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+          <span className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2 text-right">
             {confronto.mandante_nome}
           </span>
-          <span className="text-[10px] text-slate-400 font-medium">vs</span>
+          {hasScore ? (
+            <span className="text-sm font-extrabold text-teal-700 tabular-nums whitespace-nowrap px-1">
+              {confronto.placar_mandante} × {confronto.placar_visitante}
+            </span>
+          ) : (
+            <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
+              VS
+            </span>
+          )}
           <span className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2">
             {confronto.visitante_nome}
           </span>
         </div>
-        <div className="flex items-center gap-1 flex-wrap mt-auto pt-1">
-          <span className="text-[10px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 font-medium">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-slate-500 bg-slate-100 rounded-full px-2 py-0.5 font-medium">
             {FASE_LABEL[confronto.fase] || confronto.fase}
           </span>
-          <span className="text-[10px] text-slate-400 bg-slate-50 rounded px-1.5 py-0.5">
+          <span className="text-[10px] text-slate-400 bg-slate-50 rounded-full px-2 py-0.5">
             Rd. {confronto.rodada}
           </span>
         </div>
@@ -47,9 +85,12 @@ function ProximosConfrontosSection({ confrontos, showSport }) {
   if (confrontos.length === 0) {
     return (
       <section className="bg-white rounded-xl border border-slate-200 px-5 py-4">
-        <h2 className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-1 m-0">
-          Próximos confrontos
-        </h2>
+        <div className="flex items-center gap-2 mb-1">
+          <Calendar size={13} className="text-teal-600 shrink-0" />
+          <h2 className="text-[10px] font-bold text-teal-700 uppercase tracking-widest m-0">
+            Próximos confrontos
+          </h2>
+        </div>
         <p className="text-sm text-slate-400 m-0">Nenhum confronto pendente no momento.</p>
       </section>
     )
@@ -57,9 +98,12 @@ function ProximosConfrontosSection({ confrontos, showSport }) {
 
   return (
     <section>
-      <h2 className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3 m-0">
-        Próximos confrontos
-      </h2>
+      <div className="flex items-center gap-2 mb-3">
+        <Calendar size={13} className="text-teal-600 shrink-0" />
+        <h2 className="text-[10px] font-bold text-teal-700 uppercase tracking-widest m-0">
+          Próximos confrontos
+        </h2>
+      </div>
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
         {confrontos.map((c) => (
           <ConfrontoCard key={c.partida_id} confronto={c} showSport={showSport} />
@@ -105,21 +149,23 @@ function SportAccordionSidebar({ esportes, selectedVarianteId, expandedEsporteId
                         key={v.id}
                         type="button"
                         onClick={() => onSelectVariante(v)}
-                        className={`w-full flex items-center justify-between gap-2 pl-9 pr-3 py-2 text-left transition-colors bg-transparent border-0 border-l-2 border-solid cursor-pointer ${
+                        className={`w-full flex items-center justify-between gap-2 pl-9 pr-3 py-2 text-left transition-colors bg-transparent border-0 cursor-pointer ${
                           isSelected
-                            ? 'border-l-teal-500 bg-teal-50/60'
-                            : 'border-l-transparent hover:bg-slate-50'
+                            ? 'bg-gradient-to-r from-teal-600 to-teal-500'
+                            : 'hover:bg-slate-50'
                         }`}
                       >
-                        <span className={`text-[11px] leading-snug ${isSelected ? 'font-semibold text-teal-700' : 'text-slate-600'}`}>
+                        <span className={`text-[11px] leading-snug ${isSelected ? 'font-semibold text-white' : 'text-slate-600'}`}>
                           {label}
                         </span>
                         {v.campeonato ? (
-                          <Tag color={STATUS_COLORS[v.campeonato.status] || 'default'} style={{ fontSize: 10, lineHeight: '16px', margin: 0 }}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${
+                            isSelected ? 'bg-white/20 text-white' : (STATUS_PILL[v.campeonato.status] || 'bg-slate-100 text-slate-600')
+                          }`}>
                             {STATUS_LABELS[v.campeonato.status] || v.campeonato.status}
-                          </Tag>
+                          </span>
                         ) : (
-                          <span className="text-[10px] text-slate-300 shrink-0">—</span>
+                          <span className={`text-[10px] shrink-0 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>—</span>
                         )}
                       </button>
                     )
@@ -150,9 +196,7 @@ function CampeonatoAside({ campDetail }) {
           {statusVal && (
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 m-0">Status</p>
-              <Tag color={STATUS_COLORS[statusVal] || 'default'}>
-                {STATUS_LABELS[statusVal] || statusVal}
-              </Tag>
+              <StatusPill status={statusVal} />
             </div>
           )}
 
@@ -262,6 +306,7 @@ export default function Resultados() {
 
   const hasGroups = (campDetail?.estrutura?.grupos?.length || 0) > 0
   const hasKnockout = (campDetail?.estrutura?.partidas || []).some((p) => p.grupo_id === null)
+  const hasPartidas = (campDetail?.estrutura?.partidas || []).some((p) => !p.is_bye)
   const finalPartida = campDetail?.estrutura?.partidas?.find(
     (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
   )
@@ -269,18 +314,36 @@ export default function Resultados() {
   const confrontosAtivos = campDetail ? proximosCamp : proximosGlobal
   const showSportLabel = !campDetail
 
+  const selectedEsporte = esportes.find((e) => e.variantes.some((v) => v.id === selectedVarianteId))
+  const totalEsportesComCamp = esportes.filter((e) => e.variantes.some((v) => v.campeonato !== null)).length
+  const totalCampeonatos = esportes.reduce((sum, e) => sum + e.variantes.filter((v) => v.campeonato !== null).length, 0)
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <PublicHeader />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-6">
-        <header>
-          <h1 className="text-3xl font-extrabold text-[#042f2e] tracking-tight m-0">Resultados</h1>
-          <p className="text-slate-500 mt-1 text-base m-0">
-            Acompanhe campeonatos, classificações e próximos confrontos em tempo real.
-          </p>
-        </header>
+      <div className="w-full bg-gradient-to-br from-[#042f2e] via-[#0f766e] to-[#0d9488]">
+        <div className="max-w-7xl mx-auto px-4 py-10 flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+              <Trophy size={24} className="text-amber-300" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight m-0">Resultados</h1>
+              <p className="text-teal-100/70 text-sm m-0 mt-0.5">Campeonatos, classificações e confrontos</p>
+            </div>
+          </div>
+          {!loadingInit && (
+            <div className="flex gap-6 flex-wrap">
+              <StatBadge icon={Trophy} value={totalCampeonatos} label="Campeonatos" />
+              <StatBadge icon={Dumbbell} value={totalEsportesComCamp} label="Esportes" />
+              <StatBadge icon={Calendar} value={proximosGlobal.length} label="Confrontos pendentes" />
+            </div>
+          )}
+        </div>
+      </div>
 
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-6">
         {loadingInit ? (
           <div className="flex justify-center py-20">
             <Spin size="large" />
@@ -348,44 +411,61 @@ export default function Resultados() {
 
                   {campDetail && !loadingDetail && (
                     <div className="flex flex-col gap-5">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-xl font-bold text-[#042f2e] m-0 tracking-tight">
-                            {campDetail.nome}
-                          </h2>
-                          <Tag color={STATUS_COLORS[campDetail.status] || 'default'}>
-                            {STATUS_LABELS[campDetail.status] || campDetail.status}
-                          </Tag>
+                      <div className="flex items-start gap-3">
+                        {selectedEsporte && (
+                          <div className="p-2 rounded-lg bg-teal-50 border border-teal-100 shrink-0 mt-0.5">
+                            <ModalidadeIcon icone={selectedEsporte.icone} size={18} className="text-teal-600" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h2 className="text-xl font-bold text-[#042f2e] m-0 tracking-tight">
+                              {campDetail.nome}
+                            </h2>
+                            <StatusPill status={campDetail.status} />
+                          </div>
+                          <p className="text-sm text-slate-500 m-0 mt-0.5">
+                            {[campDetail.esporte_nome, campDetail.categoria_nome, campDetail.naipe_nome]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
                         </div>
-                        <p className="text-sm text-slate-500 m-0 mt-0.5">
-                          {[campDetail.esporte_nome, campDetail.categoria_nome, campDetail.naipe_nome]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </p>
                       </div>
 
                       <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="flex gap-0 p-2 border-b border-slate-100">
+                        <div className="flex gap-1 p-1.5 bg-slate-50 border-b border-slate-100 flex-wrap">
                           <button
                             type="button"
                             onClick={() => setActiveTab('grupos')}
                             disabled={!hasGroups}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                               activeTab === 'grupos'
-                                ? 'bg-[#f1f5f9] text-[#0f766e]'
-                                : 'bg-transparent text-slate-700 hover:bg-slate-50'
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'bg-transparent text-slate-600 hover:bg-white hover:text-slate-800'
                             }`}
                           >
                             Fase de Grupos
                           </button>
                           <button
                             type="button"
+                            onClick={() => setActiveTab('partidas')}
+                            disabled={!hasPartidas}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                              activeTab === 'partidas'
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'bg-transparent text-slate-600 hover:bg-white hover:text-slate-800'
+                            }`}
+                          >
+                            Partidas
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setActiveTab('eliminatorias')}
                             disabled={!hasKnockout}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                               activeTab === 'eliminatorias'
-                                ? 'bg-[#f1f5f9] text-[#0f766e]'
-                                : 'bg-transparent text-slate-700 hover:bg-slate-50'
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'bg-transparent text-slate-600 hover:bg-white hover:text-slate-800'
                             }`}
                           >
                             <Trophy size={15} />
@@ -411,6 +491,15 @@ export default function Resultados() {
                               />
                             ))
                           )}
+                        </div>
+                      )}
+
+                      {activeTab === 'partidas' && (
+                        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                          <PartidasTimeline
+                            partidas={campDetail.estrutura.partidas}
+                            grupos={campDetail.estrutura.grupos}
+                          />
                         </div>
                       )}
 

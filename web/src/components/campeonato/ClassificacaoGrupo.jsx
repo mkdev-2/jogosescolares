@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Popover, Table, Tooltip } from 'antd'
+import { Popover } from 'antd'
+import { Trophy } from 'lucide-react'
 import { publicCampeonatosService } from '../../services/publicCampeonatosService'
 
 const CRITERIO_LABEL = {
@@ -111,6 +112,35 @@ function ClassificadoPopoverContent({ record, isWildcard, wildcardRanking }) {
   )
 }
 
+function PositionBadge({ posicao }) {
+  if (posicao === 1) {
+    return (
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-amber-50">
+        <Trophy size={13} className="text-amber-500" />
+      </span>
+    )
+  }
+  if (posicao === 2) {
+    return (
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-teal-100 text-teal-700 text-xs font-bold">
+        2
+      </span>
+    )
+  }
+  if (posicao === 3) {
+    return (
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-100 text-slate-600 text-xs font-bold">
+        3
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center justify-center w-6 text-xs font-medium text-slate-400">
+      {posicao}
+    </span>
+  )
+}
+
 export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, config, wildcardEquipeIds, wildcardRanking }) {
   const [classificacao, setClassificacao] = useState([])
   const [loading, setLoading] = useState(false)
@@ -130,67 +160,96 @@ export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificado
     grupoConcluido &&
     (r.posicao <= classificadosDiretos || (wildcardEquipeIds ?? []).includes(r.equipe_id))
 
-  const th = (sigla, label) => (
-    <Tooltip title={label} mouseEnterDelay={0.3}>
-      <span style={{ cursor: 'default' }}>{sigla}</span>
-    </Tooltip>
-  )
-
-  const cols = [
-    { title: '#', dataIndex: 'posicao', key: 'posicao', width: 36 },
-    {
-      title: 'Escola',
-      dataIndex: 'nome_escola',
-      key: 'nome_escola',
-      render: (nome, record) => {
-        if (!isClassificado(record)) return nome
-        const wc = (wildcardEquipeIds ?? []).includes(record.equipe_id)
-        return (
-          <Popover
-            content={<ClassificadoPopoverContent record={record} isWildcard={wc} wildcardRanking={wildcardRanking} />}
-            trigger="hover"
-            placement="right"
-            mouseEnterDelay={0.2}
-          >
-            <span className="cursor-default underline decoration-dotted decoration-emerald-500">{nome}</span>
-          </Popover>
-        )
-      },
-    },
-    { title: th('PTS', 'Pontos'), dataIndex: 'pts', key: 'pts', width: 48 },
-    { title: th('J', 'Jogos'), dataIndex: 'J', key: 'J', width: 36 },
-    { title: th('V', 'Vitórias'), dataIndex: 'V', key: 'V', width: 36 },
-    { title: th('E', 'Empates'), dataIndex: 'E', key: 'E', width: 36 },
-    { title: th('D', 'Derrotas'), dataIndex: 'D', key: 'D', width: 36 },
-    {
-      title: th(usaSec ? 'S+' : 'PRÓ', usaSec ? 'Sets a favor' : 'A favor (marcados)'),
-      dataIndex: 'pro', key: 'pro', width: 50,
-    },
-    {
-      title: th(usaSec ? 'S-' : 'CTR', usaSec ? 'Sets contra' : 'Contra (sofridos)'),
-      dataIndex: 'contra', key: 'contra', width: 50,
-    },
-    {
-      title: th('SLD', usaSec ? 'Saldo de sets' : 'Saldo de pontos'),
-      dataIndex: 'saldo', key: 'saldo', width: 48,
-    },
-    ...(usaSec
-      ? [
-          { title: th('P+', 'Pontos a favor'), dataIndex: 'pro_sec', key: 'pro_sec', width: 50 },
-          { title: th('P-', 'Pontos contra'), dataIndex: 'contra_sec', key: 'contra_sec', width: 50 },
-        ]
-      : []),
-  ]
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
-    <Table
-      rowKey="equipe_id"
-      size="small"
-      pagination={false}
-      loading={loading}
-      dataSource={classificacao}
-      columns={cols}
-      rowClassName={(r) => isClassificado(r) ? 'bg-emerald-50' : ''}
-    />
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="bg-gradient-to-r from-teal-700 to-teal-600">
+            <th className="px-3 py-2.5 text-left text-white/80 font-semibold text-xs w-8">#</th>
+            <th className="px-3 py-2.5 text-left text-white/80 font-semibold text-xs">Escola</th>
+            <th title="Pontos" className="px-2 py-2.5 text-center text-white font-bold text-xs">PTS</th>
+            <th title="Jogos" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">J</th>
+            <th title="Vitórias" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">V</th>
+            <th title="Empates" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">E</th>
+            <th title="Derrotas" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">D</th>
+            <th title={usaSec ? 'Sets a favor' : 'A favor (marcados)'} className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">
+              {usaSec ? 'S+' : 'PRÓ'}
+            </th>
+            <th title={usaSec ? 'Sets contra' : 'Contra (sofridos)'} className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">
+              {usaSec ? 'S-' : 'CTR'}
+            </th>
+            <th title={usaSec ? 'Saldo de sets' : 'Saldo de pontos'} className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">
+              SLD
+            </th>
+            {usaSec && (
+              <>
+                <th title="Pontos a favor" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">P+</th>
+                <th title="Pontos contra" className="px-2 py-2.5 text-center text-white/70 font-semibold text-xs">P-</th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {classificacao.map((r, idx) => {
+            const classificado = isClassificado(r)
+            const wc = (wildcardEquipeIds ?? []).includes(r.equipe_id)
+            return (
+              <tr
+                key={r.equipe_id}
+                className={`border-b border-slate-100 last:border-0 transition-colors ${
+                  classificado
+                    ? 'bg-emerald-50 hover:bg-emerald-100/60'
+                    : idx % 2 === 0
+                      ? 'bg-white hover:bg-slate-50'
+                      : 'bg-slate-50/50 hover:bg-slate-100/60'
+                }`}
+              >
+                <td className="px-3 py-2">
+                  <PositionBadge posicao={r.posicao} />
+                </td>
+                <td className="px-3 py-2 font-medium text-slate-800">
+                  {classificado ? (
+                    <Popover
+                      content={<ClassificadoPopoverContent record={r} isWildcard={wc} wildcardRanking={wildcardRanking} />}
+                      trigger="hover"
+                      placement="right"
+                      mouseEnterDelay={0.2}
+                    >
+                      <span className="cursor-default underline decoration-dotted decoration-emerald-500">{r.nome_escola}</span>
+                    </Popover>
+                  ) : (
+                    r.nome_escola
+                  )}
+                </td>
+                <td className="px-2 py-2 text-center font-bold text-teal-700 tabular-nums">{r.pts}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.J}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.V}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.E}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.D}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.pro}</td>
+                <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.contra}</td>
+                <td className={`px-2 py-2 text-center tabular-nums font-medium ${r.saldo > 0 ? 'text-emerald-600' : r.saldo < 0 ? 'text-red-500' : 'text-slate-500'}`}>
+                  {r.saldo > 0 ? `+${r.saldo}` : r.saldo}
+                </td>
+                {usaSec && (
+                  <>
+                    <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.pro_sec}</td>
+                    <td className="px-2 py-2 text-center text-slate-600 tabular-nums">{r.contra_sec}</td>
+                  </>
+                )}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
