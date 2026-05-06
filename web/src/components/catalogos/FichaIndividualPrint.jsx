@@ -243,38 +243,41 @@ export default function FichaIndividualPrint({ dados, ano = new Date().getFullYe
           </ul>
         </div>
 
-        {/* Assinaturas Atleta e Responsável */}
-        <div className="grid grid-cols-2 gap-8 mb-4 mt-4">
-          <div className="text-center">
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="font-bold text-[9px]">Assinatura do Estudante-atleta</p>
+        {/* Assinaturas — agrupadas para evitar corte na impressão em resoluções menores */}
+        <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          {/* Assinaturas Atleta e Responsável */}
+          <div className="grid grid-cols-2 gap-8 mb-4 mt-4">
+            <div className="text-center">
+              <div className="border-b border-black h-8 mb-1" />
+              <p className="font-bold text-[9px]">Assinatura do Estudante-atleta</p>
+            </div>
+            <div className="text-center">
+              <div className="border-b border-black h-8 mb-1" />
+              <p className="font-bold text-[9px]">Assinatura do Responsável Legal</p>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="font-bold text-[9px]">Assinatura do Responsável Legal</p>
-          </div>
-        </div>
 
-        {/* Assinaturas Médico */}
-        <div className="grid grid-cols-2 gap-8 mb-6">
-          <div className="text-center">
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="font-bold text-[9px]">Assinatura do Médico</p>
+          {/* Assinaturas Médico */}
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            <div className="text-center">
+              <div className="border-b border-black h-8 mb-1" />
+              <p className="font-bold text-[9px]">Assinatura do Médico</p>
+            </div>
+            <div className="text-center">
+              <div className="border-b border-black h-8 mb-1" />
+              <p className="font-bold text-[9px]">Carimbo do Médico com CRM</p>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="font-bold text-[9px]">Carimbo do Médico com CRM</p>
-          </div>
-        </div>
 
-        {/* Declaração Instituição */}
-        <div className="border border-[#e2e8f0] p-2">
-          <p className="text-[9px] mb-4 uppercase">
-            Declaro que o menor acima citado está devidamente matriculado na Instituição de Ensino acima mencionada, conforme estabelece o Regulamento Geral dos JOGOS ESCOLARES LUMIENSES {ano}.
-          </p>
-          <div className="max-w-[300px] mx-auto text-center">
-            <div className="border-b border-black h-8 mb-1" />
-            <p className="font-bold text-[9px]">Assinatura e Carimbo do Responsável e da Instituição de Ensino</p>
+          {/* Declaração Instituição */}
+          <div className="border border-[#e2e8f0] p-2">
+            <p className="text-[9px] mb-4 uppercase">
+              Declaro que o menor acima citado está devidamente matriculado na Instituição de Ensino acima mencionada, conforme estabelece o Regulamento Geral dos JOGOS ESCOLARES LUMIENSES {ano}.
+            </p>
+            <div className="max-w-[300px] mx-auto text-center">
+              <div className="border-b border-black h-8 mb-1" />
+              <p className="font-bold text-[9px]">Assinatura e Carimbo do Responsável e da Instituição de Ensino</p>
+            </div>
           </div>
         </div>
       </div>
