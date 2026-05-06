@@ -15,8 +15,8 @@ function formatVarianteLabel(v) {
 
 function calcularIdadePorAnoCalendario(dataNasc) {
   if (!dataNasc) return null
-  const nasc = new Date(dataNasc)
-  return new Date().getFullYear() - nasc.getFullYear()
+  const [year] = dataNasc.split('-')
+  return new Date().getFullYear() - +year
 }
 
 function temDocumentoAssinado(estudante) {
