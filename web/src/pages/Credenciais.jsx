@@ -4,6 +4,7 @@ import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Ta
 import { Download, IdCard, User, Medal } from 'lucide-react'
 import dayjs from 'dayjs'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
+import CredencialModalidadeBadge from '../components/catalogos/CredencialModalidadeBadge'
 import { estudantesService } from '../services/estudantesService'
 import useEscolas from '../hooks/useEscolas'
 import { configuracoesService } from '../services/configuracoesService'
@@ -28,7 +29,7 @@ const PrintableFoldedCredential = ({ aluno, midias, assets, captureRef }) => {
         logos: { x: (posData.logos?.x ?? 25) * PX_TO_MM, y: (posData.logos?.y ?? 56) * PX_TO_MM, w: (posData.logos?.w ?? 50) * PX_TO_MM, h: (posData.logos?.h ?? 10) * PX_TO_MM },
         nome: { x: (posData.nome?.x ?? 0) * PX_TO_MM, y: (posData.nome?.y ?? 78) * PX_TO_MM, fontSize: posData.nome?.fontSize ?? 24 },
         info: { x: (posData.info?.x ?? 0) * PX_TO_MM, y: (posData.info?.y ?? 92) * PX_TO_MM, fontSize: posData.info?.fontSize ?? 12 },
-        modalidades: { x: (posData.modalidades?.x ?? 10) * PX_TO_MM, y: (posData.modalidades?.y ?? 105) * PX_TO_MM, w: (posData.modalidades?.w ?? 80) * PX_TO_MM, h: (posData.modalidades?.h ?? 22) * PX_TO_MM, fontSize: posData.modalidades?.fontSize ?? 20 }
+        modalidades: { x: (posData.modalidades?.x ?? 10) * PX_TO_MM, y: (posData.modalidades?.y ?? 100) * PX_TO_MM, w: (posData.modalidades?.w ?? 80) * PX_TO_MM, h: (posData.modalidades?.h ?? 22) * PX_TO_MM, fontSize: posData.modalidades?.fontSize ?? 20 }
     }
 
     return (
@@ -71,7 +72,7 @@ const PrintableFoldedCredential = ({ aluno, midias, assets, captureRef }) => {
 
                 <div className="absolute w-full" style={{ left: p.nome.x, top: p.nome.y }}>
                     <div className="font-black leading-none text-white drop-shadow-md uppercase text-center p-2" style={{ fontSize: p.nome.fontSize, fontFamily: "'Sora', sans-serif" }}>
-                        {aluno.nome.toUpperCase()}
+                        {estudantesService.formatNomeParaCredencial(aluno.nome).toUpperCase()}
                     </div>
                 </div>
                 
@@ -83,22 +84,24 @@ const PrintableFoldedCredential = ({ aluno, midias, assets, captureRef }) => {
                 </div>
 
                 {aluno.modalidades?.length > 0 && (
-                    <div className="absolute overflow-hidden" style={{ left: p.modalidades.x, top: p.modalidades.y, width: p.modalidades.w, height: p.modalidades.h }}>
-                        <div className="w-full h-full bg-white rounded-2xl shadow-xl border border-blue-100">
-                            <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse' }}>
-                                <tbody>
-                                    <tr>
-                                        <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
-                                            {aluno.modalidades.slice(0, 2).map((m, idx) => (
-                                                <div key={idx} className="text-[#1d4ed8] font-black leading-none text-center w-full" style={{ fontSize: p.modalidades.fontSize, fontFamily: "'Sora', sans-serif", margin: '2px 0' }}>
-                                                    {m.esporte_nome.toUpperCase()}
-                                                </div>
-                                            ))}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div
+                        className="absolute flex flex-wrap gap-1.5 justify-center items-start content-start px-0.5"
+                        style={{
+                            left: p.modalidades.x,
+                            top: p.modalidades.y,
+                            width: p.modalidades.w,
+                            minHeight: p.modalidades.h,
+                            maxHeight: p.modalidades.h * 3,
+                            overflow: 'visible',
+                        }}
+                    >
+                        {aluno.modalidades.map((m, idx) => (
+                            <CredencialModalidadeBadge
+                                key={idx}
+                                esporteNome={m.esporte_nome}
+                                layoutFontSize={p.modalidades.fontSize}
+                            />
+                        ))}
                     </div>
                 )}
 
@@ -212,6 +215,10 @@ export default function Credenciais() {
             const versoBase64 = await loadAssetAsBase64(midias?.bg_verso_credencial)
             const logoBase64 = await loadAssetAsBase64(midias?.logo_jels)
 
+            if (typeof document !== 'undefined' && document.fonts?.ready) {
+                await document.fonts.ready.catch(() => {})
+            }
+
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
             const cardW = 100
             const cardH = 150
@@ -237,6 +244,7 @@ export default function Credenciais() {
                 await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 300)))
 
                 if (captureRef.current) {
+                    void captureRef.current.offsetWidth
                     const canvas = await html2canvas(captureRef.current, {
                         scale: 3,
                         useCORS: true,

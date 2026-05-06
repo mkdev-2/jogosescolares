@@ -3,7 +3,6 @@ import { estudantesService } from '../../services/estudantesService'
 import { configuracoesService } from '../../services/configuracoesService'
 import StorageImage from '../StorageImage'
 import { User, Medal } from 'lucide-react'
-import ModalidadeIcon from './ModalidadeIcon'
 import dayjs from 'dayjs'
 
 /**
@@ -55,15 +54,13 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
     window.print()
   }
 
-  const nome = estudante?.nome || '–'
+  const nomeCompleto = estudante?.nome || '–'
+  const nome = estudantesService.formatNomeParaCredencial(estudante?.nome)
   const instituicao = estudante?.escola_nome || '–'
   const cpf = estudantesService.formatCpf(estudante?.cpf) || '–'
 
   const formatModalidadeResto = (m) =>
     [m.categoria_nome, m.naipe_nome].filter(Boolean).join(' · ')
-
-  const BADGE_COLORS = ['#0f766e', '#b45309', '#0369a1', '#0d9488']
-  const getBadgeColor = (i) => BADGE_COLORS[i % BADGE_COLORS.length]
 
   const printCss =
     layoutMode === 'bulk'
@@ -203,7 +200,7 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
               style={{ width: '54mm', height: '54mm' }}
             >
               {estudante?.foto_url ? (
-                <StorageImage path={estudante.foto_url} alt={nome} className="w-full h-full object-cover" />
+                <StorageImage path={estudante.foto_url} alt={nomeCompleto} className="w-full h-full object-cover" />
               ) : (
                 <User className="w-18 h-18 text-[#94a3b8]" />
               )}
@@ -239,11 +236,12 @@ const CredencialCrachaPrint = forwardRef(function CredencialCrachaPrint(
                   {modalidades.map((m, i) => (
                     <div
                       key={i}
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-2 border border-white/40 shadow-sm min-w-0"
-                      style={{ backgroundColor: getBadgeColor(i) }}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-3 py-2 border border-slate-200/90 shadow-sm min-w-0 max-w-full box-border"
                     >
-                      <ModalidadeIcon icone={m.esporte_icone || 'Zap'} size={18} className="text-white shrink-0" />
-                      <span className="text-[12px] font-bold text-white uppercase leading-tight">
+                      <span
+                        className="text-[12px] font-bold text-[#042f2e] uppercase text-center [overflow-wrap:anywhere] leading-none block"
+                        style={{ transform: 'translateY(-0.07em)' }}
+                      >
                         {m.esporte_nome || '–'}
                       </span>
                     </div>
