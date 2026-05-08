@@ -297,7 +297,7 @@ export default function Credenciais() {
                         <Row gutter={[16, 16]}>
                             <Col xs={24} sm={24} md={12}>
                                 <Form.Item label="Selecione a Escola" required style={{ marginBottom: 12 }}>
-                                    <Select placeholder="Selecione uma escola..." value={escolaSelecionada} onChange={setEscolaSelecionada} style={{ width: '100%', height: 45 }} showSearch options={listaEscolas.map(e => ({ label: e.nome_escola, value: e.id }))} />
+                                    <Select placeholder="Selecione uma escola..." value={escolaSelecionada} onChange={setEscolaSelecionada} style={{ width: '100%', height: 45 }} showSearch optionFilterProp="label" options={listaEscolas.map(e => ({ label: e.nome_escola, value: e.id }))} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} sm={24} md={12}>

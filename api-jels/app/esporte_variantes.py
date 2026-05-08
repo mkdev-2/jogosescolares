@@ -188,12 +188,6 @@ async def create_esporte_variante(
         if not row_tipo:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de modalidade não encontrado(a)")
         cod = row_tipo["codigo"]
-        if cod in ("INDIVIDUAIS", "COLETIVAS"):
-            if limite > 1 and cod == "INDIVIDUAIS":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Esporte com mais de um atleta por equipe é coletivo; não use tipo individual.",
-                )
         for tbl, val, name in [
             ("categorias", data.categoria_id, "Categoria"),
             ("naipes", data.naipe_id, "Naipe"),

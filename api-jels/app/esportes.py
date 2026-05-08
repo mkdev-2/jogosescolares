@@ -135,17 +135,6 @@ async def _validar_tipos_modalidade_vs_limite(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Um esporte não pode combinar modalidade individual e coletiva.",
         )
-    if limite_atletas > 1:
-        if "INDIVIDUAIS" in codigos:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Com mais de um atleta por equipe, use apenas modalidade coletiva, não individual.",
-            )
-    if "INDIVIDUAIS" in codigos and (minimo_atletas != 1 or limite_atletas != 1):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
-        )
 
 
 async def _get_tipos_das_variantes(conn, esporte_id: str, edicao_id: int) -> list[str]:
@@ -215,23 +204,8 @@ async def create_esporte(
     """Cria novo esporte e variantes em lote (requer autenticação)."""
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     tipo_modalidade_ids = data.tipo_modalidade_ids or []
-    tem_individual = await _tem_tipo_individual(conn, tipo_modalidade_ids)
-    if tem_individual:
-        minimo_atletas = 1
-        limite_atletas = 1
-    else:
-        minimo_atletas = data.minimo_atletas if data.minimo_atletas is not None else 1
-        limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
-    if tem_individual and data.limite_atletas is not None and data.limite_atletas != 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
-        )
-    if tem_individual and data.minimo_atletas is not None and data.minimo_atletas != 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
-        )
+    minimo_atletas = data.minimo_atletas if data.minimo_atletas is not None else 1
+    limite_atletas = data.limite_atletas if data.limite_atletas is not None else 3
     await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, minimo_atletas, limite_atletas)
     icone = (data.icone or "Zap").strip() or "Zap"
     categoria_ids = data.categoria_ids or []
@@ -343,13 +317,6 @@ async def update_esporte(
         updates.append("minimo_atletas = %s")
         values.append(data.minimo_atletas)
     if data.limite_atletas is not None:
-        tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id, resolved_edicao_id)
-        tem_individual = await _tem_tipo_individual(conn, tipos_para_check)
-        if tem_individual and data.limite_atletas != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
-            )
         updates.append("limite_atletas = %s")
         values.append(data.limite_atletas)
     if data.ativa is not None:
@@ -373,53 +340,10 @@ async def update_esporte(
     naipe_ids = data.naipe_ids
     tipo_modalidade_ids = data.tipo_modalidade_ids
     if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
-        minimo_para_tipos = minimo_final
-        limite_para_tipos = limite_final
-        if await _tem_tipo_individual(conn, tipo_modalidade_ids):
-            minimo_para_tipos = 1
-            limite_para_tipos = 1
-        await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, minimo_para_tipos, limite_para_tipos)
-        tem_individual_novas = await _tem_tipo_individual(conn, tipo_modalidade_ids)
-        if tem_individual_novas:
-            if data.minimo_atletas is not None and data.minimo_atletas != 1:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
-                )
-            if data.limite_atletas is not None and data.limite_atletas != 1:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Modalidade individual deve ter no máximo 1 atleta por equipe.",
-                )
-            minimo_ja_atualizado = any("minimo_atletas" in u for u in updates)
-            limite_ja_atualizado = any("limite_atletas" in u for u in updates)
-            if (
-                data.minimo_atletas is None
-                and data.limite_atletas is None
-                and not minimo_ja_atualizado
-                and not limite_ja_atualizado
-                and (existing.get("minimo_atletas") != 1 or existing.get("limite_atletas") != 1)
-            ):
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        "UPDATE esportes SET minimo_atletas = 1, limite_atletas = 1, updated_at = NOW() WHERE id = %s AND edicao_id = %s",
-                        (esporte_id, resolved_edicao_id),
-                    )
+        await _validar_tipos_modalidade_vs_limite(conn, tipo_modalidade_ids, minimo_final, limite_final)
     else:
         tipos_para_check = data.tipo_modalidade_ids if data.tipo_modalidade_ids is not None else await _get_tipos_das_variantes(conn, esporte_id, resolved_edicao_id)
         await _validar_tipos_modalidade_vs_limite(conn, tipos_para_check, minimo_final, limite_final)
-
-    if data.tipo_modalidade_ids is not None and await _tem_tipo_individual(conn, data.tipo_modalidade_ids):
-        if data.minimo_atletas is not None and data.minimo_atletas != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
-            )
-        if data.limite_atletas is not None and data.limite_atletas != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Modalidade individual deve ter exatamente 1 atleta por equipe.",
-            )
 
     if categoria_ids is not None and naipe_ids is not None and tipo_modalidade_ids is not None:
         combos = _cartesian_product(categoria_ids, naipe_ids, tipo_modalidade_ids)

@@ -42,9 +42,8 @@ export default function EsporteModal({
       const catIds = [...new Set(variantesForEdit.map((v) => v.categoria_id).filter(Boolean))]
       const naipeIds = [...new Set(variantesForEdit.map((v) => v.naipe_id).filter(Boolean))]
       const tipoIds = [...new Set(variantesForEdit.map((v) => v.tipo_modalidade_id).filter(Boolean))]
-      const tipoIndividual = tipos.find((t) => t.id === tipoIds[0] && (t.codigo === 'INDIVIDUAIS' || t.nome?.toUpperCase().includes('INDIVIDUAL')))
-      const minimoAtletas = tipoIndividual ? 1 : (esporte.minimo_atletas ?? 1)
-      const limiteAtletas = tipoIndividual ? 1 : (esporte.limite_atletas ?? 3)
+      const minimoAtletas = esporte.minimo_atletas ?? 1
+      const limiteAtletas = esporte.limite_atletas ?? 3
       setFormData({
         nome: esporte.nome || '',
         descricao: esporte.descricao || '',
@@ -92,8 +91,7 @@ export default function EsporteModal({
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    if ((name === 'limite_atletas' || name === 'minimo_atletas') && isTipoIndividual) return
-    setFormData((prev) => ({
+setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }))
@@ -137,8 +135,8 @@ export default function EsporteModal({
     if (!validateForm()) return
 
     try {
-      const minimoFinal = isTipoIndividual ? 1 : (Number(formData.minimo_atletas) || 1)
-      const limiteFinal = isTipoIndividual ? 1 : (Number(formData.limite_atletas) || 3)
+      const minimoFinal = Number(formData.minimo_atletas) || 1
+      const limiteFinal = Number(formData.limite_atletas) || 1
       const dataToSubmit = {
         ...formData,
         icone: formData.icone || 'Zap',
@@ -314,11 +312,10 @@ export default function EsporteModal({
               id="minimo_atletas"
               type="number"
               min={1}
-              value={isTipoIndividual ? 1 : formData.minimo_atletas}
+              value={formData.minimo_atletas}
               onChange={(e) => handleChange({ target: { name: 'minimo_atletas', value: e.target.value, type: 'text' } })}
               placeholder="Ex: 7"
               status={errors.minimo_atletas ? 'error' : undefined}
-              disabled={isTipoIndividual}
             />
             {errors.minimo_atletas && (
               <span className="text-[0.8rem] text-[#dc2626]">{errors.minimo_atletas}</span>
@@ -333,11 +330,10 @@ export default function EsporteModal({
               id="limite_atletas"
               type="number"
               min={1}
-              value={isTipoIndividual ? 1 : formData.limite_atletas}
+              value={formData.limite_atletas}
               onChange={(e) => handleChange({ target: { name: 'limite_atletas', value: e.target.value, type: 'text' } })}
               placeholder="Ex: 3"
               status={errors.limite_atletas ? 'error' : undefined}
-              disabled={isTipoIndividual}
             />
             <span className="text-[0.75rem] text-[#64748b]">Limite de vagas por equipe neste esporte</span>
             {errors.limite_atletas && (
