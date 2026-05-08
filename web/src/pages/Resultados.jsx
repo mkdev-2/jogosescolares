@@ -280,9 +280,13 @@ export default function Resultados() {
       .then(([detail, prox]) => {
         setCampDetail(detail)
         setProximosCamp(prox)
-        const hasGroups = (detail?.estrutura?.grupos?.length || 0) > 0
-        const hasKnockout = (detail?.estrutura?.partidas || []).some((p) => p.grupo_id === null)
-        if (!hasGroups && hasKnockout) setActiveTab('eliminatorias')
+        const detailHasGroups = (detail?.estrutura?.grupos?.length || 0) > 0
+        const detailHasKnockout = (detail?.estrutura?.partidas || []).some((p) => p.grupo_id === null && !p.is_bye)
+        const detailHasAnyPartidas = (detail?.estrutura?.partidas || []).some((p) => !p.is_bye)
+        if (!detailHasGroups) {
+          if (detailHasKnockout) setActiveTab('eliminatorias')
+          else if (detailHasAnyPartidas) setActiveTab('partidas')
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingDetail(false))

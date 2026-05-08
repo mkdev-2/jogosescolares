@@ -836,6 +836,58 @@ async def create_manual_confronto(
     return _manual_confronto_response(dict(row))
 
 
+async def _propagar_vencedor_bracket(
+    cur: psycopg.AsyncCursor,
+    campeonato_id: int,
+    rodada: int,
+    ordem: int,
+    novo_vencedor_id: int | None,
+    old_vencedor_id: int | None,
+) -> None:
+    """Avança o vencedor para a próxima chave do bracket, limpando cascata se o resultado a jusante ficar inválido."""
+    rodada_atual, ordem_atual = rodada, ordem
+    vencedor_novo, vencedor_antigo = novo_vencedor_id, old_vencedor_id
+
+    while vencedor_novo != vencedor_antigo:
+        proxima_rodada = rodada_atual + 1
+        proxima_ordem = (ordem_atual + 1) // 2
+        slot = "participante_a_id" if ordem_atual % 2 == 1 else "participante_b_id"
+
+        await cur.execute(
+            """
+            SELECT id, vencedor_participante_id, resultado_tipo
+            FROM campeonato_manual_confrontos
+            WHERE campeonato_id = %s AND rodada = %s AND ordem = %s
+            """,
+            (campeonato_id, proxima_rodada, proxima_ordem),
+        )
+        next_row = await cur.fetchone()
+        if not next_row:
+            break
+
+        await cur.execute(
+            f"UPDATE campeonato_manual_confrontos SET {slot} = %s, updated_at = NOW() WHERE id = %s",
+            (vencedor_novo, next_row["id"]),
+        )
+
+        if next_row["resultado_tipo"] is not None:
+            # O resultado do próximo confronto ficou inválido — limpa e continua cascata
+            vencedor_antigo = next_row["vencedor_participante_id"]
+            vencedor_novo = None
+            await cur.execute(
+                """
+                UPDATE campeonato_manual_confrontos
+                SET resultado_tipo = NULL, placar_a = NULL, placar_b = NULL,
+                    vencedor_participante_id = NULL, updated_at = NOW()
+                WHERE id = %s
+                """,
+                (next_row["id"],),
+            )
+            rodada_atual, ordem_atual = proxima_rodada, proxima_ordem
+        else:
+            break
+
+
 @router.patch("/{campeonato_id}/manual/confrontos/{confronto_id}", response_model=CampeonatoManualConfrontoResponse)
 async def update_manual_confronto(
     campeonato_id: int,
@@ -861,6 +913,14 @@ async def update_manual_confronto(
     params = list(values.values()) + [confronto_id, campeonato_id]
     async with conn.cursor() as cur:
         await cur.execute(
+            "SELECT rodada, ordem, vencedor_participante_id FROM campeonato_manual_confrontos WHERE id = %s AND campeonato_id = %s",
+            (confronto_id, campeonato_id),
+        )
+        current = await cur.fetchone()
+        if not current:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confronto não encontrado.")
+
+        await cur.execute(
             f"""
             UPDATE campeonato_manual_confrontos
             SET {', '.join(sets)}, updated_at = NOW()
@@ -870,12 +930,19 @@ async def update_manual_confronto(
             tuple(params),
         )
         row = await cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confronto não encontrado.")
         if values.get("resultado_tipo") is not None:
             await cur.execute(
                 "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO'",
                 (campeonato_id,),
+            )
+        if "vencedor_participante_id" in values:
+            await _propagar_vencedor_bracket(
+                cur,
+                campeonato_id,
+                current["rodada"],
+                current["ordem"],
+                values["vencedor_participante_id"],
+                current["vencedor_participante_id"],
             )
         await conn.commit()
     return _manual_confronto_response(dict(row))

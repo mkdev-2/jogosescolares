@@ -1140,21 +1140,24 @@ function BracketMatchBox({ partida, top, left, onRegister, slotConcluidoMap }) {
   const mandanteOk = slotOk(partida.origem_slot_a)
   const visitanteOk = slotOk(partida.origem_slot_b)
 
-  const visitanteName = isBye && !partida.visitante_equipe_id
-    ? 'WO'
-    : visitanteOk ? (partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)) : null
+  const mandanteName = mandanteOk ? (partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)) : null
+  const visitanteEffectiveName = visitanteOk ? (partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)) : null
+  const visitanteName = isBye && !partida.visitante_equipe_id ? 'WO' : visitanteEffectiveName
+
+  const bothDefined = !!mandanteName && !!visitanteEffectiveName
+  const canClick = !isBye && bothDefined && !!onRegister
 
   return (
     <div
       style={{ position: 'absolute', top, left, width: ROUND_W, height: MATCH_H }}
       className={`rounded-lg overflow-hidden bg-white border transition-all ${
-        isBye || !onRegister ? 'cursor-default opacity-80' : 'cursor-pointer hover:border-teal-400 hover:shadow-sm'
+        canClick ? 'cursor-pointer hover:border-teal-400 hover:shadow-sm' : 'cursor-default opacity-80'
       } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
-      onClick={() => !isBye && onRegister?.(partida)}
-      title={isBye ? 'Classificado por WO' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
+      onClick={() => canClick && onRegister(partida)}
+      title={isBye ? 'Classificado por WO' : !bothDefined ? 'Aguardando definição de equipes' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
     >
       <BracketTeamSlot
-        name={mandanteOk ? (partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)) : null}
+        name={mandanteName}
         score={hasResult ? partida.placar_mandante : null}
         isWinner={mandanteOk && v !== null && v === partida.mandante_equipe_id}
       />
@@ -1675,6 +1678,7 @@ export default function CampeonatoDetalhe() {
   const hasGroups = (estrutura?.grupos?.length || 0) > 0
   const hasKnockout = (estrutura?.partidas || []).some((p) => p.grupo_id === null)
   const hasPlayablePartidas = (estrutura?.partidas || []).some((p) => !p.is_bye)
+  const isApenasEliminatorias = campeonato?.origem === 'MANUAL' && campeonato?.tem_fase_grupos === false
   // Mapeia seed number → se o grupo que o originou já concluiu todas as partidas.
   // Seeds são atribuídos sequencialmente pelos grupos ordenados por `ordem`,
   // cada grupo contribuindo `classificados_diretos` seeds.
@@ -1699,16 +1703,16 @@ export default function CampeonatoDetalhe() {
   )
 
   useEffect(() => {
-    if (estrutura && activeTab === 'grupos' && !hasGroups && hasKnockout) {
+    if (estrutura && activeTab === 'grupos' && (!hasGroups || isApenasEliminatorias) && hasKnockout) {
       setActiveTab('eliminatorias')
     }
-  }, [estrutura, activeTab, hasGroups, hasKnockout])
+  }, [estrutura, activeTab, hasGroups, hasKnockout, isApenasEliminatorias])
 
   useEffect(() => {
-    if (estrutura && activeTab === 'partidas' && !hasGroups && hasKnockout && !hasPlayablePartidas) {
+    if (estrutura && activeTab === 'partidas' && (!hasGroups || isApenasEliminatorias) && hasKnockout && !hasPlayablePartidas) {
       setActiveTab('eliminatorias')
     }
-  }, [estrutura, activeTab, hasGroups, hasKnockout, hasPlayablePartidas])
+  }, [estrutura, activeTab, hasGroups, hasKnockout, hasPlayablePartidas, isApenasEliminatorias])
 
   useEffect(() => {
     if (campeonato?.status !== 'FINALIZADO' || !estrutura) return
@@ -1794,7 +1798,7 @@ export default function CampeonatoDetalhe() {
             <button
               type="button"
               onClick={() => setActiveTab('grupos')}
-              disabled={!hasGroups}
+              disabled={!hasGroups || isApenasEliminatorias}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                 activeTab === 'grupos'
                   ? 'bg-[#f1f5f9] text-[#0f766e]'
@@ -1901,7 +1905,7 @@ export default function CampeonatoDetalhe() {
             <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-6">
               <TournamentBracket
                 matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
-                onRegister={isManual ? undefined : setModalPartida}
+                onRegister={isManual ? handleManualRegister : setModalPartida}
                 slotConcluidoMap={slotConcluidoMap}
               />
             </div>
