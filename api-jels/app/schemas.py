@@ -1,6 +1,7 @@
 """
 Modelos Pydantic para validação de dados de entrada e saída.
 """
+from datetime import datetime
 from typing import Optional, Literal, Union
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -12,8 +13,9 @@ VALID_ROLES = Literal["SUPER_ADMIN", "ADMIN", "DIRETOR", "COORDENADOR", "MESARIO
 VALID_STATUS = Literal["ATIVO", "INATIVO", "PENDENTE"]
 
 # Status/Formato/Fases do módulo de campeonatos
-CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO"]
+CAMPEONATO_STATUS = Literal["RASCUNHO", "GERADO", "EM_ANDAMENTO", "FINALIZADO", "CANCELADO"]
 CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
+CAMPEONATO_ORIGEM = Literal["AUTOMATICO", "MANUAL"]
 CAMPEONATO_FASE = Literal[
     "GRUPOS",
     "TRINTA_E_DOIS_AVOS",
@@ -679,16 +681,20 @@ class CampeonatoListItemResponse(BaseModel):
     esporte_variante_id: str
     nome: str
     status: CAMPEONATO_STATUS
+    origem: CAMPEONATO_ORIGEM = "AUTOMATICO"
     formato: CAMPEONATO_FORMATO
     grupo_tamanho_ideal: int
     classificam_por_grupo: int
     permite_melhores_terceiros: bool
+    tem_fase_grupos: Optional[bool] = None
+    vagas_eliminatoria: Optional[int] = None
     geracao_autorizada_em: Optional[str] = None
     geracao_autorizada_por: Optional[int] = None
     geracao_executada_em: Optional[str] = None
     geracao_executada_por: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    num_equipes: int = 0
 
     class Config:
         from_attributes = True
@@ -702,12 +708,22 @@ class CampeonatoResponse(CampeonatoListItemResponse):
     tipo_modalidade_nome: Optional[str] = None
 
 
+class CampeonatoGrupoEquipeResponse(BaseModel):
+    """Equipe dentro de um grupo do campeonato."""
+    equipe_id: int
+    escola_id: int
+    nome_escola: str
+    seed_no_grupo: int
+
+
 class CampeonatoGrupoResponse(BaseModel):
     """Schema de grupo do campeonato."""
     id: int
     campeonato_id: int
     nome: str
     ordem: int
+    classificados_diretos: int = 1
+    equipes: list[CampeonatoGrupoEquipeResponse] = Field(default_factory=list)
     created_at: Optional[str] = None
 
     class Config:
@@ -718,6 +734,7 @@ class CampeonatoPartidaResponse(BaseModel):
     """Schema de partida do campeonato."""
     id: int
     campeonato_id: int
+    origem: CAMPEONATO_ORIGEM = "AUTOMATICO"
     fase: CAMPEONATO_FASE
     rodada: int
     grupo_id: Optional[int] = None
@@ -727,6 +744,18 @@ class CampeonatoPartidaResponse(BaseModel):
     is_bye: bool = False
     origem_slot_a: Optional[str] = None
     origem_slot_b: Optional[str] = None
+    inicio_em: Optional[str] = None
+    # Nomes das equipes (resolvidos via JOIN)
+    mandante_nome: Optional[str] = None
+    visitante_nome: Optional[str] = None
+    vencedor_nome: Optional[str] = None
+    # Placar e resultado
+    placar_mandante: Optional[int] = None
+    placar_visitante: Optional[int] = None
+    placar_mandante_sec: Optional[int] = None
+    placar_visitante_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = None
+    registrado_em: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -734,11 +763,304 @@ class CampeonatoPartidaResponse(BaseModel):
         from_attributes = True
 
 
+class WildcardCandidatoInfo(BaseModel):
+    """Candidato a wild card com ranking e critério decisivo."""
+    equipe_id: int
+    nome_escola: str
+    grupo_nome: str
+    posicao_no_grupo: int
+    pts: int
+    V: int
+    E: int
+    D: int
+    pro: int
+    contra: int
+    saldo: int
+    criterio_decisivo: Optional[str] = None
+    classificado_wildcard: bool = False
+
+
 class CampeonatoEstruturaResponse(BaseModel):
     """Schema de estrutura completa do campeonato."""
     campeonato_id: int
     grupos: list[CampeonatoGrupoResponse] = Field(default_factory=list)
     partidas: list[CampeonatoPartidaResponse] = Field(default_factory=list)
+    wildcard_equipe_ids: list[int] = Field(default_factory=list)
+    wildcard_ranking: list[WildcardCandidatoInfo] = Field(default_factory=list)
+
+
+class CampeonatoManualGrupoInput(BaseModel):
+    """Grupo definido pelo usuário na criação manual (fase de grupos)."""
+    nome: str = Field(..., min_length=1, max_length=80)
+    equipe_ids: list[int] = Field(..., min_length=1)
+
+
+class CampeonatoManualCreate(BaseModel):
+    """Criação de campeonato manual para publicação de torneio externo."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    equipe_ids: list[int] = Field(..., min_length=1)
+    tem_fase_grupos: bool = False
+    vagas_eliminatoria: Literal[2, 4, 8, 16] = 8
+    grupos: Optional[list[CampeonatoManualGrupoInput]] = None
+    chaveamento_equipe_ids: Optional[list[int]] = None
+
+    @model_validator(mode="after")
+    def validate_manual_criacao(self) -> "CampeonatoManualCreate":
+        if len(self.equipe_ids) != len(set(self.equipe_ids)):
+            raise ValueError("Lista equipe_ids contém IDs duplicados.")
+        ids_set = set(self.equipe_ids)
+        if self.tem_fase_grupos:
+            if not self.grupos:
+                raise ValueError("Informe os grupos quando a fase de grupos estiver ativa.")
+            if self.chaveamento_equipe_ids is not None:
+                raise ValueError("Não envie chaveamento_equipe_ids quando houver fase de grupos.")
+            seen: set[int] = set()
+            for g in self.grupos:
+                for eid in g.equipe_ids:
+                    if eid in seen:
+                        raise ValueError("Uma equipe aparece em mais de um grupo.")
+                    seen.add(eid)
+            if seen != ids_set:
+                raise ValueError("A união das equipes dos grupos deve coincidir exatamente com equipe_ids.")
+        else:
+            if self.grupos:
+                raise ValueError("Não envie grupos quando não houver fase de grupos.")
+            v = self.vagas_eliminatoria
+            if len(self.equipe_ids) != v:
+                raise ValueError(f"Sem fase de grupos são necessárias exatamente {v} equipes (uma por vaga da chave).")
+            if not self.chaveamento_equipe_ids or len(self.chaveamento_equipe_ids) != v:
+                raise ValueError(f"chaveamento_equipe_ids deve listar exatamente {v} equipes (ordem dos seeds na chave).")
+            if set(self.chaveamento_equipe_ids) != ids_set:
+                raise ValueError("chaveamento_equipe_ids deve ser uma permutação de equipe_ids.")
+        return self
+
+
+class CampeonatoManualParticipanteResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    equipe_id: Optional[int] = None
+    escola_id: Optional[int] = None
+    nome_exibicao: str
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualConfrontoInput(BaseModel):
+    fase: CAMPEONATO_FASE = "GRUPOS"
+    rodada: int = Field(default=1, ge=1)
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    vencedor_participante_id: Optional[int] = None
+    inicio_em: Optional[datetime] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = Field(None, max_length=20)
+    ordem: int = Field(default=1, ge=1)
+
+
+class CampeonatoManualConfrontoUpdate(BaseModel):
+    fase: Optional[CAMPEONATO_FASE] = None
+    rodada: Optional[int] = Field(None, ge=1)
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    vencedor_participante_id: Optional[int] = None
+    inicio_em: Optional[datetime] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = Field(None, max_length=20)
+    ordem: Optional[int] = Field(None, ge=1)
+
+
+class CampeonatoManualConfrontoResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    fase: CAMPEONATO_FASE
+    rodada: int
+    participante_a_id: Optional[int] = None
+    participante_b_id: Optional[int] = None
+    participante_a_nome: Optional[str] = None
+    participante_b_nome: Optional[str] = None
+    vencedor_participante_id: Optional[int] = None
+    vencedor_nome: Optional[str] = None
+    inicio_em: Optional[str] = None
+    placar_a: Optional[int] = None
+    placar_b: Optional[int] = None
+    placar_a_sec: Optional[int] = None
+    placar_b_sec: Optional[int] = None
+    resultado_tipo: Optional[str] = None
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualClassificacaoInput(BaseModel):
+    grupo_nome: str = Field(default="Geral", min_length=1, max_length=40)
+    participante_id: int
+    posicao: int = Field(..., ge=1)
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = Field(None, max_length=255)
+    ordem: int = Field(default=1, ge=1)
+
+
+class CampeonatoManualClassificacaoUpdate(BaseModel):
+    grupo_nome: Optional[str] = Field(None, min_length=1, max_length=40)
+    participante_id: Optional[int] = None
+    posicao: Optional[int] = Field(None, ge=1)
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = Field(None, max_length=255)
+    ordem: Optional[int] = Field(None, ge=1)
+
+
+class CampeonatoManualClassificacaoResponse(BaseModel):
+    id: int
+    campeonato_id: int
+    grupo_nome: str
+    participante_id: Optional[int] = None
+    nome_exibicao: Optional[str] = None
+    posicao: int
+    pontos: Optional[int] = None
+    vitorias: Optional[int] = None
+    empates: Optional[int] = None
+    derrotas: Optional[int] = None
+    pro: Optional[int] = None
+    contra: Optional[int] = None
+    saldo: Optional[int] = None
+    observacao: Optional[str] = None
+    ordem: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CampeonatoManualDetalheResponse(BaseModel):
+    participantes: list[CampeonatoManualParticipanteResponse] = Field(default_factory=list)
+    confrontos: list[CampeonatoManualConfrontoResponse] = Field(default_factory=list)
+    classificacao: list[CampeonatoManualClassificacaoResponse] = Field(default_factory=list)
+
+
+# ========== CAMPEONATOS — SORTEIO MANUAL ==========
+
+class EquipeDaVarianteResponse(BaseModel):
+    """Equipe simplificada para exibição na tela de sorteio."""
+    id: int
+    escola_id: int
+    nome_escola: str
+
+
+class GrupoSorteioInput(BaseModel):
+    """Grupo com equipes ordenadas por seed (índice 0 = seed 1)."""
+    equipes: list[int] = Field(..., min_length=2)
+
+
+class CampeonatoComSorteioCreate(BaseModel):
+    """Payload do novo fluxo de criação com sorteio manual."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    grupos: list[GrupoSorteioInput] = Field(..., min_length=1)
+
+
+class CampeonatoAutoCreate(BaseModel):
+    """Payload para criação automática (sem grupos) de N=1, N=2 ou N=4 equipes."""
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
+    equipe_ids: list[int] = Field(..., min_length=1, max_length=4)
+
+
+class EstruturaGruposPreviewResponse(BaseModel):
+    """Estrutura de grupos pré-calculada para o sorteio manual."""
+    total_equipes: int
+    regra: str
+    tamanhos_grupos: list[int]
+    classificados_por_grupo: list[int]
+    vagas_bracket: int
+    vagas_wildcard: int
+
+
+# ========== CAMPEONATOS — PONTUAÇÃO ==========
+
+class EsporteConfigPontuacaoResponse(BaseModel):
+    """Configuração de pontuação e desempate de um esporte."""
+    id: int
+    esporte_id: str
+    edicao_id: int
+    unidade_placar: str
+    unidade_placar_sec: Optional[str] = None
+    pts_vitoria: int
+    pts_vitoria_parcial: Optional[int] = None
+    pts_empate: int
+    pts_derrota: int
+    permite_empate: bool
+    wxo_pts_vencedor: int
+    wxo_pts_perdedor: int
+    wxo_placar_pro: int
+    wxo_placar_contra: int
+    wxo_placar_pro_sec: Optional[int] = None
+    wxo_placar_contra_sec: Optional[int] = None
+    ignorar_placar_extra: bool
+    criterios_desempate_2: list[str] = Field(default_factory=list)
+    criterios_desempate_3plus: list[str] = Field(default_factory=list)
+
+
+class EsporteConfigPontuacaoInput(BaseModel):
+    """Payload para criar ou atualizar a configuração de pontuação de um esporte."""
+    unidade_placar: str = Field(..., max_length=20)
+    unidade_placar_sec: Optional[str] = Field(None, max_length=20)
+    pts_vitoria: int = Field(..., ge=0)
+    pts_vitoria_parcial: Optional[int] = Field(None, ge=0)
+    pts_empate: int = Field(0, ge=0)
+    pts_derrota: int = Field(0, ge=0)
+    permite_empate: bool = False
+    wxo_pts_vencedor: int = Field(3, ge=0)
+    wxo_pts_perdedor: int = Field(0, ge=0)
+    wxo_placar_pro: int = Field(1, ge=0)
+    wxo_placar_contra: int = Field(0, ge=0)
+    wxo_placar_pro_sec: Optional[int] = Field(None, ge=0)
+    wxo_placar_contra_sec: Optional[int] = Field(None, ge=0)
+    ignorar_placar_extra: bool = False
+    criterios_desempate_2: list[str] = Field(default_factory=list)
+    criterios_desempate_3plus: list[str] = Field(default_factory=list)
+
+
+RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
+
+
+class PartidaAgendamentoInput(BaseModel):
+    """Payload para definir ou limpar a data/hora de uma partida."""
+    inicio_em: Optional[datetime] = None
+
+
+class PartidaResultadoInput(BaseModel):
+    """Payload para registrar o resultado de uma partida."""
+    placar_mandante: int = Field(..., ge=0)
+    placar_visitante: int = Field(..., ge=0)
+    placar_mandante_sec: Optional[int] = Field(None, ge=0)
+    placar_visitante_sec: Optional[int] = Field(None, ge=0)
+    resultado_tipo: RESULTADO_TIPO = "NORMAL"
+    # Para WxO: qual equipe vence (MANDANTE ou VISITANTE). Obrigatório quando resultado_tipo == "WXO".
+    vencedor_wxo: Optional[Literal["MANDANTE", "VISITANTE"]] = None
+
+    @model_validator(mode="after")
+    def validar_vencedor_wxo(self):
+        if self.resultado_tipo == "WXO" and self.vencedor_wxo is None:
+            raise ValueError("Para resultado WxO, informe vencedor_wxo (MANDANTE ou VISITANTE).")
+        return self
 
 
 # ---------- Ficha Coletiva JELS (impressão) ----------

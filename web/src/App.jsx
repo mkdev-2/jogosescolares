@@ -14,6 +14,7 @@ const antdTheme = {
     DatePicker: { zIndexPopup: 1200 },
   },
 }
+
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Login from './pages/Login'
@@ -30,7 +31,11 @@ import CadastroEstudanteAtleta from './pages/CadastroEstudanteAtleta'
 import ProfessoresTecnicos from './pages/ProfessoresTecnicos'
 import Equipes from './pages/Equipes'
 import MinhaConta from './pages/MinhaConta'
+import CriarCampeonato from './pages/CriarCampeonato'
+import CampeonatoDetalhe from './pages/CampeonatoDetalhe'
 import Relatorios from './pages/Relatorios'
+import Resultados from './pages/Resultados'
+import ResultadoDetalhe from './pages/ResultadoDetalhe'
 
 function App() {
   return (
@@ -42,6 +47,8 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/cadastro" element={<CadastroEscola />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/resultados" element={<Resultados />} />
+          <Route path="/resultados/:id" element={<ResultadoDetalhe />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
             <Route path="/app/minha-conta" element={<MinhaConta />} />
@@ -58,6 +65,8 @@ function App() {
             <Route path="/app/usuarios" element={<Usuarios />} />
             <Route path="/app/configuracoes" element={<Configuracoes />} />
             <Route path="/app/auditoria" element={<Auditoria />} />
+            <Route path="/app/criar-campeonato" element={<CriarCampeonato />} />
+            <Route path="/app/campeonatos/:id" element={<CampeonatoDetalhe />} />
             <Route path="/app/relatorios" element={<Relatorios />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
