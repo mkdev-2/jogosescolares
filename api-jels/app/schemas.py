@@ -795,6 +795,17 @@ class CampeonatoManualGrupoInput(BaseModel):
     equipe_ids: list[int] = Field(..., min_length=1)
 
 
+class CampeonatoManualConfigPontuacaoInput(BaseModel):
+    """Configuração de pontuação para campeonato manual."""
+    permite_empate: bool = False
+    pts_vitoria: int = Field(3, ge=0)
+    pts_vitoria_parcial: Optional[int] = Field(None, ge=0)
+    pts_empate: int = Field(1, ge=0)
+    pts_derrota: int = Field(0, ge=0)
+    wxo_pts_vencedor: int = Field(3, ge=0)
+    wxo_pts_perdedor: int = Field(0, ge=0)
+
+
 class CampeonatoManualCreate(BaseModel):
     """Criação de campeonato manual para publicação de torneio externo."""
     esporte_variante_id: str = Field(..., min_length=1)
@@ -804,6 +815,7 @@ class CampeonatoManualCreate(BaseModel):
     vagas_eliminatoria: Literal[2, 4, 8, 16] = 8
     grupos: Optional[list[CampeonatoManualGrupoInput]] = None
     chaveamento_equipe_ids: Optional[list[int]] = None
+    config_pontuacao: Optional[CampeonatoManualConfigPontuacaoInput] = None
 
     @model_validator(mode="after")
     def validate_manual_criacao(self) -> "CampeonatoManualCreate":
