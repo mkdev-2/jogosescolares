@@ -6,39 +6,56 @@ function PartidaCard({ partida, grupoNome }) {
   const visitanteWon = hasResult && partida.vencedor_equipe_id === partida.visitante_equipe_id
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 px-3 py-2.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
-      {grupoNome != null && (
-        <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 w-14 text-center leading-tight">
-          Gr. {grupoNome}
-        </span>
-      )}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 flex-1 min-w-0">
-        <span className={`text-xs truncate text-right ${mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-          {partida.mandante_nome || `Equipe ${partida.mandante_equipe_id}`}
-        </span>
-        <div className="flex flex-col items-center shrink-0">
-          {hasResult ? (
-            <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
-              {partida.placar_mandante}
-              <span className="text-slate-400 mx-0.5 font-normal">×</span>
-              {partida.placar_visitante}
-            </span>
-          ) : (
-            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">vs</span>
-          )}
-          {partida.resultado_tipo === 'WXO' && (
-            <span className="text-[9px] font-bold text-amber-600 mt-0.5 leading-none">WxO</span>
-          )}
+    <div className="bg-white rounded-lg border border-slate-200 px-3 py-2.5 flex flex-col gap-1 hover:border-slate-300 transition-colors">
+      <div className="flex items-center gap-3">
+        {grupoNome != null && (
+          <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 w-14 text-center leading-tight">
+            Gr. {grupoNome}
+          </span>
+        )}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 flex-1 min-w-0">
+          <span className={`text-xs truncate text-right ${mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+            {partida.mandante_nome || `Equipe ${partida.mandante_equipe_id}`}
+          </span>
+          <div className="flex flex-col items-center shrink-0">
+            {hasResult ? (
+              <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
+                {partida.placar_mandante}
+                <span className="text-slate-400 mx-0.5 font-normal">×</span>
+                {partida.placar_visitante}
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">vs</span>
+            )}
+            {partida.resultado_tipo === 'WXO' && (
+              <span className="text-[9px] font-bold text-amber-600 mt-0.5 leading-none">WxO</span>
+            )}
+          </div>
+          <span className={`text-xs truncate ${visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+            {partida.visitante_nome || `Equipe ${partida.visitante_equipe_id}`}
+          </span>
         </div>
-        <span className={`text-xs truncate ${visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-          {partida.visitante_nome || `Equipe ${partida.visitante_equipe_id}`}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${
+          hasResult ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+        }`}>
+          {hasResult ? 'Enc.' : 'Pend.'}
         </span>
       </div>
-      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${
-        hasResult ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-      }`}>
-        {hasResult ? 'Enc.' : 'Pend.'}
-      </span>
+      {(partida.local?.nome || partida.local?.link_maps) && (
+        <div className="flex items-center gap-2 pl-0 sm:pl-[4.25rem] text-[10px] text-slate-500 min-w-0">
+          <span className="truncate">{partida.local?.nome}</span>
+          {partida.local?.link_maps && (
+            <a
+              href={partida.local.link_maps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-teal-600 font-semibold shrink-0"
+            >
+              Maps
+            </a>
+          )}
+        </div>
+      )}
     </div>
   )
 }

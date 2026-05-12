@@ -22,6 +22,27 @@ def _iso(value) -> str | None:
     return value.isoformat() if value else None
 
 
+def _local_public_from_join_row(r: dict) -> dict | None:
+    lid = r.get("loc_join_id")
+    if lid is None:
+        return None
+    return {
+        "id": int(lid),
+        "nome": r.get("loc_join_nome") or "",
+        "endereco_completo": r.get("loc_join_endereco"),
+        "foto_url": r.get("loc_join_foto"),
+        "link_maps": r.get("loc_join_maps"),
+    }
+
+
+def _row_proximo_confronto_clean(r: dict) -> dict:
+    loc = _local_public_from_join_row(r)
+    out = {k: v for k, v in r.items() if not str(k).startswith("loc_join")}
+    if loc:
+        out["local"] = loc
+    return out
+
+
 async def _manual_classificacao_rows(conn: psycopg.AsyncConnection, campeonato_id: int) -> list[dict]:
     async with conn.cursor() as cur:
         await cur.execute(
@@ -78,11 +99,17 @@ async def _manual_estrutura_publica(conn: psycopg.AsyncConnection, campeonato_id
             SELECT cmc.*,
                    COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS participante_a_nome,
                    COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS participante_b_nome,
-                   COALESCE(pv.nome_exibicao, cmc.vencedor_nome) AS vencedor_nome
+                   COALESCE(pv.nome_exibicao, cmc.vencedor_nome) AS vencedor_nome,
+                   loc.id AS loc_join_id,
+                   loc.nome AS loc_join_nome,
+                   loc.endereco_completo AS loc_join_endereco,
+                   loc.foto_url AS loc_join_foto,
+                   loc.link_maps AS loc_join_maps
             FROM campeonato_manual_confrontos cmc
             LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
             LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
             LEFT JOIN campeonato_manual_participantes pv ON pv.id = cmc.vencedor_participante_id
+            LEFT JOIN locais loc ON loc.id = cmc.local_id
             WHERE cmc.campeonato_id = %s
             ORDER BY cmc.fase, cmc.rodada, cmc.ordem, cmc.id
             """,
@@ -120,31 +147,35 @@ async def _manual_estrutura_publica(conn: psycopg.AsyncConnection, campeonato_id
         }
         for idx, nome in enumerate(grupos_nomes)
     ]
-    partidas = [
-        {
-            "id": c["id"],
-            "origem": "MANUAL",
-            "fase": c["fase"],
-            "rodada": c["rodada"],
-            "grupo_id": 0 if c["fase"] == "GRUPOS" else None,
-            "mandante_equipe_id": None,
-            "visitante_equipe_id": None,
-            "vencedor_equipe_id": None,
-            "is_bye": False,
-            "origem_slot_a": None,
-            "origem_slot_b": None,
-            "inicio_em": _iso(c.get("inicio_em")),
-            "mandante_nome": c.get("participante_a_nome"),
-            "visitante_nome": c.get("participante_b_nome"),
-            "vencedor_nome": c.get("vencedor_nome"),
-            "placar_mandante": c.get("placar_a"),
-            "placar_visitante": c.get("placar_b"),
-            "placar_mandante_sec": c.get("placar_a_sec"),
-            "placar_visitante_sec": c.get("placar_b_sec"),
-            "resultado_tipo": c.get("resultado_tipo"),
-        }
-        for c in confrontos
-    ]
+    partidas = []
+    for c in confrontos:
+        loc = _local_public_from_join_row(c)
+        partidas.append(
+            {
+                "id": c["id"],
+                "origem": "MANUAL",
+                "fase": c["fase"],
+                "rodada": c["rodada"],
+                "grupo_id": 0 if c["fase"] == "GRUPOS" else None,
+                "mandante_equipe_id": None,
+                "visitante_equipe_id": None,
+                "vencedor_equipe_id": None,
+                "is_bye": False,
+                "origem_slot_a": None,
+                "origem_slot_b": None,
+                "inicio_em": _iso(c.get("inicio_em")),
+                "local_id": c.get("local_id"),
+                "local": loc,
+                "mandante_nome": c.get("participante_a_nome"),
+                "visitante_nome": c.get("participante_b_nome"),
+                "vencedor_nome": c.get("vencedor_nome"),
+                "placar_mandante": c.get("placar_a"),
+                "placar_visitante": c.get("placar_b"),
+                "placar_mandante_sec": c.get("placar_a_sec"),
+                "placar_visitante_sec": c.get("placar_b_sec"),
+                "resultado_tipo": c.get("resultado_tipo"),
+            }
+        )
     return {
         "grupos": grupos,
         "partidas": partidas,
@@ -299,6 +330,7 @@ async def list_proximos_confrontos(
                 c.origem::text  AS origem,
                 cp.fase::text   AS fase,
                 cp.rodada,
+                cp.inicio_em,
                 esc_m.nome_escola AS mandante_nome,
                 esc_v.nome_escola AS visitante_nome,
                 c.id            AS campeonato_id,
@@ -306,7 +338,12 @@ async def list_proximos_confrontos(
                 esp.nome        AS esporte_nome,
                 esp.icone,
                 cat.nome        AS categoria_nome,
-                nai.nome        AS naipe_nome
+                nai.nome        AS naipe_nome,
+                loc.id AS loc_join_id,
+                loc.nome AS loc_join_nome,
+                loc.endereco_completo AS loc_join_endereco,
+                loc.foto_url AS loc_join_foto,
+                loc.link_maps AS loc_join_maps
             FROM campeonato_partidas cp
             JOIN campeonatos c ON c.id = cp.campeonato_id
             JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
@@ -317,6 +354,7 @@ async def list_proximos_confrontos(
             LEFT JOIN escolas esc_m ON esc_m.id = eq_m.escola_id
             LEFT JOIN equipes eq_v ON eq_v.id = cp.visitante_equipe_id
             LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
+            LEFT JOIN locais loc ON loc.id = cp.local_id
             WHERE c.status::text = 'EM_ANDAMENTO'
               AND cp.registrado_em IS NULL
               AND cp.is_bye = FALSE
@@ -338,6 +376,7 @@ async def list_proximos_confrontos(
                 'MANUAL'         AS origem,
                 cmc.fase::text   AS fase,
                 cmc.rodada,
+                cmc.inicio_em,
                 COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS mandante_nome,
                 COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS visitante_nome,
                 c.id             AS campeonato_id,
@@ -345,7 +384,12 @@ async def list_proximos_confrontos(
                 esp.nome         AS esporte_nome,
                 esp.icone,
                 cat.nome         AS categoria_nome,
-                nai.nome         AS naipe_nome
+                nai.nome         AS naipe_nome,
+                loc.id AS loc_join_id,
+                loc.nome AS loc_join_nome,
+                loc.endereco_completo AS loc_join_endereco,
+                loc.foto_url AS loc_join_foto,
+                loc.link_maps AS loc_join_maps
             FROM campeonato_manual_confrontos cmc
             JOIN campeonatos c ON c.id = cmc.campeonato_id
             JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
@@ -354,6 +398,7 @@ async def list_proximos_confrontos(
             JOIN naipes nai ON nai.id = ev.naipe_id
             LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
             LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
+            LEFT JOIN locais loc ON loc.id = cmc.local_id
             WHERE c.status::text = 'EM_ANDAMENTO'
               AND cmc.resultado_tipo IS NULL
               AND COALESCE(pa.nome_exibicao, cmc.participante_a_nome) IS NOT NULL
@@ -367,7 +412,7 @@ async def list_proximos_confrontos(
         )
         rows.extend(dict(r) for r in await cur.fetchall())
 
-    return rows[:limite]
+    return [_row_proximo_confronto_clean(r) for r in rows[:limite]]
 
 
 @router.get("/{campeonato_id}")
@@ -451,12 +496,18 @@ async def get_campeonato_publico(
             SELECT cp.id, cp.fase, cp.rodada, cp.grupo_id,
                    cp.mandante_equipe_id, cp.visitante_equipe_id, cp.vencedor_equipe_id,
                    cp.is_bye, cp.origem_slot_a, cp.origem_slot_b,
+                   cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
                    cp.resultado_tipo,
                    esc_m.nome_escola AS mandante_nome,
                    esc_v.nome_escola AS visitante_nome,
-                   esc_w.nome_escola AS vencedor_nome
+                   esc_w.nome_escola AS vencedor_nome,
+                   loc.id AS loc_join_id,
+                   loc.nome AS loc_join_nome,
+                   loc.endereco_completo AS loc_join_endereco,
+                   loc.foto_url AS loc_join_foto,
+                   loc.link_maps AS loc_join_maps
             FROM campeonato_partidas cp
             LEFT JOIN equipes eq_m ON eq_m.id = cp.mandante_equipe_id
             LEFT JOIN escolas esc_m ON esc_m.id = eq_m.escola_id
@@ -464,6 +515,7 @@ async def get_campeonato_publico(
             LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
             LEFT JOIN equipes eq_w ON eq_w.id = cp.vencedor_equipe_id
             LEFT JOIN escolas esc_w ON esc_w.id = eq_w.escola_id
+            LEFT JOIN locais loc ON loc.id = cp.local_id
             WHERE cp.campeonato_id = %s
             ORDER BY
                 CASE cp.fase
@@ -511,30 +563,36 @@ async def get_campeonato_publico(
         for r in grupos_rows
     ]
 
-    partidas = [
-        {
-            "id": r["id"],
-            "origem": "AUTOMATICO",
-            "fase": r["fase"],
-            "rodada": r["rodada"],
-            "grupo_id": r.get("grupo_id"),
-            "mandante_equipe_id": r.get("mandante_equipe_id"),
-            "visitante_equipe_id": r.get("visitante_equipe_id"),
-            "vencedor_equipe_id": r.get("vencedor_equipe_id"),
-            "is_bye": bool(r.get("is_bye")),
-            "origem_slot_a": r.get("origem_slot_a"),
-            "origem_slot_b": r.get("origem_slot_b"),
-            "mandante_nome": r.get("mandante_nome"),
-            "visitante_nome": r.get("visitante_nome"),
-            "vencedor_nome": r.get("vencedor_nome"),
-            "placar_mandante": r.get("placar_mandante"),
-            "placar_visitante": r.get("placar_visitante"),
-            "placar_mandante_sec": r.get("placar_mandante_sec"),
-            "placar_visitante_sec": r.get("placar_visitante_sec"),
-            "resultado_tipo": r.get("resultado_tipo"),
-        }
-        for r in partidas_rows
-    ]
+    partidas = []
+    for r in partidas_rows:
+        rd = dict(r)
+        loc = _local_public_from_join_row(rd)
+        partidas.append(
+            {
+                "id": rd["id"],
+                "origem": "AUTOMATICO",
+                "fase": rd["fase"],
+                "rodada": rd["rodada"],
+                "grupo_id": rd.get("grupo_id"),
+                "mandante_equipe_id": rd.get("mandante_equipe_id"),
+                "visitante_equipe_id": rd.get("visitante_equipe_id"),
+                "vencedor_equipe_id": rd.get("vencedor_equipe_id"),
+                "is_bye": bool(rd.get("is_bye")),
+                "origem_slot_a": rd.get("origem_slot_a"),
+                "origem_slot_b": rd.get("origem_slot_b"),
+                "inicio_em": _iso(rd.get("inicio_em")),
+                "local_id": rd.get("local_id"),
+                "local": loc,
+                "mandante_nome": rd.get("mandante_nome"),
+                "visitante_nome": rd.get("visitante_nome"),
+                "vencedor_nome": rd.get("vencedor_nome"),
+                "placar_mandante": rd.get("placar_mandante"),
+                "placar_visitante": rd.get("placar_visitante"),
+                "placar_mandante_sec": rd.get("placar_mandante_sec"),
+                "placar_visitante_sec": rd.get("placar_visitante_sec"),
+                "resultado_tipo": rd.get("resultado_tipo"),
+            }
+        )
 
     config_out = None
     if config:

@@ -9,6 +9,7 @@ import psycopg
 from app.auth import get_current_user, is_admin
 from app.database import get_db, log_audit
 from app.edicao_context import resolve_edicao_id
+from app.locais import assert_local_belongs_to_edicao
 from app.schemas import (
     CampeonatoAutoCreate,
     CampeonatoComSorteioCreate,
@@ -31,6 +32,7 @@ from app.schemas import (
     EquipeDaVarianteResponse,
     EsporteConfigPontuacaoResponse,
     EstruturaGruposPreviewResponse,
+    LocalResumo,
     PartidaAgendamentoInput,
     PartidaResultadoInput,
     WildcardCandidatoInfo,
@@ -52,6 +54,52 @@ from app.services.pontuacao_service import (
 )
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
+
+_SQL_MANUAL_CONFRONTO_BASE = """
+    SELECT cmc.*,
+           COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS participante_a_nome,
+           COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS participante_b_nome,
+           COALESCE(pv.nome_exibicao, cmc.vencedor_nome) AS vencedor_nome,
+           loc.id AS loc_join_id,
+           loc.nome AS loc_join_nome,
+           loc.endereco_completo AS loc_join_endereco,
+           loc.foto_url AS loc_join_foto,
+           loc.link_maps AS loc_join_maps
+    FROM campeonato_manual_confrontos cmc
+    LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
+    LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
+    LEFT JOIN campeonato_manual_participantes pv ON pv.id = cmc.vencedor_participante_id
+    LEFT JOIN locais loc ON loc.id = cmc.local_id
+"""
+
+
+def _local_resumo_from_join_row(row: dict) -> LocalResumo | None:
+    lid = row.get("loc_join_id")
+    if lid is None:
+        return None
+    return LocalResumo(
+        id=int(lid),
+        nome=row.get("loc_join_nome") or "",
+        endereco_completo=row.get("loc_join_endereco"),
+        foto_url=row.get("loc_join_foto"),
+        link_maps=row.get("loc_join_maps"),
+    )
+
+
+async def _fetch_manual_confronto_row(cur, campeonato_id: int, confronto_id: int) -> dict | None:
+    await cur.execute(
+        _SQL_MANUAL_CONFRONTO_BASE + " WHERE cmc.campeonato_id = %s AND cmc.id = %s",
+        (campeonato_id, confronto_id),
+    )
+    r = await cur.fetchone()
+    return dict(r) if r else None
+
+
+async def _fetch_manual_confronto_full(
+    conn: psycopg.AsyncConnection, campeonato_id: int, confronto_id: int
+) -> dict | None:
+    async with conn.cursor() as cur:
+        return await _fetch_manual_confronto_row(cur, campeonato_id, confronto_id)
 
 
 def _require_admin(current_user: dict) -> None:
@@ -169,6 +217,8 @@ def _manual_confronto_response(row: dict) -> CampeonatoManualConfrontoResponse:
         vencedor_participante_id=row.get("vencedor_participante_id"),
         vencedor_nome=row.get("vencedor_nome"),
         inicio_em=_iso(row.get("inicio_em")),
+        local_id=row.get("local_id"),
+        local=_local_resumo_from_join_row(row),
         placar_a=row.get("placar_a"),
         placar_b=row.get("placar_b"),
         placar_a_sec=row.get("placar_a_sec"),
@@ -267,15 +317,8 @@ async def _get_manual_detalhe(conn: psycopg.AsyncConnection, campeonato_id: int)
         participantes = [_manual_participante_response(dict(r)) for r in await cur.fetchall()]
 
         await cur.execute(
-            """
-            SELECT cmc.*,
-                   COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS participante_a_nome,
-                   COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS participante_b_nome,
-                   COALESCE(pv.nome_exibicao, cmc.vencedor_nome) AS vencedor_nome
-            FROM campeonato_manual_confrontos cmc
-            LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
-            LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
-            LEFT JOIN campeonato_manual_participantes pv ON pv.id = cmc.vencedor_participante_id
+            _SQL_MANUAL_CONFRONTO_BASE
+            + """
             WHERE cmc.campeonato_id = %s
             ORDER BY cmc.fase, cmc.rodada, cmc.ordem, cmc.id
             """,
@@ -501,6 +544,8 @@ async def _get_manual_estrutura(conn: psycopg.AsyncConnection, campeonato_id: in
             origem_slot_a=None,
             origem_slot_b=None,
             inicio_em=c.inicio_em,
+            local_id=c.local_id,
+            local=c.local,
             mandante_nome=c.participante_a_nome or (participantes_por_id.get(c.participante_a_id).nome_exibicao if c.participante_a_id in participantes_por_id else None),
             visitante_nome=c.participante_b_nome or (participantes_por_id.get(c.participante_b_id).nome_exibicao if c.participante_b_id in participantes_por_id else None),
             vencedor_nome=c.vencedor_nome or (participantes_por_id.get(c.vencedor_participante_id).nome_exibicao if c.vencedor_participante_id in participantes_por_id else None),
@@ -804,6 +849,7 @@ async def create_manual_confronto(
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
     await _assert_manual_campeonato(conn, campeonato_id, resolved_edicao_id)
+    await assert_local_belongs_to_edicao(conn, data.local_id, resolved_edicao_id)
     await _manual_participante_ids_validos(
         conn,
         campeonato_id,
@@ -816,24 +862,28 @@ async def create_manual_confronto(
             INSERT INTO campeonato_manual_confrontos (
                 campeonato_id, fase, rodada, participante_a_id, participante_b_id,
                 participante_a_nome, participante_b_nome, vencedor_participante_id, vencedor_nome,
-                inicio_em, placar_a, placar_b, placar_a_sec, placar_b_sec, resultado_tipo, ordem
+                inicio_em, local_id, placar_a, placar_b, placar_a_sec, placar_b_sec, resultado_tipo, ordem
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (
                 campeonato_id, data.fase, data.rodada, data.participante_a_id, data.participante_b_id,
                 None, None, data.vencedor_participante_id, None,
-                data.inicio_em, data.placar_a, data.placar_b, data.placar_a_sec, data.placar_b_sec, data.resultado_tipo, data.ordem,
+                data.inicio_em, data.local_id, data.placar_a, data.placar_b, data.placar_a_sec, data.placar_b_sec, data.resultado_tipo, data.ordem,
             ),
         )
-        row = await cur.fetchone()
+        ins = await cur.fetchone()
+        confronto_id = int(ins["id"])
+        row_full = await _fetch_manual_confronto_row(cur, campeonato_id, confronto_id)
         await cur.execute(
             "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO' AND %s IS NOT NULL",
             (campeonato_id, data.resultado_tipo),
         )
         await conn.commit()
-    return _manual_confronto_response(dict(row))
+    if not row_full:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao carregar confronto criado.")
+    return _manual_confronto_response(row_full)
 
 
 async def _propagar_vencedor_bracket(
@@ -906,6 +956,8 @@ async def update_manual_confronto(
         campeonato_id,
         [values.get("participante_a_id"), values.get("participante_b_id"), values.get("vencedor_participante_id")],
     )
+    if "local_id" in values:
+        await assert_local_belongs_to_edicao(conn, values.get("local_id"), resolved_edicao_id)
     if not values:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nenhum campo para atualizar.")
 
@@ -925,11 +977,14 @@ async def update_manual_confronto(
             UPDATE campeonato_manual_confrontos
             SET {', '.join(sets)}, updated_at = NOW()
             WHERE id = %s AND campeonato_id = %s
-            RETURNING *
             """,
             tuple(params),
         )
-        row = await cur.fetchone()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confronto não encontrado.")
+        row_full = await _fetch_manual_confronto_row(cur, campeonato_id, confronto_id)
+        if not row_full:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confronto não encontrado.")
         if values.get("resultado_tipo") is not None:
             await cur.execute(
                 "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO'",
@@ -945,7 +1000,7 @@ async def update_manual_confronto(
                 current["vencedor_participante_id"],
             )
         await conn.commit()
-    return _manual_confronto_response(dict(row))
+    return _manual_confronto_response(row_full)
 
 
 @router.delete("/{campeonato_id}/manual/confrontos/{confronto_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1799,14 +1854,19 @@ async def get_estrutura(
             SELECT cp.id, cp.campeonato_id, cp.fase, cp.rodada, cp.grupo_id,
                    cp.mandante_equipe_id, cp.visitante_equipe_id, cp.vencedor_equipe_id,
                    cp.is_bye, cp.origem_slot_a, cp.origem_slot_b,
-                   cp.inicio_em,
+                   cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
                    cp.resultado_tipo, cp.registrado_em,
                    cp.created_at, cp.updated_at,
                    esc_m.nome_escola AS mandante_nome,
                    esc_v.nome_escola AS visitante_nome,
-                   esc_w.nome_escola AS vencedor_nome
+                   esc_w.nome_escola AS vencedor_nome,
+                   loc.id AS loc_join_id,
+                   loc.nome AS loc_join_nome,
+                   loc.endereco_completo AS loc_join_endereco,
+                   loc.foto_url AS loc_join_foto,
+                   loc.link_maps AS loc_join_maps
             FROM campeonato_partidas cp
             LEFT JOIN equipes eq_m ON eq_m.id = cp.mandante_equipe_id
             LEFT JOIN escolas esc_m ON esc_m.id = eq_m.escola_id
@@ -1814,6 +1874,7 @@ async def get_estrutura(
             LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
             LEFT JOIN equipes eq_w ON eq_w.id = cp.vencedor_equipe_id
             LEFT JOIN escolas esc_w ON esc_w.id = eq_w.escola_id
+            LEFT JOIN locais loc ON loc.id = cp.local_id
             WHERE cp.campeonato_id = %s
             ORDER BY
                 CASE cp.fase
@@ -1885,6 +1946,8 @@ async def get_estrutura(
             origem_slot_a=r.get("origem_slot_a"),
             origem_slot_b=r.get("origem_slot_b"),
             inicio_em=r["inicio_em"].isoformat() if r.get("inicio_em") else None,
+            local_id=r.get("local_id"),
+            local=_local_resumo_from_join_row(dict(r)),
             mandante_nome=r.get("mandante_nome"),
             visitante_nome=r.get("visitante_nome"),
             vencedor_nome=r.get("vencedor_nome"),
@@ -2018,7 +2081,7 @@ async def agendar_partida(
 
         await cur.execute(
             """
-            SELECT id, campeonato_id, is_bye, inicio_em
+            SELECT id, campeonato_id, is_bye, inicio_em, local_id
             FROM campeonato_partidas
             WHERE id = %s AND campeonato_id = %s
             """,
@@ -2030,15 +2093,23 @@ async def agendar_partida(
         if partida["is_bye"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ser agendada.")
 
+        if "local_id" in data.model_fields_set:
+            await assert_local_belongs_to_edicao(conn, data.local_id, resolved_edicao_id)
+
+        set_parts = ["inicio_em = %s", "updated_at = NOW()"]
+        qparams: list = [data.inicio_em]
+        if "local_id" in data.model_fields_set:
+            set_parts.insert(1, "local_id = %s")
+            qparams.insert(1, data.local_id)
+
         await cur.execute(
-            """
+            f"""
             UPDATE campeonato_partidas
-            SET inicio_em = %s,
-                updated_at = NOW()
+            SET {", ".join(set_parts)}
             WHERE id = %s
-            RETURNING id, inicio_em, updated_at
+            RETURNING id, inicio_em, local_id, updated_at
             """,
-            (data.inicio_em, partida_id),
+            tuple(qparams) + (partida_id,),
         )
         updated = await cur.fetchone()
         await conn.commit()
@@ -2052,10 +2123,12 @@ async def agendar_partida(
         detalhes_antes={
             "campeonato_id": campeonato_id,
             "inicio_em": partida["inicio_em"],
+            "local_id": partida.get("local_id"),
         },
         detalhes_depois={
             "campeonato_id": campeonato_id,
             "inicio_em": updated["inicio_em"],
+            "local_id": updated.get("local_id"),
         },
         mensagem=f"Usuário {current_user['nome']} alterou o agendamento da partida {partida_id}.",
     )
@@ -2063,6 +2136,7 @@ async def agendar_partida(
     return {
         "partida_id": updated["id"],
         "inicio_em": updated["inicio_em"].isoformat() if updated.get("inicio_em") else None,
+        "local_id": updated.get("local_id"),
         "updated_at": updated["updated_at"].isoformat() if updated.get("updated_at") else None,
     }
 

@@ -76,6 +76,22 @@ function ConfrontoCard({ confronto, showSport }) {
             Rd. {confronto.rodada}
           </span>
         </div>
+        {(confronto.local?.nome || confronto.local?.link_maps) && (
+          <div className="flex items-center gap-1.5 min-w-0 text-[10px] text-slate-500">
+            <span className="truncate font-medium">{confronto.local?.nome}</span>
+            {confronto.local?.link_maps && (
+              <a
+                href={confronto.local.link_maps}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal-600 shrink-0 inline-flex items-center gap-0.5 font-semibold"
+                title="Google Maps"
+              >
+                <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

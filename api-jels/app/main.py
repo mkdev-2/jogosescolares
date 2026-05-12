@@ -28,6 +28,7 @@ from app.categorias_noticias import router as categorias_noticias_router
 from app.auditoria import router as auditoria_router
 from app.instagram import router as instagram_router
 from app.edicoes import router as edicoes_router
+from app.locais import router as locais_router
 from app.campeonatos import router as campeonatos_router
 from app.public_campeonatos import router as public_campeonatos_router
 from app.relatorios import router as relatorios_router
@@ -111,6 +112,7 @@ app.include_router(categorias_noticias_router)
 app.include_router(auditoria_router)
 app.include_router(instagram_router)
 app.include_router(edicoes_router)
+app.include_router(locais_router)
 app.include_router(campeonatos_router)
 app.include_router(public_campeonatos_router)
 app.include_router(relatorios_router)

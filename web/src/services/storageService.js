@@ -23,6 +23,7 @@ const DOCUMENTACAO_PROFESSORES_PATH = 'professores/documentacao'
 const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
 const MIDIAS_PATH = 'midias'
+const LOCAIS_PATH = 'locais'
 
 /**
  * Faz upload para o MinIO via backend. bucket e path na query; body só o file.
@@ -299,5 +300,18 @@ export async function uploadLogoMidias(file, tipo) {
 export async function uploadBannerHero(file) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '')
   const path = `hero/banner-${Date.now()}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Foto do local de competição (quadra/ginásio).
+ * @param {File} file
+ * @param {number|null|undefined} edicaoId
+ * @returns {Promise<string>} Path relativo (bucket/path)
+ */
+export async function uploadLocalFoto(file, edicaoId) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg'
+  const seg = edicaoId != null && edicaoId !== '' ? String(edicaoId) : 'sem-edicao'
+  const path = `${LOCAIS_PATH}/${seg}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }

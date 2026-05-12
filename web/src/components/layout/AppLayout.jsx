@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2, FileBarChart2 } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2, FileBarChart2, MapPin } from 'lucide-react'
 
 import { useAuth } from '../../contexts/AuthContext'
 import StorageImage from '../StorageImage'
@@ -28,6 +28,7 @@ const menuGroups = [
     items: [
       { label: 'Esportes', path: '/app/atividades', icon: Trophy, tab: 'esportes' },
       { label: 'Campeonatos', path: '/app/atividades', icon: ClipboardList, tab: 'campeonatos', adminOnly: true },
+      { label: 'Locais', path: '/app/atividades', icon: MapPin, tab: 'locais', adminOnly: true },
     ],
   },
   {
