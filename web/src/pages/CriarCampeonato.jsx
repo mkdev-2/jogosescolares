@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AutoComplete, Button, Checkbox, Modal, Radio, Select, Spin, Switch, Tabs, Tag, Tooltip, message } from 'antd'
+import { AutoComplete, Button, Checkbox, Divider, InputNumber, Modal, Radio, Select, Spin, Switch, Tabs, Tag, Tooltip, message } from 'antd'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { ArrowLeft, Plus, Search, Trash2, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
@@ -893,6 +893,15 @@ export default function CriarCampeonato() {
   const [manualGrupos, setManualGrupos] = useState([])
   const [manualChaveOrdem, setManualChaveOrdem] = useState([])
   const [manualTab, setManualTab] = useState('grupos')
+  const [manualConfigPontuacao, setManualConfigPontuacao] = useState({
+    permite_empate: false,
+    pts_vitoria: 3,
+    pts_vitoria_parcial: null,
+    pts_empate: 1,
+    pts_derrota: 0,
+    wxo_pts_vencedor: 3,
+    wxo_pts_perdedor: 0,
+  })
 
   const [equipesCadastradasNaVariante, setEquipesCadastradasNaVariante] = useState([])
   const [loadingEquipesVariante, setLoadingEquipesVariante] = useState(false)
@@ -904,6 +913,15 @@ export default function CriarCampeonato() {
     setManualChaveOrdem([])
     setManualTab('grupos')
     setManualTemFaseGrupos(true)
+    setManualConfigPontuacao({
+      permite_empate: false,
+      pts_vitoria: 3,
+      pts_vitoria_parcial: null,
+      pts_empate: 1,
+      pts_derrota: 0,
+      wxo_pts_vencedor: 3,
+      wxo_pts_perdedor: 0,
+    })
   }, [])
 
   useEffect(() => {
@@ -1088,6 +1106,10 @@ export default function CriarCampeonato() {
           }))
         : undefined,
       chaveamento_equipe_ids: manualTemFaseGrupos ? undefined : manualChaveOrdem.map((e) => e.id),
+      config_pontuacao: {
+        ...manualConfigPontuacao,
+        pts_vitoria_parcial: manualConfigPontuacao.pts_vitoria_parcial ?? null,
+      },
     }
 
     setSalvando(true)
@@ -1282,6 +1304,101 @@ export default function CriarCampeonato() {
                       disabled: n > equipesCadastradasNaVariante.length,
                     }))}
                   />
+                </div>
+
+                <div className="pt-1">
+                  <Divider
+                    orientation="left"
+                    className="!text-[0.8125rem] !font-semibold !text-[#64748b] !uppercase !tracking-wider !my-3"
+                  >
+                    Pontuação na tabela
+                  </Divider>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Switch
+                      checked={manualConfigPontuacao.permite_empate}
+                      disabled={bloqueioManual}
+                      onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, permite_empate: v }))}
+                      size="small"
+                    />
+                    <span className="text-sm text-[#374151]">Permite empate</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">Vitória</p>
+                      <InputNumber
+                        value={manualConfigPontuacao.pts_vitoria}
+                        min={0}
+                        disabled={bloqueioManual}
+                        className="w-full"
+                        onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, pts_vitoria: v ?? 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">
+                        Vitória parcial
+                        <span className="block text-[0.7rem] text-[#94a3b8] font-normal leading-tight">Ex: vôlei 2×1</span>
+                      </p>
+                      <InputNumber
+                        value={manualConfigPontuacao.pts_vitoria_parcial ?? undefined}
+                        min={0}
+                        disabled={bloqueioManual}
+                        className="w-full"
+                        placeholder="—"
+                        onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, pts_vitoria_parcial: v ?? null }))}
+                      />
+                    </div>
+                    {manualConfigPontuacao.permite_empate && (
+                      <div>
+                        <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">Empate</p>
+                        <InputNumber
+                          value={manualConfigPontuacao.pts_empate}
+                          min={0}
+                          disabled={bloqueioManual}
+                          className="w-full"
+                          onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, pts_empate: v ?? 0 }))}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">Derrota</p>
+                      <InputNumber
+                        value={manualConfigPontuacao.pts_derrota}
+                        min={0}
+                        disabled={bloqueioManual}
+                        className="w-full"
+                        onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, pts_derrota: v ?? 0 }))}
+                      />
+                    </div>
+                  </div>
+
+                  <Divider
+                    orientation="left"
+                    className="!text-[0.8125rem] !font-semibold !text-[#64748b] !uppercase !tracking-wider !my-3"
+                  >
+                    Walkover (W×O)
+                  </Divider>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">Vencedor</p>
+                      <InputNumber
+                        value={manualConfigPontuacao.wxo_pts_vencedor}
+                        min={0}
+                        disabled={bloqueioManual}
+                        className="w-full"
+                        onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, wxo_pts_vencedor: v ?? 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-[#334155] mb-1">Perdedor</p>
+                      <InputNumber
+                        value={manualConfigPontuacao.wxo_pts_perdedor}
+                        min={0}
+                        disabled={bloqueioManual}
+                        className="w-full"
+                        onChange={(v) => setManualConfigPontuacao((p) => ({ ...p, wxo_pts_perdedor: v ?? 0 }))}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

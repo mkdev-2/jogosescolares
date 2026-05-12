@@ -774,6 +774,21 @@ async def create_campeonato_manual(
         )
         pid_by_equipe = {int(r["equipe_id"]): int(r["id"]) for r in await cur.fetchall()}
 
+        if data.config_pontuacao:
+            cfg = data.config_pontuacao
+            await cur.execute(
+                """
+                INSERT INTO campeonato_manual_config_pontuacao
+                    (campeonato_id, permite_empate, pts_vitoria, pts_vitoria_parcial,
+                     pts_empate, pts_derrota, wxo_pts_vencedor, wxo_pts_perdedor)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    campeonato_id, cfg.permite_empate, cfg.pts_vitoria, cfg.pts_vitoria_parcial,
+                    cfg.pts_empate, cfg.pts_derrota, cfg.wxo_pts_vencedor, cfg.wxo_pts_perdedor,
+                ),
+            )
+
         if data.tem_fase_grupos and data.grupos:
             for gi, g in enumerate(data.grupos):
                 await cur.execute(
@@ -838,6 +853,141 @@ async def get_campeonato_manual(
     return await _get_manual_detalhe(conn, campeonato_id)
 
 
+async def _recalcular_classificacao_grupos(cur: psycopg.AsyncCursor, campeonato_id: int) -> None:
+    await cur.execute(
+        "SELECT * FROM campeonato_manual_config_pontuacao WHERE campeonato_id = %s",
+        (campeonato_id,),
+    )
+    cfg = await cur.fetchone()
+    if not cfg:
+        return
+
+    await cur.execute(
+        "SELECT id, nome FROM campeonato_manual_grupos WHERE campeonato_id = %s ORDER BY ordem",
+        (campeonato_id,),
+    )
+    grupos = await cur.fetchall()
+    if not grupos:
+        return
+
+    for grupo in grupos:
+        grupo_id = grupo["id"]
+        grupo_nome = grupo["nome"]
+
+        await cur.execute(
+            """
+            SELECT p.id, p.nome_exibicao
+            FROM campeonato_manual_grupo_participantes gp
+            JOIN campeonato_manual_participantes p ON p.id = gp.participante_id
+            WHERE gp.grupo_id = %s
+            ORDER BY gp.seed_no_grupo
+            """,
+            (grupo_id,),
+        )
+        participantes = await cur.fetchall()
+        if not participantes:
+            continue
+
+        pid_set = {p["id"] for p in participantes}
+        pid_nome = {p["id"]: p["nome_exibicao"] for p in participantes}
+
+        await cur.execute(
+            """
+            SELECT participante_a_id, participante_b_id, vencedor_participante_id,
+                   placar_a, placar_b, placar_a_sec, placar_b_sec, resultado_tipo
+            FROM campeonato_manual_confrontos
+            WHERE campeonato_id = %s
+              AND fase = 'GRUPOS'
+              AND resultado_tipo IN ('NORMAL', 'WXO')
+              AND participante_a_id = ANY(%s)
+              AND participante_b_id = ANY(%s)
+            """,
+            (campeonato_id, list(pid_set), list(pid_set)),
+        )
+        confrontos = await cur.fetchall()
+
+        stats: dict[int, dict] = {
+            pid: {"j": 0, "v": 0, "e": 0, "d": 0, "pts": 0, "pro": 0, "contra": 0}
+            for pid in pid_set
+        }
+
+        for c in confrontos:
+            a = c["participante_a_id"]
+            b = c["participante_b_id"]
+            if a not in stats or b not in stats:
+                continue
+
+            stats[a]["j"] += 1
+            stats[b]["j"] += 1
+
+            if c["resultado_tipo"] == "WXO":
+                venc = c["vencedor_participante_id"]
+                perd = b if venc == a else a
+                if venc in stats:
+                    stats[venc]["pts"] += cfg["wxo_pts_vencedor"]
+                    stats[venc]["v"] += 1
+                if perd in stats:
+                    stats[perd]["pts"] += cfg["wxo_pts_perdedor"]
+                    stats[perd]["d"] += 1
+            else:
+                venc = c["vencedor_participante_id"]
+                if venc is None:
+                    stats[a]["pts"] += cfg["pts_empate"]
+                    stats[b]["pts"] += cfg["pts_empate"]
+                    stats[a]["e"] += 1
+                    stats[b]["e"] += 1
+                else:
+                    perd = b if venc == a else a
+                    loser_sec = c["placar_b_sec"] if venc == a else c["placar_a_sec"]
+                    if cfg["pts_vitoria_parcial"] is not None and loser_sec is not None and loser_sec > 0:
+                        pts_v = cfg["pts_vitoria_parcial"]
+                    else:
+                        pts_v = cfg["pts_vitoria"]
+                    if venc in stats:
+                        stats[venc]["pts"] += pts_v
+                        stats[venc]["v"] += 1
+                    if perd in stats:
+                        stats[perd]["pts"] += cfg["pts_derrota"]
+                        stats[perd]["d"] += 1
+
+            pa = c["placar_a"] or 0
+            pb = c["placar_b"] or 0
+            stats[a]["pro"] += pa
+            stats[a]["contra"] += pb
+            stats[b]["pro"] += pb
+            stats[b]["contra"] += pa
+
+        ordenados = sorted(
+            list(pid_set),
+            key=lambda pid: (
+                -stats[pid]["pts"],
+                -(stats[pid]["pro"] - stats[pid]["contra"]),
+                -stats[pid]["pro"],
+            ),
+        )
+
+        await cur.execute(
+            "DELETE FROM campeonato_manual_classificacao WHERE campeonato_id = %s AND grupo_nome = %s",
+            (campeonato_id, grupo_nome),
+        )
+
+        for pos, pid in enumerate(ordenados, start=1):
+            s = stats[pid]
+            saldo = s["pro"] - s["contra"]
+            await cur.execute(
+                """
+                INSERT INTO campeonato_manual_classificacao
+                    (campeonato_id, grupo_nome, participante_id, nome_exibicao, posicao,
+                     pontos, vitorias, empates, derrotas, pro, contra, saldo, ordem)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    campeonato_id, grupo_nome, pid, pid_nome[pid], pos,
+                    s["pts"], s["v"], s["e"], s["d"], s["pro"], s["contra"], saldo, pos,
+                ),
+            )
+
+
 @router.post("/{campeonato_id}/manual/confrontos", response_model=CampeonatoManualConfrontoResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_confronto(
     campeonato_id: int,
@@ -873,13 +1023,14 @@ async def create_manual_confronto(
                 data.inicio_em, data.local_id, data.placar_a, data.placar_b, data.placar_a_sec, data.placar_b_sec, data.resultado_tipo, data.ordem,
             ),
         )
-        ins = await cur.fetchone()
-        confronto_id = int(ins["id"])
-        row_full = await _fetch_manual_confronto_row(cur, campeonato_id, confronto_id)
-        await cur.execute(
-            "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO' AND %s IS NOT NULL",
-            (campeonato_id, data.resultado_tipo),
-        )
+        row = await cur.fetchone()
+        if data.resultado_tipo is not None:
+            await cur.execute(
+                "UPDATE campeonatos SET status = 'EM_ANDAMENTO', updated_at = NOW() WHERE id = %s AND status = 'GERADO'",
+                (campeonato_id,),
+            )
+        if str(data.fase) == "GRUPOS":
+            await _recalcular_classificacao_grupos(cur, campeonato_id)
         await conn.commit()
     if not row_full:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao carregar confronto criado.")
@@ -965,7 +1116,7 @@ async def update_manual_confronto(
     params = list(values.values()) + [confronto_id, campeonato_id]
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT rodada, ordem, vencedor_participante_id FROM campeonato_manual_confrontos WHERE id = %s AND campeonato_id = %s",
+            "SELECT rodada, ordem, fase, vencedor_participante_id FROM campeonato_manual_confrontos WHERE id = %s AND campeonato_id = %s",
             (confronto_id, campeonato_id),
         )
         current = await cur.fetchone()
@@ -999,6 +1150,8 @@ async def update_manual_confronto(
                 values["vencedor_participante_id"],
                 current["vencedor_participante_id"],
             )
+        if str(current["fase"]) == "GRUPOS":
+            await _recalcular_classificacao_grupos(cur, campeonato_id)
         await conn.commit()
     return _manual_confronto_response(row_full)
 
@@ -1016,11 +1169,14 @@ async def delete_manual_confronto(
     await _assert_manual_campeonato(conn, campeonato_id, resolved_edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(
-            "DELETE FROM campeonato_manual_confrontos WHERE id = %s AND campeonato_id = %s RETURNING id",
+            "DELETE FROM campeonato_manual_confrontos WHERE id = %s AND campeonato_id = %s RETURNING id, fase",
             (confronto_id, campeonato_id),
         )
-        if not await cur.fetchone():
+        deleted = await cur.fetchone()
+        if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Confronto não encontrado.")
+        if str(deleted["fase"]) == "GRUPOS":
+            await _recalcular_classificacao_grupos(cur, campeonato_id)
         await conn.commit()
 
 
