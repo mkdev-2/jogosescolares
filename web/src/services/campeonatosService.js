@@ -123,6 +123,14 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao excluir classificação')
   },
 
+  async criarEquipeProvisoria({ escola_id, esporte_variante_id, edicao_id }) {
+    const res = await apiFetch(`${BASE}/equipe-provisoria`, {
+      method: 'POST',
+      body: JSON.stringify({ escola_id, esporte_variante_id, edicao_id: edicao_id || null }),
+    })
+    return handleResponse(res, 'Erro ao criar equipe provisória')
+  },
+
   async getEquipesDaVariante(esporteVarianteId, edicaoId = null) {
     const params = new URLSearchParams({ esporte_variante_id: String(esporteVarianteId) })
     if (edicaoId) params.set('edicao_id', String(edicaoId))

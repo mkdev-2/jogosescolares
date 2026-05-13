@@ -29,6 +29,7 @@ from app.schemas import (
     CampeonatoPartidaResponse,
     CampeonatoResponse,
     EquipeDaVarianteResponse,
+    EquipeProvisioriaCreate,
     EsporteConfigPontuacaoResponse,
     EstruturaGruposPreviewResponse,
     PartidaAgendamentoInput,
@@ -1250,7 +1251,7 @@ async def get_equipes_da_variante(
 
         await cur.execute(
             """
-            SELECT eq.id, eq.escola_id, esc.nome_escola
+            SELECT eq.id, eq.escola_id, esc.nome_escola, eq.is_provisional
             FROM equipes eq
             JOIN escolas esc ON esc.id = eq.escola_id
             WHERE eq.esporte_variante_id = %s AND eq.edicao_id = %s
@@ -1261,9 +1262,85 @@ async def get_equipes_da_variante(
         rows = await cur.fetchall()
 
     return [
-        EquipeDaVarianteResponse(id=r["id"], escola_id=r["escola_id"], nome_escola=r["nome_escola"])
+        EquipeDaVarianteResponse(
+            id=r["id"],
+            escola_id=r["escola_id"],
+            nome_escola=r["nome_escola"],
+            is_provisional=r["is_provisional"],
+        )
         for r in rows
     ]
+
+
+@router.post("/equipe-provisoria", response_model=EquipeDaVarianteResponse, status_code=status.HTTP_201_CREATED)
+async def criar_equipe_provisoria(
+    data: EquipeProvisioriaCreate,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Cria uma equipe provisória para uma escola que não possui equipe cadastrada na
+    variante/edição, permitindo incluí-la no sorteio de um campeonato de última hora.
+    A escola deve preencher professor-técnico e atletas posteriormente.
+    Regras: COLETIVAS → 1 equipe por escola (o trigger do banco garante);
+            INDIVIDUAIS → múltiplas equipes por escola são permitidas.
+    """
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT id FROM escolas WHERE id = %s", (data.escola_id,))
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escola não encontrada.")
+
+        await cur.execute(
+            "SELECT id FROM esporte_variantes WHERE id = %s AND edicao_id = %s",
+            (data.esporte_variante_id, resolved_edicao_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Variante não encontrada na edição selecionada.",
+            )
+
+        try:
+            await cur.execute(
+                """
+                INSERT INTO equipes
+                    (escola_id, esporte_variante_id, edicao_id, professor_tecnico_id, is_provisional)
+                VALUES (%s, %s, %s, NULL, TRUE)
+                RETURNING id
+                """,
+                (data.escola_id, data.esporte_variante_id, resolved_edicao_id),
+            )
+        except psycopg.errors.RaiseException as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc).split("\n")[0])
+        except psycopg.errors.UniqueViolation:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Escola já possui equipe cadastrada para esta modalidade/edição.",
+            )
+
+        equipe_id = (await cur.fetchone())["id"]
+
+        await cur.execute(
+            """
+            SELECT eq.id, eq.escola_id, esc.nome_escola, eq.is_provisional
+            FROM equipes eq
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE eq.id = %s
+            """,
+            (equipe_id,),
+        )
+        row = await cur.fetchone()
+        await conn.commit()
+
+    return EquipeDaVarianteResponse(
+        id=row["id"],
+        escola_id=row["escola_id"],
+        nome_escola=row["nome_escola"],
+        is_provisional=row["is_provisional"],
+    )
 
 
 @router.get("/estrutura-grupos-preview", response_model=EstruturaGruposPreviewResponse)

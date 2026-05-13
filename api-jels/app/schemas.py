@@ -648,7 +648,7 @@ class EquipeResponse(BaseModel):
     naipe_nome: Optional[str] = None
     tipo_modalidade_codigo: Optional[str] = None
     tipo_modalidade_nome: Optional[str] = None
-    professor_tecnico_id: int
+    professor_tecnico_id: Optional[int] = None
     professor_tecnico_nome: Optional[str] = None
     professor_auxiliar_id: Optional[int] = None
     professor_auxiliar_nome: Optional[str] = None
@@ -974,6 +974,14 @@ class EquipeDaVarianteResponse(BaseModel):
     id: int
     escola_id: int
     nome_escola: str
+    is_provisional: bool = False
+
+
+class EquipeProvisioriaCreate(BaseModel):
+    """Cria uma equipe provisória para uma escola sem equipe cadastrada."""
+    escola_id: int
+    esporte_variante_id: str = Field(..., min_length=1)
+    edicao_id: Optional[int] = None
 
 
 class GrupoSorteioInput(BaseModel):

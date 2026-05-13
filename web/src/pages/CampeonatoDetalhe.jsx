@@ -1025,7 +1025,7 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
         <h3 className="font-bold text-[#042f2e] m-0 text-sm">GRUPO {grupo.nome}</h3>
       </div>
       <div className="p-4 flex flex-col gap-4 lg:flex-row lg:gap-6">
-        <div className="flex-1 min-w-0">
+        <div className="flex-[3] min-w-0">
           <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-2">Classificação</p>
           <ClassificacaoGrupo
             campeonatoId={campeonatoId}
@@ -1037,7 +1037,7 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
             wildcardRanking={wildcardRanking}
           />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-[2] min-w-0">
           <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-2">Partidas</p>
           <div className="flex flex-col gap-2">
             {partidasGrupo.length === 0 && (

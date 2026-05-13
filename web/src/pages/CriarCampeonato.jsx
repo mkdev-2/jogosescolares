@@ -5,6 +5,7 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { ArrowLeft, Plus, Search, Trash2, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { edicoesService } from '../services/edicoesService'
+import { escolasService } from '../services/escolasService'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 
 // ─── componentes DnD ────────────────────────────────────────────────────────
@@ -906,6 +907,10 @@ export default function CriarCampeonato() {
   const [equipesCadastradasNaVariante, setEquipesCadastradasNaVariante] = useState([])
   const [loadingEquipesVariante, setLoadingEquipesVariante] = useState(false)
 
+  const [escolas, setEscolas] = useState([])
+  const [escolaParaAdicionar, setEscolaParaAdicionar] = useState(undefined)
+  const [adicionandoProvisoria, setAdicionandoProvisoria] = useState(false)
+
   const resetFluxoManual = useCallback(() => {
     setManualCamposBloqueados(false)
     setManualConfirmadas([])
@@ -969,14 +974,19 @@ export default function CriarCampeonato() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [edData, varData, campData] = await Promise.all([
+        const [edData, varData, campData, escData] = await Promise.all([
           edicoesService.list(),
           esporteVariantesService.list(),
           campeonatosService.list(),
+          escolasService.list(),
         ])
-        setEdicoes(Array.isArray(edData) ? edData : [])
+        const edicoesList = Array.isArray(edData) ? edData : []
+        setEdicoes(edicoesList)
         setVariantes(Array.isArray(varData) ? varData : [])
         setCampeonatosExistentes(Array.isArray(campData) ? campData : [])
+        setEscolas(Array.isArray(escData) ? escData : [])
+        const ativa = edicoesList.find((e) => e.status === 'ATIVA')
+        if (ativa) setEdicaoId(ativa.id)
       } catch (err) {
         message.error(err.message || 'Erro ao carregar dados iniciais')
       } finally {
@@ -1000,6 +1010,25 @@ export default function CriarCampeonato() {
     (v) => [v.esporte_nome, v.categoria_nome, v.naipe_nome].filter(Boolean).join(' – '),
     []
   )
+
+  async function handleAdicionarProvisoria() {
+    if (!escolaParaAdicionar) return
+    setAdicionandoProvisoria(true)
+    try {
+      const nova = await campeonatosService.criarEquipeProvisoria({
+        escola_id: escolaParaAdicionar,
+        esporte_variante_id: varianteId,
+        edicao_id: edicaoId || null,
+      })
+      setEquipes((prev) => [...prev, nova])
+      setSelecionadas((prev) => [...prev, nova.id])
+      setEscolaParaAdicionar(undefined)
+    } catch (err) {
+      message.error(err.message || 'Erro ao criar equipe provisória')
+    } finally {
+      setAdicionandoProvisoria(false)
+    }
+  }
 
   async function handleBuscarEquipes() {
     if (!varianteId) return
@@ -1038,6 +1067,7 @@ export default function CriarCampeonato() {
       setManualConfirmadas(confirmadas)
       setManualCamposBloqueados(true)
       setConfirmacaoOpen(false)
+      setEscolaParaAdicionar(undefined)
       if (manualTemFaseGrupos) {
         setManualGrupos([
           {
@@ -1064,6 +1094,7 @@ export default function CriarCampeonato() {
       return
     }
     setConfirmacaoOpen(false)
+    setEscolaParaAdicionar(undefined)
 
     if (est.regra === 'DIRETO') {
       setDiretoDlg({ open: true, equipes: confirmadas, estrutura: est })
@@ -1232,7 +1263,7 @@ export default function CriarCampeonato() {
               buttonStyle="solid"
               options={[
                 { label: 'Automático', value: 'automatico' },
-                { label: 'Manual', value: 'manual' },
+                { label: 'Manual', value: 'manual', disabled: true },
               ]}
             />
             <div className="flex flex-col gap-1">
@@ -1481,9 +1512,9 @@ export default function CriarCampeonato() {
       {/* Modal de confirmação de equipes */}
       <Modal
         open={confirmacaoOpen}
-        onCancel={() => setConfirmacaoOpen(false)}
+        onCancel={() => { setConfirmacaoOpen(false); setEscolaParaAdicionar(undefined) }}
         title="Confirmar equipes participantes"
-        width={500}
+        width={520}
         footer={
           <div className="flex justify-between items-center">
             <span className="text-sm text-[#64748b]">
@@ -1508,7 +1539,7 @@ export default function CriarCampeonato() {
           Desmarque as equipes que não vão participar. Após confirmar, não serão permitidas
           desistências.
         </p>
-        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
           {equipes.map((equipe) => (
             <label
               key={equipe.id}
@@ -1523,8 +1554,53 @@ export default function CriarCampeonato() {
                 }
               />
               <span className="text-sm text-[#1e293b]">{equipe.nome_escola}</span>
+              {equipe.is_provisional && (
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0">
+                  provisória
+                </span>
+              )}
             </label>
           ))}
+        </div>
+
+        {/* Adicionar escola de última hora */}
+        <Divider className="my-3" />
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-[#374151] uppercase tracking-wide">
+            Adicionar escola sem equipe cadastrada
+          </span>
+          <p className="text-xs text-[#64748b] m-0">
+            {varianteSelecionada?.tipo_modalidade_nome === 'COLETIVAS'
+              ? 'Apenas escolas que ainda não possuem equipe nesta modalidade.'
+              : 'Qualquer escola pode ser adicionada (múltiplas equipes por escola permitidas).'}
+          </p>
+          <div className="flex gap-2">
+            <Select
+              placeholder="Selecione a escola"
+              showSearch
+              optionFilterProp="label"
+              className="flex-1"
+              value={escolaParaAdicionar}
+              onChange={setEscolaParaAdicionar}
+              options={escolas
+                .filter((esc) =>
+                  varianteSelecionada?.tipo_modalidade_nome === 'COLETIVAS'
+                    ? !equipes.some((e) => e.escola_id === esc.id)
+                    : true
+                )
+                .map((esc) => ({ value: esc.id, label: esc.nome_escola }))}
+              notFoundContent={<span className="text-xs text-[#94a3b8]">Nenhuma escola disponível</span>}
+            />
+            <Button
+              type="default"
+              icon={<Plus size={14} />}
+              loading={adicionandoProvisoria}
+              disabled={!escolaParaAdicionar}
+              onClick={handleAdicionarProvisoria}
+            >
+              Adicionar
+            </Button>
+          </div>
         </div>
       </Modal>
 
