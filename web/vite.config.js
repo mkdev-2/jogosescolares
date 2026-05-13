@@ -10,15 +10,13 @@ export default defineConfig(({ mode }) => {
 
   // Mesmos fallbacks de setupProxy.cjs (proxy nativo do Vite roda antes do SPA e evita
   // GET de imagens/arquivos receberem index.html por engano).
+  // Padrão: stack local (docker-compose em api-jels). Em deploy remoto, defina VITE_* no build.
   const apiServiceUrl =
-    env.VITE_API_SERVICE_URL?.trim() ||
-    (isDev ? 'http://localhost:8000' : 'https://auth-jels.criativesoftware.com.br')
+    env.VITE_API_SERVICE_URL?.trim() || 'http://localhost:8000'
   const postgrestUrl =
-    env.VITE_POSTGREST_URL?.trim() ||
-    (isDev ? 'http://localhost:3001' : 'https://api-jels.criativesoftware.com.br')
+    env.VITE_POSTGREST_URL?.trim() || 'http://localhost:3001'
   const minioUrl =
-    env.VITE_MINIO_URL?.trim() ||
-    (isDev ? 'http://localhost:9000' : 'https://storage-jels.criativesoftware.com.br')
+    env.VITE_MINIO_URL?.trim() || 'http://localhost:9000'
 
   if (isDev) {
     console.log('[vite proxy] Targets:', { apiServiceUrl, postgrestUrl, minioUrl })

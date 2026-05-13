@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { ConfigProvider } from 'antd'
 import ptBR from 'antd/locale/pt_BR'
 import { AuthProvider } from './contexts/AuthContext'
+import { EdicaoProvider } from './contexts/EdicaoContext'
 
 const antdTheme = {
   token: {
@@ -42,6 +43,7 @@ function App() {
     <ConfigProvider theme={antdTheme} locale={ptBR}>
       <Analytics />
       <AuthProvider>
+        <EdicaoProvider>
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -72,6 +74,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </BrowserRouter>
+        </EdicaoProvider>
       </AuthProvider>
     </ConfigProvider>
   )

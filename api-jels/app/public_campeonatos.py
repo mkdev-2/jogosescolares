@@ -519,14 +519,12 @@ async def get_campeonato_publico(
             WHERE cp.campeonato_id = %s
             ORDER BY
                 CASE cp.fase
-                    WHEN 'GRUPOS'              THEN 1
-                    WHEN 'TRINTA_E_DOIS_AVOS'  THEN 2
-                    WHEN 'DEZESSEIS_AVOS'      THEN 3
-                    WHEN 'OITAVAS'             THEN 4
-                    WHEN 'QUARTAS'             THEN 5
-                    WHEN 'SEMI'                THEN 6
-                    WHEN 'FINAL'               THEN 7
-                    WHEN 'TERCEIRO'            THEN 8
+                    WHEN 'GRUPOS'   THEN 1
+                    WHEN 'OITAVAS'  THEN 2
+                    WHEN 'QUARTAS' THEN 3
+                    WHEN 'SEMI'    THEN 4
+                    WHEN 'FINAL'   THEN 5
+                    WHEN 'TERCEIRO' THEN 6
                     ELSE 99
                 END,
                 cp.rodada, cp.id

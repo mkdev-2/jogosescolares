@@ -26,13 +26,11 @@ const ROUND_W = 210                        // width of each match box (px)
 const CONNECTOR_W = 40                     // width of connector between rounds (px)
 
 const BRACKET_PHASES = [
-  'TRINTA_E_DOIS_AVOS', 'DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
+  'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
 ]
 
 const FASE_LABEL = {
   GRUPOS: 'Fase de Grupos',
-  TRINTA_E_DOIS_AVOS: '1/32 de Final',
-  DEZESSEIS_AVOS: '1/16 de Final',
   OITAVAS: 'Oitavas',
   QUARTAS: 'Quartas de Final',
   SEMI: 'Semifinais',
@@ -58,19 +56,14 @@ const STATUS_LABELS = {
 
 const FASE_ORDER = {
   GRUPOS: 1,
-  TRINTA_E_DOIS_AVOS: 2,
-  DEZESSEIS_AVOS: 3,
-  OITAVAS: 4,
-  QUARTAS: 5,
-  SEMI: 6,
-  FINAL: 7,
-  TERCEIRO: 8,
+  OITAVAS: 2,
+  QUARTAS: 3,
+  SEMI: 4,
+  FINAL: 5,
+  TERCEIRO: 6,
 }
 
-// Fases disponíveis no modal de confronto manual (sem 1/32 e 1/16)
-const FASE_OPTIONS_CONFRONTO = Object.entries(FASE_LABEL)
-  .filter(([v]) => v !== 'TRINTA_E_DOIS_AVOS' && v !== 'DEZESSEIS_AVOS')
-  .map(([value, label]) => ({ value, label }))
+const FASE_OPTIONS_CONFRONTO = Object.entries(FASE_LABEL).map(([value, label]) => ({ value, label }))
 
 function ladoVenceu(partida, lado) {
   const idKey = lado === 'mandante' ? 'mandante_equipe_id' : 'visitante_equipe_id'
@@ -901,7 +894,7 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
       onSchedule && {
         key: 'schedule',
         icon: <ClockCircleOutlined />,
-        label: 'Definir Horário',
+        label: 'Definir Horário e Local',
       },
       onRegister && {
         key: 'result',

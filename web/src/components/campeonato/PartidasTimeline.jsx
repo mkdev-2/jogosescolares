@@ -73,7 +73,7 @@ function SectionDivider({ label }) {
 }
 
 const KNOCKOUT_PHASES_ORDER = [
-  'TRINTA_E_DOIS_AVOS', 'DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL', 'TERCEIRO',
+  'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL', 'TERCEIRO',
 ]
 
 export default function PartidasTimeline({ partidas, grupos }) {

@@ -63,10 +63,23 @@ async def assert_local_belongs_to_edicao(
 @router.get("", response_model=list[LocalResponse])
 async def list_locais(
     edicao_id: int | None = Query(None, description="Filtra por edição; se omitido usa a ativa"),
+    todas: bool = Query(False, description="Se true, lista locais de todas as edições (ignora edicao_id)"),
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     _require_admin(current_user)
+    if todas:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, edicao_id, nome, endereco_completo, foto_url, link_maps, created_at, updated_at
+                FROM locais
+                ORDER BY edicao_id, nome, id
+                """
+            )
+            rows = await cur.fetchall()
+        return [_row_to_response(dict(r)) for r in rows]
+
     resolved = await resolve_edicao_id(conn, edicao_id)
     async with conn.cursor() as cur:
         await cur.execute(

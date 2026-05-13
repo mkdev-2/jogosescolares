@@ -16,9 +16,17 @@ function qsEdicao(edicaoId) {
   return edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
 }
 
+function qsList(edicaoId, { todas = false } = {}) {
+  if (todas) return '?todas=1'
+  return qsEdicao(edicaoId)
+}
+
 export const locaisService = {
-  async list(edicaoId = null) {
-    const res = await apiFetch(`${BASE}${qsEdicao(edicaoId)}`)
+  /** @param {number|null|undefined} edicaoId - filtro por edição */
+  /** @param {{ todas?: boolean }} [options] - `todas: true` lista todas as edições */
+  async list(edicaoId = null, options = {}) {
+    const { todas = false } = options
+    const res = await apiFetch(`${BASE}${qsList(edicaoId, { todas })}`)
     const data = await handleResponse(res, 'Erro ao listar locais')
     return Array.isArray(data) ? data : []
   },
