@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Table, Tag, Button, Modal, Input, Select, Space, Typography, Popconfirm,
+  Table, Tag, Button, Modal, Input, InputNumber, Select, Space, Typography, Popconfirm,
   Form, Divider, Avatar, message, Tooltip, Checkbox,
 } from 'antd'
 import { Plus, Settings2, User, FileText, X, Upload, Trash2, Pencil, Check, Camera, IdCard, Medal, Printer, Search, Layers } from 'lucide-react'
@@ -662,7 +662,7 @@ function ModalCredenciaisEmMassa({ open, onClose, allStaff }) {
 
   return (
     <>
-      {/* Container de impressão renderizado direto no <body> via portal para paginação correta */}
+      {/* Container renderizado direto no <body> via portal — necessário para paginação correta no print */}
       {createPortal(
         <>
           <style>{MASS_PRINT_CSS}</style>
@@ -764,9 +764,11 @@ function ModalCargos({ open, onClose }) {
   const [cargos, setCargos] = useState([])
   const [loading, setLoading] = useState(false)
   const [novoNome, setNovoNome] = useState('')
+  const [novoLimite, setNovoLimite] = useState(null)
   const [criando, setCriando] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [editandoNome, setEditandoNome] = useState('')
+  const [editandoLimite, setEditandoLimite] = useState(null)
 
   async function carregar() {
     setLoading(true)
@@ -781,8 +783,8 @@ function ModalCargos({ open, onClose }) {
     if (!novoNome.trim()) return
     setCriando(true)
     try {
-      await staffService.criarCargo({ nome: novoNome.trim() })
-      setNovoNome('')
+      await staffService.criarCargo({ nome: novoNome.trim(), limite: novoLimite || null })
+      setNovoNome(''); setNovoLimite(null)
       await carregar()
     } catch (err) {
       message.error(err.message || 'Erro ao criar cargo.')
@@ -792,7 +794,7 @@ function ModalCargos({ open, onClose }) {
   async function salvarEdicao(id) {
     if (!editandoNome.trim()) return
     try {
-      await staffService.atualizarCargo(id, { nome: editandoNome.trim() })
+      await staffService.atualizarCargo(id, { nome: editandoNome.trim(), limite: editandoLimite || null })
       setEditandoId(null)
       await carregar()
     } catch (err) { message.error(err.message || 'Erro ao salvar.') }
@@ -818,18 +820,25 @@ function ModalCargos({ open, onClose }) {
       title="Gerenciar Cargos de Staff"
       onCancel={onClose}
       footer={<Button onClick={onClose}>Fechar</Button>}
-      width={520}
+      width={580}
       destroyOnClose
     >
       <div className="mt-4 flex flex-col gap-4">
         {/* Criar novo */}
         <div className="flex gap-2">
           <Input
-            placeholder="Nome do novo cargo (ex: Árbitro)"
+            placeholder="Nome do cargo (ex: Árbitro)"
             value={novoNome}
             onChange={(e) => setNovoNome(e.target.value)}
             onPressEnter={criarCargo}
             maxLength={100}
+          />
+          <InputNumber
+            placeholder="Limite"
+            min={1}
+            value={novoLimite}
+            onChange={setNovoLimite}
+            style={{ width: 110 }}
           />
           <Button
             type="primary"
@@ -841,6 +850,7 @@ function ModalCargos({ open, onClose }) {
             Criar
           </Button>
         </div>
+        <p className="text-xs text-gray-400 -mt-2">Limite de vagas é opcional. Deixe em branco para vagas ilimitadas.</p>
 
         <Divider className="my-0" />
 
@@ -869,9 +879,37 @@ function ModalCargos({ open, onClose }) {
                 ),
             },
             {
+              title: 'Vagas',
+              key: 'vagas',
+              width: 120,
+              render: (_, row) => {
+                const esgotado = row.limite !== null && row.total_cadastrados >= row.limite
+                if (editandoId === row.id) {
+                  return (
+                    <InputNumber
+                      size="small"
+                      placeholder="Sem limite"
+                      min={1}
+                      value={editandoLimite}
+                      onChange={setEditandoLimite}
+                      style={{ width: 100 }}
+                    />
+                  )
+                }
+                return row.limite !== null ? (
+                  <Text className={`text-sm font-mono ${esgotado ? 'text-red-500 font-semibold' : ''}`}>
+                    {row.total_cadastrados} / {row.limite}
+                    {esgotado && <span className="ml-1 text-[11px]">(esgotado)</span>}
+                  </Text>
+                ) : (
+                  <Text className="text-sm font-mono text-gray-500">{row.total_cadastrados} / ∞</Text>
+                )
+              },
+            },
+            {
               title: 'Status',
               dataIndex: 'ativo',
-              width: 90,
+              width: 80,
               render: (ativo) => (
                 <Tag color={ativo ? 'green' : 'default'}>{ativo ? 'Ativo' : 'Inativo'}</Tag>
               ),
@@ -893,9 +931,9 @@ function ModalCargos({ open, onClose }) {
                     </>
                   ) : (
                     <>
-                      <Tooltip title="Editar nome">
+                      <Tooltip title="Editar">
                         <Button size="small" icon={<Pencil className="w-3.5 h-3.5" />}
-                          onClick={() => { setEditandoId(row.id); setEditandoNome(row.nome) }} />
+                          onClick={() => { setEditandoId(row.id); setEditandoNome(row.nome); setEditandoLimite(row.limite) }} />
                       </Tooltip>
                       <Popconfirm
                         title="Remover cargo?"

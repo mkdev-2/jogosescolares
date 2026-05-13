@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 import psycopg
+from psycopg.errors import UniqueViolation
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
@@ -27,11 +28,13 @@ class StaffCreate(BaseModel):
 
 class CargoCreate(BaseModel):
     nome: str
+    limite: Optional[int] = None
 
 
 class CargoUpdate(BaseModel):
     nome: Optional[str] = None
     ativo: Optional[bool] = None
+    limite: Optional[int] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,7 +58,16 @@ def _validar_cpf(digitos: str) -> bool:
 @router.get("/api/public/staff/cargos")
 async def listar_cargos_publico(conn: psycopg.AsyncConnection = Depends(get_db)):
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id, nome FROM staff_cargos WHERE ativo = TRUE ORDER BY nome")
+        await cur.execute(
+            """
+            SELECT sc.id, sc.nome, sc.limite, COUNT(s.id) AS total_cadastrados
+            FROM staff_cargos sc
+            LEFT JOIN staff s ON s.cargo_id = sc.id
+            WHERE sc.ativo = TRUE
+            GROUP BY sc.id, sc.nome, sc.limite
+            ORDER BY sc.nome
+            """
+        )
         rows = await cur.fetchall()
     return [dict(r) for r in rows]
 
@@ -77,14 +89,32 @@ async def cadastrar_staff(payload: StaffCreate, conn: psycopg.AsyncConnection = 
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO staff (nome, cpf, foto_url, cargo_id, documento_url)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, nome, cpf, foto_url, cargo_id, documento_url, created_at
+            SELECT sc.limite, COUNT(s.id) AS total
+            FROM staff_cargos sc
+            LEFT JOIN staff s ON s.cargo_id = sc.id
+            WHERE sc.id = %s
+            GROUP BY sc.limite
             """,
-            (payload.nome.strip(), cpf_clean, payload.foto_url, payload.cargo_id, payload.documento_url),
+            (payload.cargo_id,),
         )
-        row = await cur.fetchone()
-        await conn.commit()
+        contagem = await cur.fetchone()
+    if contagem and contagem["limite"] is not None and contagem["total"] >= contagem["limite"]:
+        raise HTTPException(status_code=409, detail="Limite de vagas para este cargo já foi atingido.")
+
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO staff (nome, cpf, foto_url, cargo_id, documento_url)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id, nome, cpf, foto_url, cargo_id, documento_url, created_at
+                """,
+                (payload.nome.strip(), cpf_clean, payload.foto_url, payload.cargo_id, payload.documento_url),
+            )
+            row = await cur.fetchone()
+            await conn.commit()
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="Este CPF já está cadastrado.")
 
     return dict(row)
 
@@ -120,7 +150,16 @@ async def listar_cargos_admin(
     if not is_admin(current_user):
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id, nome, ativo, created_at FROM staff_cargos ORDER BY nome")
+        await cur.execute(
+            """
+            SELECT sc.id, sc.nome, sc.ativo, sc.limite, sc.created_at,
+                   COUNT(s.id) AS total_cadastrados
+            FROM staff_cargos sc
+            LEFT JOIN staff s ON s.cargo_id = sc.id
+            GROUP BY sc.id, sc.nome, sc.ativo, sc.limite, sc.created_at
+            ORDER BY sc.nome
+            """
+        )
         rows = await cur.fetchall()
     return [dict(r) for r in rows]
 
@@ -135,8 +174,8 @@ async def criar_cargo(
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
     async with conn.cursor() as cur:
         await cur.execute(
-            "INSERT INTO staff_cargos (nome) VALUES (%s) RETURNING id, nome, ativo, created_at",
-            (payload.nome.strip(),),
+            "INSERT INTO staff_cargos (nome, limite) VALUES (%s, %s) RETURNING id, nome, ativo, limite, created_at",
+            (payload.nome.strip(), payload.limite),
         )
         row = await cur.fetchone()
         await conn.commit()
@@ -154,18 +193,19 @@ async def atualizar_cargo(
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
 
     async with conn.cursor() as cur:
-        await cur.execute("SELECT id, nome, ativo FROM staff_cargos WHERE id = %s", (cargo_id,))
+        await cur.execute("SELECT id, nome, ativo, limite FROM staff_cargos WHERE id = %s", (cargo_id,))
         cargo = await cur.fetchone()
     if not cargo:
         raise HTTPException(status_code=404, detail="Cargo não encontrado.")
 
     novo_nome = payload.nome.strip() if payload.nome is not None else cargo["nome"]
     novo_ativo = payload.ativo if payload.ativo is not None else cargo["ativo"]
+    novo_limite = payload.limite if "limite" in payload.model_fields_set else cargo["limite"]
 
     async with conn.cursor() as cur:
         await cur.execute(
-            "UPDATE staff_cargos SET nome = %s, ativo = %s WHERE id = %s RETURNING id, nome, ativo, created_at",
-            (novo_nome, novo_ativo, cargo_id),
+            "UPDATE staff_cargos SET nome = %s, ativo = %s, limite = %s WHERE id = %s RETURNING id, nome, ativo, limite, created_at",
+            (novo_nome, novo_ativo, novo_limite, cargo_id),
         )
         row = await cur.fetchone()
         await conn.commit()
@@ -217,16 +257,19 @@ async def atualizar_staff(
     if not member:
         raise HTTPException(status_code=404, detail="Membro não encontrado.")
 
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            UPDATE staff
-            SET nome = %s, cpf = %s, foto_url = %s, cargo_id = %s, documento_url = %s, updated_at = NOW()
-            WHERE id = %s
-            """,
-            (payload.nome.strip(), cpf_clean, payload.foto_url, payload.cargo_id, payload.documento_url, staff_id),
-        )
-        await conn.commit()
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                UPDATE staff
+                SET nome = %s, cpf = %s, foto_url = %s, cargo_id = %s, documento_url = %s, updated_at = NOW()
+                WHERE id = %s
+                """,
+                (payload.nome.strip(), cpf_clean, payload.foto_url, payload.cargo_id, payload.documento_url, staff_id),
+            )
+            await conn.commit()
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="Este CPF já está cadastrado.")
 
     return {"id": staff_id}
 

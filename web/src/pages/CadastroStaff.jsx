@@ -236,7 +236,14 @@ export default function CadastroStaff() {
               value={form.cargo_id}
               onChange={(val) => setForm((f) => ({ ...f, cargo_id: val }))}
               status={errors.cargo_id ? 'error' : ''}
-              options={cargos.map((c) => ({ value: c.id, label: c.nome }))}
+              options={cargos.map((c) => {
+                const esgotado = c.limite !== null && c.total_cadastrados >= c.limite
+                return {
+                  value: c.id,
+                  label: esgotado ? `${c.nome} — vagas esgotadas` : c.nome,
+                  disabled: esgotado,
+                }
+              })}
             />
             {errors.cargo_id && <p className="mt-1 text-xs text-red-600">{errors.cargo_id}</p>}
           </div>
