@@ -20,6 +20,7 @@ import AdminRoute from './components/AdminRoute'
 import Login from './pages/Login'
 import LandingPage from './pages/LandingPage'
 import CadastroEscola from './pages/CadastroEscola'
+import CadastroStaff from './pages/CadastroStaff'
 import Dashboard from './pages/Dashboard'
 import Usuarios from './pages/Usuarios'
 import Configuracoes from './pages/Configuracoes'
@@ -46,6 +47,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/cadastro" element={<CadastroEscola />} />
+          <Route path="/cadastro-staff" element={<CadastroStaff />} />
           <Route path="/login" element={<Login />} />
           <Route path="/resultados" element={<Resultados />} />
           <Route path="/resultados/:id" element={<ResultadoDetalhe />} />

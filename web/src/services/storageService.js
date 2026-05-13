@@ -301,3 +301,15 @@ export async function uploadBannerHero(file) {
   const path = `hero/banner-${Date.now()}.${ext}`
   return uploadToStorage(file, BUCKET, path)
 }
+
+export async function uploadFotoStaff(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '')
+  const path = `staff/fotos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStoragePublic(file, BUCKET, path)
+}
+
+export async function uploadDocumentoStaff(file) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
+  const path = `staff/documentos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStoragePublic(file, BUCKET, path)
+}

@@ -116,7 +116,8 @@ async def upload_file_public(
     Upload de arquivo público para o MinIO (apenas diretórios permitidos).
     Criado para aceitar arquivos de formulários de registro não logados.
     """
-    if not path.startswith("escolas/termo-adesao/"):
+    ALLOWED_PUBLIC_PATHS = ("escolas/termo-adesao/", "staff/fotos/", "staff/documentos/")
+    if not any(path.startswith(p) for p in ALLOWED_PUBLIC_PATHS):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Upload público não permitido para este caminho."

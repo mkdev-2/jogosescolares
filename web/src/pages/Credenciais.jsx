@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag } from 'antd'
-import { Download, IdCard, User, Medal } from 'lucide-react'
+import { Card, Form, Select, Space, Typography, Spin, Row, Col, Alert, Table, Tag, Tabs } from 'antd'
+import { Download, IdCard, User, Medal, GraduationCap, UserCog } from 'lucide-react'
 import dayjs from 'dayjs'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import CredencialModalidadeBadge from '../components/catalogos/CredencialModalidadeBadge'
+import StaffCredenciais from '../components/catalogos/StaffCredenciais'
 import { estudantesService } from '../services/estudantesService'
 import useEscolas from '../hooks/useEscolas'
 import { configuracoesService } from '../services/configuracoesService'
@@ -113,7 +114,7 @@ const PrintableFoldedCredential = ({ aluno, midias, assets, captureRef }) => {
     )
 }
 
-export default function Credenciais() {
+function AlunosCredenciais() {
     const [form] = Form.useForm()
     const { lista: listaEscolas, loading: loadingEscolas } = useEscolas()
     const [escolaSelecionada, setEscolaSelecionada] = useState(null)
@@ -354,5 +355,35 @@ export default function Credenciais() {
                 document.body
             )}
         </div>
+    )
+}
+
+export default function Credenciais() {
+    return (
+        <Tabs
+            defaultActiveKey="alunos"
+            items={[
+                {
+                    key: 'alunos',
+                    label: (
+                        <span className="flex items-center gap-1.5">
+                            <GraduationCap className="w-4 h-4" />
+                            Alunos
+                        </span>
+                    ),
+                    children: <AlunosCredenciais />,
+                },
+                {
+                    key: 'staff',
+                    label: (
+                        <span className="flex items-center gap-1.5">
+                            <UserCog className="w-4 h-4" />
+                            Staff
+                        </span>
+                    ),
+                    children: <StaffCredenciais />,
+                },
+            ]}
+        />
     )
 }

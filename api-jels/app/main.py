@@ -31,6 +31,7 @@ from app.edicoes import router as edicoes_router
 from app.campeonatos import router as campeonatos_router
 from app.public_campeonatos import router as public_campeonatos_router
 from app.relatorios import router as relatorios_router
+from app.staff import router as staff_router
 try:
     from app.storage import router as storage_router
     STORAGE_AVAILABLE = True
@@ -114,6 +115,7 @@ app.include_router(edicoes_router)
 app.include_router(campeonatos_router)
 app.include_router(public_campeonatos_router)
 app.include_router(relatorios_router)
+app.include_router(staff_router)
 if STORAGE_AVAILABLE and storage_router:
     app.include_router(storage_router)
 
