@@ -17,13 +17,9 @@ def _fase_por_tamanho_chave(chave_tamanho: int) -> str:
         return "QUARTAS"
     if chave_tamanho == 16:
         return "OITAVAS"
-    if chave_tamanho == 32:
-        return "DEZESSEIS_AVOS"
-    if chave_tamanho == 64:
-        return "TRINTA_E_DOIS_AVOS"
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Tamanho de chave não suportado. Máximo atual: 64 vagas.",
+        detail="Tamanho de chave não suportado. Máximo atual: 16 vagas (oitavas de final).",
     )
 
 

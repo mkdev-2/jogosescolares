@@ -18,8 +18,6 @@ CAMPEONATO_FORMATO = Literal["GRUPOS_E_MATA_MATA"]
 CAMPEONATO_ORIGEM = Literal["AUTOMATICO", "MANUAL"]
 CAMPEONATO_FASE = Literal[
     "GRUPOS",
-    "TRINTA_E_DOIS_AVOS",
-    "DEZESSEIS_AVOS",
     "OITAVAS",
     "QUARTAS",
     "SEMI",
@@ -730,6 +728,40 @@ class CampeonatoGrupoResponse(BaseModel):
         from_attributes = True
 
 
+class LocalResumo(BaseModel):
+    """Dados mínimos do local para aninhar em partidas/confrontos."""
+    id: int
+    nome: str
+    endereco_completo: Optional[str] = None
+    foto_url: Optional[str] = None
+    link_maps: Optional[str] = None
+
+
+class LocalCreate(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=200)
+    endereco_completo: Optional[str] = None
+    foto_url: Optional[str] = Field(None, max_length=512)
+    link_maps: Optional[str] = Field(None, max_length=1024)
+
+
+class LocalUpdate(BaseModel):
+    nome: Optional[str] = Field(None, min_length=1, max_length=200)
+    endereco_completo: Optional[str] = None
+    foto_url: Optional[str] = Field(None, max_length=512)
+    link_maps: Optional[str] = Field(None, max_length=1024)
+
+
+class LocalResponse(BaseModel):
+    id: int
+    edicao_id: int
+    nome: str
+    endereco_completo: Optional[str] = None
+    foto_url: Optional[str] = None
+    link_maps: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
 class CampeonatoPartidaResponse(BaseModel):
     """Schema de partida do campeonato."""
     id: int
@@ -745,6 +777,8 @@ class CampeonatoPartidaResponse(BaseModel):
     origem_slot_a: Optional[str] = None
     origem_slot_b: Optional[str] = None
     inicio_em: Optional[str] = None
+    local_id: Optional[int] = None
+    local: Optional[LocalResumo] = None
     # Nomes das equipes (resolvidos via JOIN)
     mandante_nome: Optional[str] = None
     visitante_nome: Optional[str] = None
@@ -866,6 +900,7 @@ class CampeonatoManualConfrontoInput(BaseModel):
     participante_b_id: Optional[int] = None
     vencedor_participante_id: Optional[int] = None
     inicio_em: Optional[datetime] = None
+    local_id: Optional[int] = None
     placar_a: Optional[int] = None
     placar_b: Optional[int] = None
     placar_a_sec: Optional[int] = None
@@ -881,6 +916,7 @@ class CampeonatoManualConfrontoUpdate(BaseModel):
     participante_b_id: Optional[int] = None
     vencedor_participante_id: Optional[int] = None
     inicio_em: Optional[datetime] = None
+    local_id: Optional[int] = None
     placar_a: Optional[int] = None
     placar_b: Optional[int] = None
     placar_a_sec: Optional[int] = None
@@ -901,6 +937,8 @@ class CampeonatoManualConfrontoResponse(BaseModel):
     vencedor_participante_id: Optional[int] = None
     vencedor_nome: Optional[str] = None
     inicio_em: Optional[str] = None
+    local_id: Optional[int] = None
+    local: Optional[LocalResumo] = None
     placar_a: Optional[int] = None
     placar_b: Optional[int] = None
     placar_a_sec: Optional[int] = None
@@ -1064,6 +1102,7 @@ RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
 class PartidaAgendamentoInput(BaseModel):
     """Payload para definir ou limpar a data/hora de uma partida."""
     inicio_em: Optional[datetime] = None
+    local_id: Optional[int] = None
 
 
 class PartidaResultadoInput(BaseModel):

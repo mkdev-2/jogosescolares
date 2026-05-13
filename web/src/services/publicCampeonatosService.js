@@ -40,11 +40,12 @@ export const publicCampeonatosService = {
     return Array.isArray(data) ? data : []
   },
 
-  async getProximosConfrontos(edicaoId = null, limite = 10, campeonatoId = null) {
+  async getProximosConfrontos(edicaoId = null, limite = 10, campeonatoId = null, localId = null) {
     const params = new URLSearchParams()
     if (edicaoId) params.set('edicao_id', edicaoId)
     if (limite !== 10) params.set('limite', limite)
     if (campeonatoId) params.set('campeonato_id', campeonatoId)
+    if (localId != null && localId !== '') params.set('local_id', String(localId))
     const qs = params.toString() ? `?${params.toString()}` : ''
     const res = await apiFetch(`${BASE}/proximos-confrontos${qs}`)
     const data = await handleResponse(res, 'Erro ao carregar próximos confrontos')

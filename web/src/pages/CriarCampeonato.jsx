@@ -387,8 +387,6 @@ const CRIAR_ROUND_W = 210
 const CRIAR_CONNECTOR_W = 40
 
 const MANUAL_FASE_HEADER = {
-  TRINTA_E_DOIS_AVOS: '1/32 DE FINAL',
-  DEZESSEIS_AVOS: '1/16 DE FINAL',
   OITAVAS: 'OITAVAS',
   QUARTAS: 'QUARTAS DE FINAL',
   SEMI: 'SEMIFINAIS',
@@ -399,9 +397,7 @@ function faseColunaPorVagas(vagasCol) {
   if (vagasCol <= 2) return 'FINAL'
   if (vagasCol <= 4) return 'SEMI'
   if (vagasCol <= 8) return 'QUARTAS'
-  if (vagasCol <= 16) return 'OITAVAS'
-  if (vagasCol <= 32) return 'DEZESSEIS_AVOS'
-  return 'TRINTA_E_DOIS_AVOS'
+  return 'OITAVAS'
 }
 
 function criarMatchTop(roundIdx, matchIdx) {

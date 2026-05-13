@@ -13,6 +13,8 @@ import dayjs from 'dayjs'
 import { ArrowLeft, ChevronDown, Trophy } from 'lucide-react'
 import { campeonatosService } from '../services/campeonatosService'
 import { equipesService } from '../services/equipesService'
+import { locaisService } from '../services/locaisService'
+import { useEdicao } from '../contexts/EdicaoContext'
 
 // ── Bracket layout constants ──────────────────────────────────────────────────
 const TEAM_H = 36
@@ -24,13 +26,11 @@ const ROUND_W = 210                        // width of each match box (px)
 const CONNECTOR_W = 40                     // width of connector between rounds (px)
 
 const BRACKET_PHASES = [
-  'TRINTA_E_DOIS_AVOS', 'DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
+  'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
 ]
 
 const FASE_LABEL = {
   GRUPOS: 'Fase de Grupos',
-  TRINTA_E_DOIS_AVOS: '1/32 de Final',
-  DEZESSEIS_AVOS: '1/16 de Final',
   OITAVAS: 'Oitavas',
   QUARTAS: 'Quartas de Final',
   SEMI: 'Semifinais',
@@ -56,19 +56,14 @@ const STATUS_LABELS = {
 
 const FASE_ORDER = {
   GRUPOS: 1,
-  TRINTA_E_DOIS_AVOS: 2,
-  DEZESSEIS_AVOS: 3,
-  OITAVAS: 4,
-  QUARTAS: 5,
-  SEMI: 6,
-  FINAL: 7,
-  TERCEIRO: 8,
+  OITAVAS: 2,
+  QUARTAS: 3,
+  SEMI: 4,
+  FINAL: 5,
+  TERCEIRO: 6,
 }
 
-// Fases disponíveis no modal de confronto manual (sem 1/32 e 1/16)
-const FASE_OPTIONS_CONFRONTO = Object.entries(FASE_LABEL)
-  .filter(([v]) => v !== 'TRINTA_E_DOIS_AVOS' && v !== 'DEZESSEIS_AVOS')
-  .map(([value, label]) => ({ value, label }))
+const FASE_OPTIONS_CONFRONTO = Object.entries(FASE_LABEL).map(([value, label]) => ({ value, label }))
 
 function ladoVenceu(partida, lado) {
   const idKey = lado === 'mandante' ? 'mandante_equipe_id' : 'visitante_equipe_id'
@@ -551,21 +546,38 @@ function VencedorBanner({ vencedorNome, equipe }) {
 }
 
 function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOverride }) {
+  const { edicaoId } = useEdicao()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [localOptions, setLocalOptions] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const list = await locaisService.list(edicaoId || undefined)
+        if (!cancelled) setLocalOptions(Array.isArray(list) ? list : [])
+      } catch {
+        if (!cancelled) setLocalOptions([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [edicaoId])
 
   const initialValues = {
     inicio_em: partida.inicio_em ? dayjs(partida.inicio_em) : null,
+    local_id: partida.local_id ?? partida.local?.id ?? undefined,
   }
 
-  const saveAgendamento = async (inicioEm) => {
+  const saveAgendamento = async (inicioEm, localId) => {
     setSaving(true)
     const isoValue = inicioEm ? inicioEm.second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss') : null
+    const payload = { inicio_em: isoValue, local_id: localId ?? null }
     try {
       if (saveOverride) {
-        await saveOverride(partida.id, isoValue)
+        await saveOverride(partida.id, payload)
       } else {
-        await campeonatosService.agendarPartida(campeonatoId, partida.id, { inicio_em: isoValue })
+        await campeonatosService.agendarPartida(campeonatoId, partida.id, payload)
       }
       message.success(inicioEm ? 'Partida agendada com sucesso' : 'Agendamento removido')
       onSuccess()
@@ -579,11 +591,16 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
-      await saveAgendamento(values.inicio_em)
+      await saveAgendamento(values.inicio_em, values.local_id)
     } catch (err) {
       if (err?.errorFields) return
       message.error(err.message || 'Erro ao agendar partida')
     }
+  }
+
+  const clearHorario = async () => {
+    const localId = form.getFieldValue('local_id')
+    await saveAgendamento(null, localId)
   }
 
   return (
@@ -599,7 +616,7 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
             danger
             type="text"
             disabled={saving || !partida.inicio_em}
-            onClick={() => saveAgendamento(null)}
+            onClick={clearHorario}
           >
             Limpar horário
           </Button>
@@ -626,6 +643,15 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
             format="DD/MM/YYYY HH:mm"
             placeholder="Selecionar data e horário"
             className="w-full"
+          />
+        </Form.Item>
+        <Form.Item name="local_id" label="Local">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="Selecionar local (opcional)"
+            options={localOptions.map((l) => ({ value: l.id, label: l.nome }))}
           />
         </Form.Item>
       </Form>
@@ -868,7 +894,7 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
       onSchedule && {
         key: 'schedule',
         icon: <ClockCircleOutlined />,
-        label: 'Definir Horário',
+        label: 'Definir Horário e Local',
       },
       onRegister && {
         key: 'result',
@@ -1275,9 +1301,24 @@ function TournamentBracket({ matches, onRegister, slotConcluidoMap }) {
 }
 
 function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
+  const { edicaoId } = useEdicao()
   const [modal, setModal] = useState({ tipo: null, record: null })
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
+  const [localOptions, setLocalOptions] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const list = await locaisService.list(edicaoId || undefined)
+        if (!cancelled) setLocalOptions(Array.isArray(list) ? list : [])
+      } catch {
+        if (!cancelled) setLocalOptions([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [edicaoId])
 
   const participantes = useMemo(() => manualData?.participantes || [], [manualData])
   const participanteOptions = participantes.map((p) => ({ value: p.id, label: p.nome_exibicao }))
@@ -1322,8 +1363,10 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
       if (tipo === 'confronto') form.setFieldsValue({ fase: 'GRUPOS', rodada: 1, ordem: 1, resultado_tipo: 'NORMAL' })
       return
     }
+    const vals = { ...record }
+    delete vals.local
     form.setFieldsValue({
-      ...record,
+      ...vals,
       inicio_em: record.inicio_em ? dayjs(record.inicio_em) : null,
     })
   }
@@ -1335,6 +1378,7 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
 
   const cleanPayload = (values) => {
     const payload = { ...values }
+    delete payload.local
     if (payload.inicio_em) payload.inicio_em = payload.inicio_em.toISOString()
     for (const key of ['grupo_nome']) {
       if (typeof payload[key] === 'string') payload[key] = payload[key].trim()
@@ -1432,6 +1476,7 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
           columns={[
             { title: 'Fase', dataIndex: 'fase', key: 'fase', render: (v) => FASE_LABEL[v] || v },
             { title: 'Confronto', key: 'confronto', render: (_, r) => `${r.participante_a_nome || 'A definir'} x ${r.participante_b_nome || 'A definir'}` },
+            { title: 'Local', key: 'local', width: 140, ellipsis: true, render: (_, r) => r.local?.nome || '—' },
             { title: 'Placar', key: 'placar', width: 90, render: (_, r) => r.resultado_tipo ? `${r.placar_a ?? '-'}-${r.placar_b ?? '-'}` : '-' },
             { title: 'Ações', key: 'acoes', width: 140, render: actionRender('confronto') },
           ]}
@@ -1522,6 +1567,15 @@ function ManualDataEditor({ campeonatoId, manualData, onRefresh }) {
                   />
                 </Form.Item>
               </div>
+              <Form.Item name="local_id" label="Local">
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Selecionar local (opcional)"
+                  options={localOptions.map((l) => ({ value: l.id, label: l.nome }))}
+                />
+              </Form.Item>
               {modalResultadoTipo === 'NORMAL' && (
                 <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
                   <Form.Item
@@ -1671,8 +1725,8 @@ export default function CampeonatoDetalhe() {
     })
   }, [manualData])
 
-  const handleManualAgendarSave = useCallback(async (confrontoId, inicioEm) => {
-    await campeonatosService.atualizarManualConfronto(campeonatoId, confrontoId, { inicio_em: inicioEm })
+  const handleManualAgendarSave = useCallback(async (confrontoId, payload) => {
+    await campeonatosService.atualizarManualConfronto(campeonatoId, confrontoId, payload)
   }, [campeonatoId])
 
   const hasGroups = (estrutura?.grupos?.length || 0) > 0

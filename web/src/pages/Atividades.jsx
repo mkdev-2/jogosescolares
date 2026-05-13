@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Alert } from 'antd'
 import { useSearchParams } from 'react-router-dom'
-import { Trophy, ClipboardList } from 'lucide-react'
+import { Trophy, ClipboardList, MapPin } from 'lucide-react'
 import EsportesList from '../components/catalogos/EsportesList'
 import EsporteModal from '../components/catalogos/EsporteModal'
 import ConfigPontuacaoModal from '../components/catalogos/ConfigPontuacaoModal'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
 import Campeonatos from './Campeonatos'
+import Locais from './Locais'
 import useEsportes from '../hooks/useEsportes'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import { useAuth } from '../contexts/AuthContext'
@@ -22,7 +23,12 @@ export default function Atividades() {
   const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(user?.role)
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') || 'esportes'
-  const activeTab = tabFromUrl === 'campeonatos' && isAdmin ? 'campeonatos' : 'esportes'
+  const activeTab =
+    tabFromUrl === 'campeonatos' && isAdmin
+      ? 'campeonatos'
+      : tabFromUrl === 'locais' && isAdmin
+        ? 'locais'
+        : 'esportes'
   const useEsportesState = useEsportes()
   const useVariantesState = useEsporteVariantes(null, { minhaEscola: isDiretor })
   const [modalEsporteOpen, setModalEsporteOpen] = useState(false)
@@ -189,14 +195,20 @@ export default function Atividades() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-[1.5rem] font-bold text-[#042f2e] m-0 tracking-[-0.02em]">
-          {activeTab === 'campeonatos' ? 'Campeonatos' : (isDiretor ? 'Esportes' : 'Atividades')}
+          {activeTab === 'campeonatos'
+            ? 'Campeonatos'
+            : activeTab === 'locais'
+              ? 'Locais'
+              : (isDiretor ? 'Esportes' : 'Atividades')}
         </h1>
         <p className="text-[0.9375rem] text-[#64748b] m-0">
           {activeTab === 'campeonatos'
             ? 'Gerencie a criação e geração de estruturas dos campeonatos por edição e modalidade.'
-            : isDiretor
-            ? 'Modalidades em que sua escola está vinculada.'
-            : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
+            : activeTab === 'locais'
+              ? 'Cadastre quadras e ginásios para reutilizar nos confrontos e exibir na página pública.'
+              : isDiretor
+                ? 'Modalidades em que sua escola está vinculada.'
+                : 'Gerencie esportes e suas variantes (categoria, naipe e tipo).'}
         </p>
       </header>
 
@@ -225,6 +237,19 @@ export default function Atividades() {
               >
                 <ClipboardList size={20} className={activeTab === 'campeonatos' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
                 <span>Campeonatos</span>
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setSearchParams({ tab: 'locais' })}
+                className={`flex items-center gap-2 px-4 py-3 rounded-[10px] font-medium text-[0.9375rem] transition-colors border-0 cursor-pointer ${activeTab === 'locais'
+                  ? 'bg-[#f1f5f9] text-[#0f766e]'
+                  : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+                  }`}
+              >
+                <MapPin size={20} className={activeTab === 'locais' ? 'text-[#0f766e]' : 'text-[#1e293b]'} />
+                <span>Locais</span>
               </button>
             )}
           </div>
@@ -312,6 +337,14 @@ export default function Atividades() {
         <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
           <div className="p-6">
             <Campeonatos embedded />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'locais' && isAdmin && (
+        <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="p-6">
+            <Locais embedded />
           </div>
         </div>
       )}

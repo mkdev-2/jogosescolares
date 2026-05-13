@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Spin, Select } from 'antd'
-import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users, Dumbbell } from 'lucide-react'
+import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users, Dumbbell, Clock, MapPin } from 'lucide-react'
 import { publicCampeonatosService } from '../services/publicCampeonatosService'
 import PublicHeader from '../components/landing/PublicHeader'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
@@ -11,6 +12,7 @@ import GrupoSection from '../components/campeonato/GrupoSection'
 import TournamentBracket from '../components/campeonato/TournamentBracket'
 import VencedorBanner from '../components/campeonato/VencedorBanner'
 import PartidasTimeline from '../components/campeonato/PartidasTimeline'
+import { resultadosConfrontoHref } from '../utils/resultadosConfrontoHref'
 
 const STATUS_PILL = {
   GERADO: 'bg-blue-100 text-blue-700',
@@ -40,10 +42,42 @@ function StatBadge({ icon: Icon, value, label }) {
   )
 }
 
+function formatProximoConfrontoHorario(iso) {
+  if (iso == null || String(iso).trim() === '') return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function scrollResultadosPartidaIntoView(partidaId) {
+  window.requestAnimationFrame(() => {
+    setTimeout(() => {
+      document.getElementById(`resultados-partida-${partidaId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 280)
+  })
+}
+
 function ConfrontoCard({ confronto, showSport }) {
   const hasScore = confronto.placar_mandante != null && confronto.placar_visitante != null
-  return (
-    <div className="shrink-0 w-56 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-teal-300 transition-all duration-200">
+  const horarioFmt = formatProximoConfrontoHorario(confronto.inicio_em)
+  const horarioLabel = horarioFmt || 'Horário não definido'
+
+  const loc = confronto.local
+  const localTexto = loc?.nome != null ? String(loc.nome).trim() : ''
+  const localLabel = localTexto || 'Localização não definida'
+  const temLinkMaps = Boolean(loc?.link_maps?.trim())
+
+  const href = resultadosConfrontoHref(confronto)
+  const podeNavegar = confronto.partida_id != null
+
+  const cardClass =
+    'shrink-0 w-56 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-teal-300 transition-all duration-200'
+
+  const conteudo = (
+    <>
       <div className="h-1 bg-gradient-to-r from-teal-600 to-teal-400" />
       <div className="p-3 flex flex-col gap-2.5 flex-1">
         {showSport && (
@@ -76,8 +110,49 @@ function ConfrontoCard({ confronto, showSport }) {
             Rd. {confronto.rodada}
           </span>
         </div>
+
+        <div className="mt-0.5 flex flex-col gap-2 border-t border-slate-100 pt-2">
+          <div className="flex items-start gap-1.5 text-[10px] leading-snug text-slate-600">
+            <Clock size={12} className={`shrink-0 mt-0.5 ${horarioFmt ? 'text-teal-600' : 'text-slate-400'}`} strokeWidth={2.25} />
+            <span className={horarioFmt ? '' : 'italic text-slate-400'}>{horarioLabel}</span>
+          </div>
+          <div className="flex items-start gap-1.5 min-w-0 text-[10px] leading-snug text-slate-600">
+            <MapPin size={12} className={`shrink-0 mt-0.5 ${localTexto ? 'text-teal-600' : 'text-slate-400'}`} strokeWidth={2.25} />
+            <span className="min-w-0 flex-1">
+              <span className={`font-medium ${localTexto ? 'text-slate-700' : 'italic text-slate-400'}`}>{localLabel}</span>
+              {temLinkMaps && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    window.open(loc.link_maps, '_blank', 'noopener,noreferrer')
+                  }}
+                  className="ml-1.5 inline-flex items-center gap-0.5 font-semibold text-teal-600 shrink-0 whitespace-nowrap border-0 bg-transparent p-0 cursor-pointer hover:underline"
+                  title="Abrir no mapa"
+                >
+                  <ExternalLink size={11} />
+                  Mapa
+                </button>
+              )}
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
+  )
+
+  if (!podeNavegar) {
+    return <div className={cardClass}>{conteudo}</div>
+  }
+
+  return (
+    <Link
+      to={href}
+      className={`${cardClass} no-underline text-inherit outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2`}
+    >
+      {conteudo}
+    </Link>
   )
 }
 
@@ -235,6 +310,10 @@ function CampeonatoAside({ campDetail }) {
 }
 
 export default function Resultados() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchParamsStr = searchParams.toString()
+  const processedDeepLinkKeyRef = useRef('')
+
   const [esportes, setEsportes] = useState([])
   const [proximosGlobal, setProximosGlobal] = useState([])
   const [loadingInit, setLoadingInit] = useState(true)
@@ -245,6 +324,7 @@ export default function Resultados() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [noChampionship, setNoChampionship] = useState(false)
   const [activeTab, setActiveTab] = useState('grupos')
+  const [highlightPartidaId, setHighlightPartidaId] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -259,20 +339,16 @@ export default function Resultados() {
       .finally(() => setLoadingInit(false))
   }, [])
 
-  function handleSelectVariante(variante) {
-    if (selectedVarianteId === variante.id) return
-    setSelectedVarianteId(variante.id)
+  const fetchAndApplyCampeonato = useCallback((variante, partidaIdToFocus) => {
+    if (!variante?.campeonato) {
+      setNoChampionship(true)
+      setLoadingDetail(false)
+      return
+    }
+    setLoadingDetail(true)
     setNoChampionship(false)
     setCampDetail(null)
     setProximosCamp([])
-    setActiveTab('grupos')
-
-    if (!variante.campeonato) {
-      setNoChampionship(true)
-      return
-    }
-
-    setLoadingDetail(true)
     Promise.all([
       publicCampeonatosService.getById(variante.campeonato.id),
       publicCampeonatosService.getProximosConfrontos(null, 8, variante.campeonato.id),
@@ -280,16 +356,107 @@ export default function Resultados() {
       .then(([detail, prox]) => {
         setCampDetail(detail)
         setProximosCamp(prox)
-        const detailHasGroups = (detail?.estrutura?.grupos?.length || 0) > 0
-        const detailHasKnockout = (detail?.estrutura?.partidas || []).some((p) => p.grupo_id === null && !p.is_bye)
-        const detailHasAnyPartidas = (detail?.estrutura?.partidas || []).some((p) => !p.is_bye)
-        if (!detailHasGroups) {
-          if (detailHasKnockout) setActiveTab('eliminatorias')
-          else if (detailHasAnyPartidas) setActiveTab('partidas')
+        const pid =
+          partidaIdToFocus != null && Number.isFinite(Number(partidaIdToFocus))
+            ? Number(partidaIdToFocus)
+            : null
+        const found =
+          pid != null &&
+          (detail?.estrutura?.partidas || []).some(
+            (p) => Number(p.id) === pid || String(p.id) === String(pid),
+          )
+        if (found) {
+          setActiveTab('partidas')
+          setHighlightPartidaId(pid)
+          scrollResultadosPartidaIntoView(pid)
+        } else {
+          setHighlightPartidaId(null)
+          const detailHasGroups = (detail?.estrutura?.grupos?.length || 0) > 0
+          const detailHasKnockout = (detail?.estrutura?.partidas || []).some(
+            (p) => p.grupo_id === null && !p.is_bye,
+          )
+          const detailHasAnyPartidas = (detail?.estrutura?.partidas || []).some((p) => !p.is_bye)
+          if (!detailHasGroups) {
+            if (detailHasKnockout) setActiveTab('eliminatorias')
+            else if (detailHasAnyPartidas) setActiveTab('partidas')
+          } else {
+            setActiveTab('grupos')
+          }
         }
       })
       .catch(() => {})
       .finally(() => setLoadingDetail(false))
+  }, [])
+
+  useEffect(() => {
+    if (loadingInit || esportes.length === 0) return
+
+    const pParam = searchParams.get('partida')
+    const vParam = searchParams.get('variante')
+    const cParam = searchParams.get('campeonato')
+    if (!pParam || (!vParam && !cParam)) {
+      processedDeepLinkKeyRef.current = ''
+      return
+    }
+
+    const partidaId = Number(pParam)
+    if (!Number.isFinite(partidaId)) return
+
+    let varianteFound = null
+    let esporteId = null
+    if (vParam) {
+      for (const e of esportes) {
+        const v = e.variantes.find((x) => String(x.id) === String(vParam))
+        if (v) {
+          varianteFound = v
+          esporteId = e.id
+          break
+        }
+      }
+    } else if (cParam) {
+      const campeonatoId = Number(cParam)
+      if (!Number.isFinite(campeonatoId)) return
+      for (const e of esportes) {
+        const v = e.variantes.find((x) => x.campeonato?.id === campeonatoId)
+        if (v) {
+          varianteFound = v
+          esporteId = e.id
+          break
+        }
+      }
+    }
+
+    if (!varianteFound?.campeonato) return
+
+    const linkKey = `${vParam || cParam}:${pParam}`
+    if (processedDeepLinkKeyRef.current === linkKey) return
+    processedDeepLinkKeyRef.current = linkKey
+
+    setExpandedEsporteId(esporteId)
+    setSelectedVarianteId(varianteFound.id)
+    fetchAndApplyCampeonato(varianteFound, partidaId)
+  }, [loadingInit, esportes, searchParamsStr, fetchAndApplyCampeonato])
+
+  useEffect(() => {
+    if (activeTab !== 'partidas') setHighlightPartidaId(null)
+  }, [activeTab])
+
+  function handleSelectVariante(variante) {
+    if (selectedVarianteId === variante.id) return
+    setSearchParams({}, { replace: true })
+    setSelectedVarianteId(variante.id)
+    setNoChampionship(false)
+    setCampDetail(null)
+    setProximosCamp([])
+    setActiveTab('grupos')
+    setHighlightPartidaId(null)
+
+    if (!variante.campeonato) {
+      setNoChampionship(true)
+      return
+    }
+
+    fetchAndApplyCampeonato(variante, null)
   }
 
   function handleToggleEsporte(esporteId) {
@@ -503,6 +670,7 @@ export default function Resultados() {
                           <PartidasTimeline
                             partidas={campDetail.estrutura.partidas}
                             grupos={campDetail.estrutura.grupos}
+                            highlightPartidaId={highlightPartidaId}
                           />
                         </div>
                       )}

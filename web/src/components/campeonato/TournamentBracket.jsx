@@ -7,12 +7,10 @@ const ROUND_W = 210
 const CONNECTOR_W = 40
 
 const BRACKET_PHASES = [
-  'TRINTA_E_DOIS_AVOS', 'DEZESSEIS_AVOS', 'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
+  'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL',
 ]
 
 export const FASE_LABEL = {
-  TRINTA_E_DOIS_AVOS: '1/32 de Final',
-  DEZESSEIS_AVOS: '1/16 de Final',
   OITAVAS: 'Oitavas',
   QUARTAS: 'Quartas de Final',
   SEMI: 'Semifinais',

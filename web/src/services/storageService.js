@@ -23,6 +23,7 @@ const DOCUMENTACAO_PROFESSORES_PATH = 'professores/documentacao'
 const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
 const MIDIAS_PATH = 'midias'
+const LOCAIS_PATH = 'locais'
 
 /**
  * Faz upload para o MinIO via backend. bucket e path na query; body só o file.
@@ -104,7 +105,7 @@ export function getStorageUrl(path) {
 
   // Legado: chave sem prefixo do bucket (ex.: só "midias/..." ou "hero/...")
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }
@@ -141,7 +142,7 @@ function getStorageRelativePath(path) {
   rel = rel.split(/[?#]/)[0].replace(/^\/+/, '')
   if (!rel) return ''
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }
@@ -312,4 +313,11 @@ export async function uploadDocumentoStaff(file) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'pdf').replace(/[^a-z0-9]/g, '')
   const path = `staff/documentos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
   return uploadToStoragePublic(file, BUCKET, path)
+}
+
+export async function uploadLocalFoto(file, edicaoId) {
+  const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg'
+  const seg = edicaoId != null && edicaoId !== '' ? String(edicaoId) : 'sem-edicao'
+  const path = `${LOCAIS_PATH}/${seg}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
 }
