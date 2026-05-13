@@ -205,4 +205,25 @@ export const campeonatosService = {
     const data = await handleResponse(res, 'Erro ao buscar classificação do grupo')
     return Array.isArray(data) ? data : []
   },
+
+  async getArtilheirosPartida(campeonatoId, partidaId) {
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/artilheiros`)
+    const data = await handleResponse(res, 'Erro ao buscar artilheiros da partida')
+    return Array.isArray(data) ? data : []
+  },
+
+  async registrarArtilheiros(campeonatoId, partidaId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/artilheiros${qs}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao registrar artilheiros')
+  },
+
+  async getArtilheirosCampeonato(campeonatoId) {
+    const res = await apiFetch(`${BASE}/${campeonatoId}/artilheiros`)
+    const data = await handleResponse(res, 'Erro ao buscar ranking de artilheiros')
+    return Array.isArray(data) ? data : []
+  },
 }

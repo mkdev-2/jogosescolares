@@ -51,4 +51,10 @@ export const publicCampeonatosService = {
     const data = await handleResponse(res, 'Erro ao carregar próximos confrontos')
     return Array.isArray(data) ? data : []
   },
+
+  async getArtilheirosCampeonato(campeonatoId) {
+    const res = await apiFetch(`/api/campeonatos/${campeonatoId}/artilheiros`)
+    const data = await handleResponse(res, 'Erro ao carregar artilheiros')
+    return Array.isArray(data) ? data : []
+  },
 }

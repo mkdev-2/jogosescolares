@@ -318,7 +318,8 @@ async def create_equipe(
         await cur.execute(
             """
             SELECT ev.id, tm.codigo AS tipo_modalidade_codigo,
-                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome
+                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome,
+                   esp.isento_limite_modalidade
             FROM esporte_variantes ev
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
             JOIN esportes esp ON esp.id = ev.esporte_id
@@ -333,6 +334,7 @@ async def create_equipe(
         minimo_atletas = variante_row.get("minimo_atletas") or 1
         limite_atletas = variante_row.get("limite_atletas") or 1
         esporte_nome = variante_row.get("esporte_nome", "")
+        isento_limite = variante_row.get("isento_limite_modalidade", False)
 
         professor_auxiliar_id = data.professor_auxiliar_id
         if tipo_modalidade_codigo != "COLETIVAS":
@@ -409,7 +411,7 @@ async def create_equipe(
                 )
 
         # Pré-validar conflitos de modalidade (retorna lista estruturada para o frontend)
-        if tipo_modalidade_codigo in ("COLETIVAS", "INDIVIDUAIS") and data.estudante_ids:
+        if tipo_modalidade_codigo in ("COLETIVAS", "INDIVIDUAIS") and data.estudante_ids and not isento_limite:
             await cur.execute(
                 """
                 SELECT DISTINCT est.id, est.nome, esp.nome AS esporte_nome
@@ -420,6 +422,7 @@ async def create_equipe(
                 JOIN tipos_modalidade tm2  ON tm2.id = ev2.tipo_modalidade_id
                 JOIN esportes esp          ON esp.id = ev2.esporte_id
                 WHERE est.id = ANY(%s) AND tm2.codigo = %s
+                  AND NOT esp.isento_limite_modalidade
                 ORDER BY est.nome
                 """,
                 (list(data.estudante_ids), tipo_modalidade_codigo),
@@ -566,7 +569,8 @@ async def update_equipe(
         await cur.execute(
             """
             SELECT tm.codigo AS tipo_modalidade_codigo,
-                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome
+                   esp.minimo_atletas, esp.limite_atletas, esp.nome AS esporte_nome,
+                   esp.isento_limite_modalidade
             FROM esporte_variantes ev
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
             JOIN esportes esp ON esp.id = ev.esporte_id
@@ -581,6 +585,7 @@ async def update_equipe(
         minimo_atletas = final_variante_tipo.get("minimo_atletas") or 1
         limite_atletas = final_variante_tipo.get("limite_atletas") or 1
         esporte_nome = final_variante_tipo.get("esporte_nome", "")
+        isento_limite = final_variante_tipo.get("isento_limite_modalidade", False)
         final_tecnico_id = updates.get("professor_tecnico_id", existing["professor_tecnico_id"])
         final_auxiliar_id = updates.get("professor_auxiliar_id", existing.get("professor_auxiliar_id"))
         if final_tipo_codigo != "COLETIVAS":
@@ -657,7 +662,7 @@ async def update_equipe(
                 )
 
             # Pré-validar conflitos de modalidade (exclui a própria equipe sendo editada)
-            if final_tipo_codigo in ("COLETIVAS", "INDIVIDUAIS"):
+            if final_tipo_codigo in ("COLETIVAS", "INDIVIDUAIS") and not isento_limite:
                 await cur.execute(
                     """
                     SELECT DISTINCT est.id, est.nome, esp.nome AS esporte_nome
@@ -668,6 +673,7 @@ async def update_equipe(
                     JOIN tipos_modalidade tm2  ON tm2.id = ev2.tipo_modalidade_id
                     JOIN esportes esp          ON esp.id = ev2.esporte_id
                     WHERE est.id = ANY(%s) AND tm2.codigo = %s AND eq.id != %s
+                      AND NOT esp.isento_limite_modalidade
                     ORDER BY est.nome
                     """,
                     (list(updates["estudante_ids"]), final_tipo_codigo, equipe_id),

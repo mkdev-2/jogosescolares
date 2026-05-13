@@ -190,7 +190,7 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
       }
       await campeonatosService.registrarResultado(campeonatoId, partida.id, payload)
       message.success('Resultado registrado com sucesso')
-      onSuccess()
+      onSuccess(payload)
     } catch (err) {
       if (err?.errorFields) return
       message.error(err.message || 'Erro ao registrar resultado')
@@ -291,6 +291,126 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           </>
         )}
       </Form>
+    </Modal>
+  )
+}
+
+// ── RegistrarArtilheirosModal ─────────────────────────────────────────────────
+function RegistrarArtilheirosModal({ partida, campeonatoId, onClose }) {
+  const [atletas, setAtletas] = useState({ mandante: [], visitante: [] })
+  const [gols, setGols] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const placarMandante = partida.placar_mandante ?? 0
+  const placarVisitante = partida.placar_visitante ?? 0
+
+  useEffect(() => {
+    const fetchAtletas = async () => {
+      try {
+        const [m, v] = await Promise.all([
+          equipesService.getById(partida.mandante_equipe_id),
+          equipesService.getById(partida.visitante_equipe_id),
+        ])
+        const existentes = await campeonatosService.getArtilheirosPartida(campeonatoId, partida.id)
+        const golosIniciais = {}
+        existentes.forEach((a) => { golosIniciais[`${a.equipe_id}_${a.estudante_id}`] = a.quantidade })
+        setAtletas({ mandante: m.estudantes || [], visitante: v.estudantes || [] })
+        setGols(golosIniciais)
+      } catch {
+        message.error('Erro ao carregar atletas')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAtletas()
+  }, [campeonatoId, partida.id, partida.mandante_equipe_id, partida.visitante_equipe_id])
+
+  const setGol = (equipeId, estudanteId, valor) => {
+    setGols((prev) => ({ ...prev, [`${equipeId}_${estudanteId}`]: valor || 0 }))
+  }
+
+  const somaMandante = atletas.mandante.reduce((s, a) => s + (gols[`${partida.mandante_equipe_id}_${a.id}`] || 0), 0)
+  const somaVisitante = atletas.visitante.reduce((s, a) => s + (gols[`${partida.visitante_equipe_id}_${a.id}`] || 0), 0)
+  const somasCorretas = somaMandante === placarMandante && somaVisitante === placarVisitante
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const artilheiros = []
+      atletas.mandante.forEach((a) => {
+        const q = gols[`${partida.mandante_equipe_id}_${a.id}`] || 0
+        if (q > 0) artilheiros.push({ estudante_id: a.id, equipe_id: partida.mandante_equipe_id, quantidade: q })
+      })
+      atletas.visitante.forEach((a) => {
+        const q = gols[`${partida.visitante_equipe_id}_${a.id}`] || 0
+        if (q > 0) artilheiros.push({ estudante_id: a.id, equipe_id: partida.visitante_equipe_id, quantidade: q })
+      })
+      await campeonatosService.registrarArtilheiros(campeonatoId, partida.id, { artilheiros })
+      message.success('Artilheiros registrados')
+      onClose()
+    } catch (err) {
+      message.error(err.message || 'Erro ao salvar artilheiros')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const atletasSection = (label, equipeId, lista, somaAtual, placarEsperado) => (
+    <div className="mb-4">
+      <p className="text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-wider mb-2 m-0">
+        {label}
+        <span className={`ml-2 text-[0.875rem] font-bold ${somaAtual === placarEsperado ? 'text-emerald-600' : 'text-amber-600'}`}>
+          {somaAtual}/{placarEsperado}
+        </span>
+      </p>
+      {lista.length === 0 && <p className="text-sm text-[#94a3b8] italic m-0">Nenhum atleta inscrito</p>}
+      <div className="flex flex-col gap-1.5">
+        {lista.map((a) => (
+          <div key={a.id} className="flex items-center justify-between gap-3">
+            <span className="text-[0.875rem] text-[#334155] flex-1 min-w-0 truncate">{a.nome}</span>
+            <InputNumber
+              min={0}
+              value={gols[`${equipeId}_${a.id}`] || 0}
+              onChange={(v) => setGol(equipeId, a.id, v ?? 0)}
+              className="w-20 shrink-0"
+              size="small"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <Modal
+      open
+      title="Registrar artilheiros"
+      onCancel={onClose}
+      onOk={handleSave}
+      okText="Salvar"
+      cancelText="Pular"
+      confirmLoading={saving}
+      okButtonProps={{ disabled: !somasCorretas || loading }}
+      destroyOnClose
+      width={420}
+    >
+      {loading ? (
+        <div className="flex justify-center py-6"><Spin /></div>
+      ) : (
+        <>
+          <p className="text-sm text-[#64748b] mb-4 m-0">
+            <strong>{partida.mandante_nome}</strong> {placarMandante}–{placarVisitante} <strong>{partida.visitante_nome}</strong>
+          </p>
+          {atletasSection(partida.mandante_nome || 'Mandante', partida.mandante_equipe_id, atletas.mandante, somaMandante, placarMandante)}
+          {atletasSection(partida.visitante_nome || 'Visitante', partida.visitante_equipe_id, atletas.visitante, somaVisitante, placarVisitante)}
+          {!somasCorretas && (
+            <p className="text-[0.8125rem] text-amber-600 m-0">
+              A soma de gols de cada equipe deve coincidir com o placar da partida.
+            </p>
+          )}
+        </>
+      )}
     </Modal>
   )
 }
@@ -1663,6 +1783,7 @@ export default function CampeonatoDetalhe() {
   const [vencedorEquipe, setVencedorEquipe] = useState(null)
   const [modalManualPartida, setModalManualPartida] = useState(null)
   const [modalManualAgendamento, setModalManualAgendamento] = useState(null)
+  const [modalArtilheiros, setModalArtilheiros] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -1695,10 +1816,19 @@ export default function CampeonatoDetalhe() {
     fetchData()
   }, [fetchData])
 
-  const handleResultadoSalvo = () => {
+  const handleResultadoSalvo = (payload) => {
+    const partida = modalPartida
     setModalPartida(null)
     setRefreshKey((k) => k + 1)
     fetchData()
+    if (config?.registra_artilheiro && payload?.resultado_tipo !== 'WXO') {
+      setModalArtilheiros({
+        ...partida,
+        placar_mandante: payload?.placar_mandante ?? partida.placar_mandante,
+        placar_visitante: payload?.placar_visitante ?? partida.placar_visitante,
+        resultado_tipo: payload?.resultado_tipo ?? partida.resultado_tipo,
+      })
+    }
   }
 
   const handleAgendamentoSalvo = () => {
@@ -1975,6 +2105,15 @@ export default function CampeonatoDetalhe() {
           campeonatoId={campeonatoId}
           onSuccess={handleResultadoSalvo}
           onClose={() => setModalPartida(null)}
+        />
+      )}
+
+      {/* Artilheiros modal */}
+      {modalArtilheiros && (
+        <RegistrarArtilheirosModal
+          partida={modalArtilheiros}
+          campeonatoId={campeonatoId}
+          onClose={() => setModalArtilheiros(null)}
         />
       )}
 

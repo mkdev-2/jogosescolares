@@ -19,11 +19,17 @@ export default function ResultadoDetalhe() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('grupos')
+  const [artilheiros, setArtilheiros] = useState([])
 
   const fetchData = useCallback(async () => {
     try {
       const result = await publicCampeonatosService.getById(campeonatoId)
       setData(result)
+      if (result?.config?.registra_artilheiro) {
+        publicCampeonatosService.getArtilheirosCampeonato(campeonatoId)
+          .then(setArtilheiros)
+          .catch(() => {})
+      }
     } catch (err) {
       setError(err.message || 'Erro ao carregar campeonato')
     } finally {
@@ -139,6 +145,19 @@ export default function ResultadoDetalhe() {
                   <Trophy size={16} />
                   Eliminatórias
                 </button>
+                {config?.registra_artilheiro && artilheiros.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('artilheiros')}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-[10px] font-medium text-sm transition-colors border-0 cursor-pointer ${
+                      activeTab === 'artilheiros'
+                        ? 'bg-[#f1f5f9] text-[#0f766e]'
+                        : 'bg-transparent text-[#1e293b] hover:bg-[#f8fafc]'
+                    }`}
+                  >
+                    Artilheiros
+                  </button>
+                )}
               </div>
             </div>
 
@@ -174,6 +193,38 @@ export default function ResultadoDetalhe() {
                     matches={estrutura.partidas.filter((p) => p.grupo_id === null)}
                   />
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'artilheiros' && config?.registra_artilheiro && (
+              <div className="bg-white rounded-[12px] border border-[#f1f5f9] shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+                <div className="px-5 py-4 border-b border-[#f1f5f9] bg-[#f8fafc]">
+                  <h2 className="text-base font-bold text-[#042f2e] m-0">Artilheiros</h2>
+                </div>
+                {artilheiros.length === 0 ? (
+                  <p className="text-sm text-slate-400 px-5 py-4 m-0">Nenhum artilheiro registrado ainda.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#f1f5f9]">
+                        <th className="text-left px-5 py-3 text-[0.75rem] font-semibold text-[#64748b] uppercase tracking-wider w-10">#</th>
+                        <th className="text-left px-3 py-3 text-[0.75rem] font-semibold text-[#64748b] uppercase tracking-wider">Jogador</th>
+                        <th className="text-left px-3 py-3 text-[0.75rem] font-semibold text-[#64748b] uppercase tracking-wider">Escola</th>
+                        <th className="text-right px-5 py-3 text-[0.75rem] font-semibold text-[#64748b] uppercase tracking-wider">Gols</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {artilheiros.map((a) => (
+                        <tr key={a.estudante_id} className="border-b border-[#f8fafc] last:border-0">
+                          <td className="px-5 py-3 text-[#94a3b8] font-medium">{a.posicao}°</td>
+                          <td className="px-3 py-3 font-medium text-[#334155]">{a.estudante_nome}</td>
+                          <td className="px-3 py-3 text-[#64748b]">{a.escola_nome}</td>
+                          <td className="px-5 py-3 text-right font-bold text-[#0f766e]">{a.total_gols}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
           </div>

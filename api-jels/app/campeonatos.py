@@ -31,11 +31,14 @@ from app.schemas import (
     CampeonatoResponse,
     EquipeDaVarianteResponse,
     EquipeProvisioriaCreate,
+    ArtilheiroOutput,
     EsporteConfigPontuacaoResponse,
     EstruturaGruposPreviewResponse,
     LocalResumo,
     PartidaAgendamentoInput,
     PartidaResultadoInput,
+    RankingArtilheirosItem,
+    RegistrarArtilheirosInput,
     WildcardCandidatoInfo,
 )
 from app.services.chaveamentos_service import (
@@ -2283,6 +2286,7 @@ async def get_config_pontuacao_endpoint(
         ignorar_placar_extra=config["ignorar_placar_extra"],
         criterios_desempate_2=config["criterios_desempate_2"] or [],
         criterios_desempate_3plus=config["criterios_desempate_3plus"] or [],
+        registra_artilheiro=config.get("registra_artilheiro", False),
     )
 
 
@@ -2517,6 +2521,211 @@ async def registrar_resultado_partida(
         "vencedor_equipe_id": vencedor_id,
         "grupo_concluido": grupo_concluido,
     }
+
+
+# ---------------------------------------------------------------------------
+# Artilheiros
+# ---------------------------------------------------------------------------
+
+@router.get("/{campeonato_id}/partidas/{partida_id}/artilheiros", response_model=list[ArtilheiroOutput])
+async def get_artilheiros_partida(
+    campeonato_id: int,
+    partida_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna os artilheiros registrados em uma partida."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT pa.estudante_id, ea.nome AS estudante_nome,
+                   pa.equipe_id, esc.nome_escola AS escola_nome,
+                   pa.quantidade
+            FROM partida_artilheiros pa
+            JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
+            JOIN equipes eq ON eq.id = pa.equipe_id
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE pa.partida_id = %s
+            ORDER BY pa.equipe_id, ea.nome
+            """,
+            (partida_id,),
+        )
+        rows = await cur.fetchall()
+    return [
+        ArtilheiroOutput(
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            equipe_id=r["equipe_id"],
+            escola_nome=r["escola_nome"],
+            quantidade=r["quantidade"],
+        )
+        for r in rows
+    ]
+
+
+@router.put("/{campeonato_id}/partidas/{partida_id}/artilheiros", response_model=list[ArtilheiroOutput])
+async def registrar_artilheiros_partida(
+    campeonato_id: int,
+    partida_id: int,
+    data: RegistrarArtilheirosInput,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Registra (substitui) os artilheiros de uma partida. Exige que a soma de gols bata com o placar."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        # Valida campeonato e que registra_artilheiro está habilitado
+        await cur.execute(
+            """
+            SELECT cp.placar_mandante, cp.placar_visitante,
+                   cp.mandante_equipe_id, cp.visitante_equipe_id,
+                   cp.resultado_tipo,
+                   ecp.registra_artilheiro
+            FROM campeonato_partidas cp
+            JOIN campeonatos c ON c.id = cp.campeonato_id
+            JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
+            JOIN esporte_config_pontuacao ecp ON ecp.esporte_id = ev.esporte_id AND ecp.edicao_id = c.edicao_id
+            WHERE cp.id = %s AND cp.campeonato_id = %s AND c.edicao_id = %s
+            """,
+            (partida_id, campeonato_id, resolved_edicao_id),
+        )
+        partida = await cur.fetchone()
+
+    if not partida:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+    if not partida["registra_artilheiro"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este esporte não tem registro de artilheiros habilitado.",
+        )
+    if partida["resultado_tipo"] is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registre o resultado da partida antes de informar os artilheiros.",
+        )
+
+    mandante_id = partida["mandante_equipe_id"]
+    visitante_id = partida["visitante_equipe_id"]
+    placar_mandante = partida["placar_mandante"] or 0
+    placar_visitante = partida["placar_visitante"] or 0
+
+    # Valida que as equipes informadas pertencem à partida
+    equipes_validas = {mandante_id, visitante_id}
+    for art in data.artilheiros:
+        if art.equipe_id not in equipes_validas:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Equipe {art.equipe_id} não pertence a esta partida.",
+            )
+
+    # Valida que cada estudante está inscrito na equipe informada
+    async with conn.cursor() as cur:
+        for art in data.artilheiros:
+            await cur.execute(
+                "SELECT 1 FROM equipe_estudantes WHERE equipe_id = %s AND estudante_id = %s",
+                (art.equipe_id, art.estudante_id),
+            )
+            if not await cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Estudante {art.estudante_id} não está inscrito na equipe {art.equipe_id}.",
+                )
+
+    # Valida soma dos gols = placar de cada equipe
+    soma_mandante = sum(a.quantidade for a in data.artilheiros if a.equipe_id == mandante_id)
+    soma_visitante = sum(a.quantidade for a in data.artilheiros if a.equipe_id == visitante_id)
+    if soma_mandante != placar_mandante:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Soma dos gols do mandante ({soma_mandante}) não coincide com o placar ({placar_mandante}).",
+        )
+    if soma_visitante != placar_visitante:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Soma dos gols do visitante ({soma_visitante}) não coincide com o placar ({placar_visitante}).",
+        )
+
+    # Substitui todos os artilheiros da partida
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM partida_artilheiros WHERE partida_id = %s", (partida_id,))
+        for art in data.artilheiros:
+            await cur.execute(
+                """
+                INSERT INTO partida_artilheiros (partida_id, equipe_id, estudante_id, quantidade)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (partida_id, art.equipe_id, art.estudante_id, art.quantidade),
+            )
+        await conn.commit()
+
+        # Retorna os artilheiros salvos com dados completos
+        await cur.execute(
+            """
+            SELECT pa.estudante_id, ea.nome AS estudante_nome,
+                   pa.equipe_id, esc.nome_escola AS escola_nome,
+                   pa.quantidade
+            FROM partida_artilheiros pa
+            JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
+            JOIN equipes eq ON eq.id = pa.equipe_id
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE pa.partida_id = %s
+            ORDER BY pa.equipe_id, ea.nome
+            """,
+            (partida_id,),
+        )
+        rows = await cur.fetchall()
+
+    return [
+        ArtilheiroOutput(
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            equipe_id=r["equipe_id"],
+            escola_nome=r["escola_nome"],
+            quantidade=r["quantidade"],
+        )
+        for r in rows
+    ]
+
+
+@router.get("/{campeonato_id}/artilheiros", response_model=list[RankingArtilheirosItem])
+async def get_ranking_artilheiros(
+    campeonato_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+):
+    """Ranking de artilheiros do campeonato. Endpoint público."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT ea.id AS estudante_id,
+                   ea.nome AS estudante_nome,
+                   esc.nome_escola AS escola_nome,
+                   SUM(pa.quantidade) AS total_gols,
+                   RANK() OVER (ORDER BY SUM(pa.quantidade) DESC)::int AS posicao
+            FROM partida_artilheiros pa
+            JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
+            JOIN equipes eq ON eq.id = pa.equipe_id
+            JOIN escolas esc ON esc.id = eq.escola_id
+            JOIN campeonato_partidas cp ON cp.id = pa.partida_id
+            WHERE cp.campeonato_id = %s
+            GROUP BY ea.id, ea.nome, esc.nome_escola
+            ORDER BY total_gols DESC, ea.nome
+            """,
+            (campeonato_id,),
+        )
+        rows = await cur.fetchall()
+    return [
+        RankingArtilheirosItem(
+            posicao=r["posicao"],
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            escola_nome=r["escola_nome"],
+            total_gols=r["total_gols"],
+        )
+        for r in rows
+    ]
 
 
 # ---------------------------------------------------------------------------

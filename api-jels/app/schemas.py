@@ -1074,6 +1074,7 @@ class EsporteConfigPontuacaoResponse(BaseModel):
     ignorar_placar_extra: bool
     criterios_desempate_2: list[str] = Field(default_factory=list)
     criterios_desempate_3plus: list[str] = Field(default_factory=list)
+    registra_artilheiro: bool = False
 
 
 class EsporteConfigPontuacaoInput(BaseModel):
@@ -1094,6 +1095,35 @@ class EsporteConfigPontuacaoInput(BaseModel):
     ignorar_placar_extra: bool = False
     criterios_desempate_2: list[str] = Field(default_factory=list)
     criterios_desempate_3plus: list[str] = Field(default_factory=list)
+    registra_artilheiro: bool = False
+
+
+# ========== ARTILHEIROS ==========
+
+class ArtilheiroInput(BaseModel):
+    estudante_id: int
+    equipe_id: int
+    quantidade: int = Field(1, ge=1)
+
+
+class RegistrarArtilheirosInput(BaseModel):
+    artilheiros: list[ArtilheiroInput] = Field(default_factory=list)
+
+
+class ArtilheiroOutput(BaseModel):
+    estudante_id: int
+    estudante_nome: str
+    equipe_id: int
+    escola_nome: str
+    quantidade: int
+
+
+class RankingArtilheirosItem(BaseModel):
+    posicao: int
+    estudante_id: int
+    estudante_nome: str
+    escola_nome: str
+    total_gols: int
 
 
 RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]

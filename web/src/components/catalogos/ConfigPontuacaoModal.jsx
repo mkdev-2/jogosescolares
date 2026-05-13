@@ -166,6 +166,7 @@ const ESTADO_INICIAL = {
   ignorar_placar_extra: false,
   criterios_desempate_2: [],
   criterios_desempate_3plus: [],
+  registra_artilheiro: false,
 }
 
 function configParaForm(cfg) {
@@ -187,6 +188,7 @@ function configParaForm(cfg) {
     ignorar_placar_extra: cfg.ignorar_placar_extra ?? false,
     criterios_desempate_2: cfg.criterios_desempate_2 ?? [],
     criterios_desempate_3plus: cfg.criterios_desempate_3plus ?? [],
+    registra_artilheiro: cfg.registra_artilheiro ?? false,
   }
 }
 
@@ -243,6 +245,7 @@ export default function ConfigPontuacaoModal({
       ignorar_placar_extra: form.ignorar_placar_extra,
       criterios_desempate_2: form.criterios_desempate_2,
       criterios_desempate_3plus: form.criterios_desempate_3plus,
+      registra_artilheiro: form.registra_artilheiro,
     }
     try {
       await esportesService.upsertConfigPontuacao(esporteId, payload, edicaoId)
@@ -441,6 +444,21 @@ export default function ConfigPontuacaoModal({
             value={form.criterios_desempate_3plus}
             onChange={(v) => set('criterios_desempate_3plus', v)}
           />
+
+          {sectionTitle('Artilheiros')}
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={form.registra_artilheiro}
+              onChange={(v) => set('registra_artilheiro', v)}
+              size="small"
+            />
+            <span className="text-[0.875rem] text-[#334155]">
+              Registrar artilheiros
+              <span className="ml-1 text-[0.75rem] text-[#94a3b8]">
+                (habilita o controle de quem marcou cada gol por partida)
+              </span>
+            </span>
+          </div>
         </div>
       )}
     </Modal>

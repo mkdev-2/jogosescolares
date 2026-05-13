@@ -489,6 +489,7 @@ def _row_to_config_response(row: dict) -> EsporteConfigPontuacaoResponse:
         ignorar_placar_extra=row["ignorar_placar_extra"],
         criterios_desempate_2=row["criterios_desempate_2"] or [],
         criterios_desempate_3plus=row["criterios_desempate_3plus"] or [],
+        registra_artilheiro=row.get("registra_artilheiro", False),
     )
 
 
@@ -565,7 +566,8 @@ async def upsert_config_pontuacao(
                 wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
                 wxo_placar_pro_sec, wxo_placar_contra_sec,
                 ignorar_placar_extra,
-                criterios_desempate_2, criterios_desempate_3plus
+                criterios_desempate_2, criterios_desempate_3plus,
+                registra_artilheiro
             ) VALUES (
                 %s, %s,
                 %s, %s,
@@ -573,7 +575,8 @@ async def upsert_config_pontuacao(
                 %s, %s, %s, %s,
                 %s, %s,
                 %s,
-                %s::jsonb, %s::jsonb
+                %s::jsonb, %s::jsonb,
+                %s
             )
             ON CONFLICT (esporte_id, edicao_id) DO UPDATE SET
                 unidade_placar        = EXCLUDED.unidade_placar,
@@ -592,6 +595,7 @@ async def upsert_config_pontuacao(
                 ignorar_placar_extra  = EXCLUDED.ignorar_placar_extra,
                 criterios_desempate_2     = EXCLUDED.criterios_desempate_2,
                 criterios_desempate_3plus = EXCLUDED.criterios_desempate_3plus,
+                registra_artilheiro   = EXCLUDED.registra_artilheiro,
                 updated_at            = CURRENT_TIMESTAMP
             RETURNING
                 id, esporte_id, edicao_id,
@@ -600,7 +604,8 @@ async def upsert_config_pontuacao(
                 wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
                 wxo_placar_pro_sec, wxo_placar_contra_sec,
                 ignorar_placar_extra,
-                criterios_desempate_2, criterios_desempate_3plus
+                criterios_desempate_2, criterios_desempate_3plus,
+                registra_artilheiro
             """,
             (
                 esporte_id, resolved_edicao_id,
@@ -611,6 +616,7 @@ async def upsert_config_pontuacao(
                 data.ignorar_placar_extra,
                 _json.dumps(data.criterios_desempate_2),
                 _json.dumps(data.criterios_desempate_3plus),
+                data.registra_artilheiro,
             ),
         )
         row = await cur.fetchone()
