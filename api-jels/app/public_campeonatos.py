@@ -313,6 +313,7 @@ async def list_proximos_confrontos(
     campeonato_id: int | None = Query(None),
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
+    """Partidas pendentes (sem resultado) de campeonatos já publicados (GERADO ou em andamento)."""
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
     extra_where = ""
@@ -355,7 +356,7 @@ async def list_proximos_confrontos(
             LEFT JOIN equipes eq_v ON eq_v.id = cp.visitante_equipe_id
             LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
             LEFT JOIN locais loc ON loc.id = cp.local_id
-            WHERE c.status::text = 'EM_ANDAMENTO'
+            WHERE c.status IN ('GERADO', 'EM_ANDAMENTO')
               AND cp.registrado_em IS NULL
               AND cp.is_bye = FALSE
               AND cp.mandante_equipe_id IS NOT NULL
@@ -399,7 +400,7 @@ async def list_proximos_confrontos(
             LEFT JOIN campeonato_manual_participantes pa ON pa.id = cmc.participante_a_id
             LEFT JOIN campeonato_manual_participantes pb ON pb.id = cmc.participante_b_id
             LEFT JOIN locais loc ON loc.id = cmc.local_id
-            WHERE c.status::text = 'EM_ANDAMENTO'
+            WHERE c.status IN ('GERADO', 'EM_ANDAMENTO')
               AND cmc.resultado_tipo IS NULL
               AND COALESCE(pa.nome_exibicao, cmc.participante_a_nome) IS NOT NULL
               AND COALESCE(pb.nome_exibicao, cmc.participante_b_nome) IS NOT NULL

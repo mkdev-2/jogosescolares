@@ -65,6 +65,16 @@ export default function Locais({ embedded = false }) {
     fetchData()
   }, [fetchData])
 
+  /** Se o modal abriu antes da lista de edições, preenche a edição assim que ela existir. */
+  useEffect(() => {
+    if (!modalOpen || editing != null || filtroEdicaoId || !edicoes.length) return
+    const id = edicoes.find((e) => e.status === 'ATIVA')?.id ?? edicoes[0]?.id
+    if (id == null) return
+    const cur = form.getFieldValue('edicao_id')
+    if (cur != null && cur !== '') return
+    form.setFieldValue('edicao_id', id)
+  }, [modalOpen, editing, filtroEdicaoId, edicoes, form])
+
   const openEdit = useCallback(
     (row) => {
       setEditing(row)
@@ -94,15 +104,19 @@ export default function Locais({ embedded = false }) {
     [fetchData],
   )
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditing(null)
     form.resetFields()
-    if (filtroEdicaoId) {
-      form.setFieldsValue({ edicao_id: filtroEdicaoId })
+    const edicaoPadrao =
+      filtroEdicaoId ??
+      edicoes.find((e) => e.status === 'ATIVA')?.id ??
+      edicoes[0]?.id
+    if (edicaoPadrao != null) {
+      form.setFieldsValue({ edicao_id: edicaoPadrao })
     }
     setFileList([])
     setModalOpen(true)
-  }
+  }, [form, filtroEdicaoId, edicoes])
 
   const handleSubmit = async () => {
     let values

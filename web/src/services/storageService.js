@@ -105,7 +105,7 @@ export function getStorageUrl(path) {
 
   // Legado: chave sem prefixo do bucket (ex.: só "midias/..." ou "hero/...")
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }
@@ -142,7 +142,7 @@ function getStorageRelativePath(path) {
   rel = rel.split(/[?#]/)[0].replace(/^\/+/, '')
   if (!rel) return ''
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }

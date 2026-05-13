@@ -1,6 +1,7 @@
 import PublicHeader from '../components/landing/PublicHeader'
 import HeroSection from '../components/landing/HeroSection'
 import HowToParticipate from '../components/landing/HowToParticipate'
+import LocaisCarousel from '../components/landing/LocaisCarousel'
 import GallerySection from '../components/landing/GallerySection'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
 import InstagramWidget from '../components/landing/InstagramWidget'
@@ -24,6 +25,8 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      <LocaisCarousel />
 
       {/* Restante do Conteúdo */}
       <GallerySection />
