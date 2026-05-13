@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, MapPin, MapPinned } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Modal, Spin } from 'antd'
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  MapPinned,
+  X,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
 import { publicLocaisService } from '../../services/publicLocaisService'
+import { publicCampeonatosService } from '../../services/publicCampeonatosService'
 import StorageImage from '../StorageImage'
+import { resultadosConfrontoHref } from '../../utils/resultadosConfrontoHref'
 
 function mapsHref(local) {
   const link = local.link_maps?.trim()
@@ -12,10 +23,40 @@ function mapsHref(local) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
 }
 
+function horarioCurto(iso) {
+  if (iso == null || String(iso).trim() === '') return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function badgeInfoJogoModal(inicioEm) {
+  if (inicioEm == null || String(inicioEm).trim() === '') {
+    return { label: '—', pill: 'bg-slate-100 text-slate-500' }
+  }
+  const d = new Date(inicioEm)
+  const t = d.getTime()
+  if (Number.isNaN(t)) {
+    return { label: '—', pill: 'bg-slate-100 text-slate-500' }
+  }
+  if (t <= Date.now()) {
+    return { label: 'Em andamento', pill: 'bg-emerald-100 text-emerald-800' }
+  }
+  const dataStr = d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+  return { label: dataStr, pill: 'bg-sky-100 text-sky-800' }
+}
+
 export default function LocaisCarousel() {
   const [locais, setLocais] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [jogosModalLocal, setJogosModalLocal] = useState(null)
+  const [modalJogos, setModalJogos] = useState([])
+  const [modalJogosLoading, setModalJogosLoading] = useState(false)
   const carouselRef = useRef(null)
 
   useEffect(() => {
@@ -23,7 +64,7 @@ export default function LocaisCarousel() {
     publicLocaisService
       .list()
       .then((data) => {
-        if (!cancelled) setLocais(data)
+        if (!cancelled) setLocais(Array.isArray(data) ? data : [])
       })
       .catch(() => {
         if (!cancelled) setLocais([])
@@ -35,6 +76,37 @@ export default function LocaisCarousel() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!jogosModalLocal) {
+      setModalJogos([])
+      setModalJogosLoading(false)
+      return
+    }
+    let cancelled = false
+    setModalJogosLoading(true)
+    setModalJogos([])
+    publicCampeonatosService
+      .getProximosConfrontos(null, 40, null, jogosModalLocal.id)
+      .then((data) => {
+        if (!cancelled) setModalJogos(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        if (!cancelled) setModalJogos([])
+      })
+      .finally(() => {
+        if (!cancelled) setModalJogosLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [jogosModalLocal])
+
+  const closeJogosModal = () => {
+    setJogosModalLocal(null)
+    setModalJogos([])
+    setModalJogosLoading(false)
+  }
 
   const updateActiveFromScroll = useCallback(() => {
     const el = carouselRef.current
@@ -92,6 +164,106 @@ export default function LocaisCarousel() {
     >
       <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 bottom-1/4 h-72 w-72 rounded-full bg-teal-100/40 blur-3xl" />
+
+      <Modal
+        open={Boolean(jogosModalLocal)}
+        onCancel={closeJogosModal}
+        footer={null}
+        closable={false}
+        width={520}
+        centered
+        destroyOnClose
+        styles={{ body: { paddingTop: 16 } }}
+        classNames={{ content: 'rounded-2xl overflow-hidden' }}
+      >
+        {jogosModalLocal && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                  <Calendar size={22} strokeWidth={2} />
+                </div>
+                <div className="min-w-0">
+                  <p className="m-0 text-[10px] font-black uppercase tracking-widest text-teal-700">
+                    Próximos jogos
+                  </p>
+                  <h3 className="m-0 mt-0.5 font-display text-lg font-bold leading-tight text-[#042f2e]">
+                    {jogosModalLocal.nome}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeJogosModal}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {modalJogosLoading ? (
+              <div className="flex justify-center py-14">
+                <Spin size="large" />
+              </div>
+            ) : modalJogos.length === 0 ? (
+              <p className="m-0 py-6 text-center text-sm text-slate-500">
+                Não há jogos agendados neste local no momento.
+              </p>
+            ) : (
+              <ul className="m-0 max-h-[min(60vh,420px)] list-none space-y-0 overflow-y-auto p-0">
+                {modalJogos.map((j) => {
+                  const st = badgeInfoJogoModal(j.inicio_em)
+                  return (
+                    <li key={j.partida_id} className="border-b border-slate-100 last:border-0">
+                      <Link
+                        to={resultadosConfrontoHref(j)}
+                        onClick={closeJogosModal}
+                        className="flex flex-col gap-2 rounded-lg py-3 text-inherit no-underline outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-teal-500 sm:grid sm:grid-cols-[3.25rem_minmax(0,6.5rem)_1fr_auto] sm:items-center sm:gap-3"
+                      >
+                        <div className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold tabular-nums text-slate-700">
+                          {horarioCurto(j.inicio_em)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="m-0 text-sm font-bold text-slate-800">{j.esporte_nome}</p>
+                          <p className="m-0 mt-0.5 text-[11px] leading-snug text-slate-500">
+                            {[j.categoria_nome, j.naipe_nome].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        <p className="m-0 min-w-0 text-xs font-semibold leading-snug text-slate-700 sm:px-1">
+                          <span className="line-clamp-2">
+                            {j.mandante_nome}
+                            <span className="mx-1 font-normal text-slate-400">×</span>
+                            {j.visitante_nome}
+                          </span>
+                        </p>
+                        <div className="flex shrink-0 sm:justify-end">
+                          <span
+                            className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${st.pill}`}
+                          >
+                            {st.label}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            <div className="border-t border-slate-100 pt-3 text-center">
+              <Link
+                to="/resultados"
+                onClick={closeJogosModal}
+                className="inline-flex items-center justify-center gap-2 text-sm font-bold text-primary no-underline transition hover:underline"
+              >
+                <Calendar size={16} className="shrink-0" />
+                Ver programação completa
+              </Link>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <div className="container-portal relative z-10">
         <div className="mb-8 flex flex-col items-center text-center md:mb-10">
@@ -175,17 +347,27 @@ export default function LocaisCarousel() {
                             <span className="flex-1" aria-hidden />
                           )}
                         </div>
-                        {chegarHref ? (
-                          <a
-                            href={chegarHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-auto inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-primary bg-white py-2.5 text-center text-[10px] font-black uppercase tracking-wide text-primary shadow-sm transition-all duration-300 hover:bg-emerald-50 group-hover:border-primary group-hover:shadow-md md:text-xs"
+                        <div className="mt-auto flex shrink-0 flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setJogosModalLocal(local)}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-center text-[10px] font-black uppercase tracking-wide text-primary-foreground shadow-md shadow-emerald-900/20 transition-all duration-300 hover:brightness-110 active:scale-[0.98] md:text-xs"
                           >
-                            <MapPin className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" strokeWidth={2.5} />
-                            Como chegar
-                          </a>
-                        ) : null}
+                            <Calendar className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" strokeWidth={2.5} />
+                            Ver jogos
+                          </button>
+                          {chegarHref ? (
+                            <a
+                              href={chegarHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border-2 border-primary bg-white py-2.5 text-center text-[10px] font-black uppercase tracking-wide text-primary shadow-sm transition-all duration-300 hover:bg-emerald-50 group-hover:border-primary group-hover:shadow-md md:text-xs"
+                            >
+                              <MapPin className="h-3.5 w-3.5 shrink-0 md:h-4 md:w-4" strokeWidth={2.5} />
+                              Como chegar
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </motion.article>

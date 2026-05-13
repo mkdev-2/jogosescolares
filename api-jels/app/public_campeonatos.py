@@ -40,6 +40,10 @@ def _row_proximo_confronto_clean(r: dict) -> dict:
     out = {k: v for k, v in r.items() if not str(k).startswith("loc_join")}
     if loc:
         out["local"] = loc
+    lid = out.pop("local_id", None)
+    if lid is not None:
+        out["local_id"] = int(lid)
+    out["inicio_em"] = _iso(out.get("inicio_em"))
     return out
 
 
@@ -311,17 +315,28 @@ async def list_proximos_confrontos(
     edicao_id: int | None = Query(None),
     limite: int = Query(10, ge=1, le=50),
     campeonato_id: int | None = Query(None),
+    local_id: int | None = Query(None, description="Filtra partidas/confrontos neste local"),
     conn: psycopg.AsyncConnection = Depends(get_db),
 ):
     """Partidas pendentes (sem resultado) de campeonatos já publicados (GERADO ou em andamento)."""
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
-    extra_where = ""
-    params: list = [resolved_edicao_id]
+    extra_camp = ""
+    params_auto: list = [resolved_edicao_id]
+    params_manual: list = [resolved_edicao_id]
     if campeonato_id is not None:
-        extra_where = "AND c.id = %s"
-        params.append(campeonato_id)
-    params.append(limite)
+        extra_camp = "AND c.id = %s"
+        params_auto.append(campeonato_id)
+        params_manual.append(campeonato_id)
+    extra_local_auto = ""
+    extra_local_manual = ""
+    if local_id is not None:
+        extra_local_auto = "AND cp.local_id = %s"
+        params_auto.append(local_id)
+        extra_local_manual = "AND cmc.local_id = %s"
+        params_manual.append(local_id)
+    params_auto.append(limite)
+    params_manual.append(limite)
 
     async with conn.cursor() as cur:
         await cur.execute(
@@ -332,9 +347,11 @@ async def list_proximos_confrontos(
                 cp.fase::text   AS fase,
                 cp.rodada,
                 cp.inicio_em,
+                cp.local_id     AS local_id,
                 esc_m.nome_escola AS mandante_nome,
                 esc_v.nome_escola AS visitante_nome,
                 c.id            AS campeonato_id,
+                c.esporte_variante_id AS esporte_variante_id,
                 c.nome          AS campeonato_nome,
                 esp.nome        AS esporte_nome,
                 esp.icone,
@@ -362,11 +379,12 @@ async def list_proximos_confrontos(
               AND cp.mandante_equipe_id IS NOT NULL
               AND cp.visitante_equipe_id IS NOT NULL
               AND c.edicao_id = %s
-              {extra_where}
-            ORDER BY cp.id
+              {extra_camp}
+              {extra_local_auto}
+            ORDER BY cp.inicio_em NULLS LAST, cp.id
             LIMIT %s
             """,
-            params,
+            params_auto,
         )
         rows = [dict(r) for r in await cur.fetchall()]
 
@@ -378,9 +396,11 @@ async def list_proximos_confrontos(
                 cmc.fase::text   AS fase,
                 cmc.rodada,
                 cmc.inicio_em,
+                cmc.local_id     AS local_id,
                 COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS mandante_nome,
                 COALESCE(pb.nome_exibicao, cmc.participante_b_nome) AS visitante_nome,
                 c.id             AS campeonato_id,
+                c.esporte_variante_id AS esporte_variante_id,
                 c.nome           AS campeonato_nome,
                 esp.nome         AS esporte_nome,
                 esp.icone,
@@ -405,14 +425,22 @@ async def list_proximos_confrontos(
               AND COALESCE(pa.nome_exibicao, cmc.participante_a_nome) IS NOT NULL
               AND COALESCE(pb.nome_exibicao, cmc.participante_b_nome) IS NOT NULL
               AND c.edicao_id = %s
-              {extra_where}
-            ORDER BY cmc.ordem, cmc.id
+              {extra_camp}
+              {extra_local_manual}
+            ORDER BY cmc.inicio_em NULLS LAST, cmc.ordem, cmc.id
             LIMIT %s
             """,
-            params,
+            params_manual,
         )
         rows.extend(dict(r) for r in await cur.fetchall())
 
+    def _sort_key(r: dict):
+        em = r.get("inicio_em")
+        if em is None:
+            return (1, 0, r.get("partida_id", 0))
+        return (0, em, r.get("partida_id", 0))
+
+    rows.sort(key=_sort_key)
     return [_row_proximo_confronto_clean(r) for r in rows[:limite]]
 
 

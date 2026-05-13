@@ -1,12 +1,19 @@
 import { FASE_LABEL } from './TournamentBracket'
 
-function PartidaCard({ partida, grupoNome }) {
+function PartidaCard({ partida, grupoNome, highlighted }) {
   const hasResult = !!partida.resultado_tipo
   const mandanteWon = hasResult && partida.vencedor_equipe_id === partida.mandante_equipe_id
   const visitanteWon = hasResult && partida.vencedor_equipe_id === partida.visitante_equipe_id
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 px-3 py-2.5 flex flex-col gap-1 hover:border-slate-300 transition-colors">
+    <div
+      id={`resultados-partida-${partida.id}`}
+      className={`bg-white rounded-lg border px-3 py-2.5 flex flex-col gap-1 transition-colors ${
+        highlighted
+          ? 'border-teal-400 ring-2 ring-teal-500 ring-offset-1 shadow-md'
+          : 'border-slate-200 hover:border-slate-300'
+      }`}
+    >
       <div className="flex items-center gap-3">
         {grupoNome != null && (
           <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 w-14 text-center leading-tight">
@@ -76,7 +83,7 @@ const KNOCKOUT_PHASES_ORDER = [
   'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL', 'TERCEIRO',
 ]
 
-export default function PartidasTimeline({ partidas, grupos }) {
+export default function PartidasTimeline({ partidas, grupos, highlightPartidaId }) {
   const jogos = partidas.filter((p) => !p.is_bye)
 
   const grupoMap = Object.fromEntries((grupos || []).map((g) => [g.id, g.nome]))
@@ -117,7 +124,12 @@ export default function PartidasTimeline({ partidas, grupos }) {
               </div>
               <div className="flex flex-col gap-1.5 pl-4 border-l-2 border-slate-100 ml-0.5">
                 {porRodada[rodada].map((p) => (
-                  <PartidaCard key={p.id} partida={p} grupoNome={grupoMap[p.grupo_id]} />
+                  <PartidaCard
+                    key={p.id}
+                    partida={p}
+                    grupoNome={grupoMap[p.grupo_id]}
+                    highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -136,7 +148,12 @@ export default function PartidasTimeline({ partidas, grupos }) {
               </div>
               <div className="flex flex-col gap-1.5 pl-4 border-l-2 border-slate-100 ml-0.5">
                 {knockoutByFase[fase].map((p) => (
-                  <PartidaCard key={p.id} partida={p} grupoNome={null} />
+                  <PartidaCard
+                    key={p.id}
+                    partida={p}
+                    grupoNome={null}
+                    highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
+                  />
                 ))}
               </div>
             </div>
