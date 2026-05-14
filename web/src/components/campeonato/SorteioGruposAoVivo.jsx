@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Button, Tag } from 'antd'
+import { Button, Tag, Tooltip } from 'antd'
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { Play, Search, Trophy, Undo2 } from 'lucide-react'
@@ -26,23 +26,21 @@ function pickRandomEquipe(pool) {
   return pool[i]
 }
 
-/** Faixa longa (último item = vencedor). Mais decoys = mais “voltas” visíveis antes da freada. */
-function buildRouletteStrip(pool, winner, nDecoys = 78) {
+/** Faixa longa: decoys, vencedor, depois `REEL_TAIL_ROW_COUNT` linhas para preencher o viewport abaixo da moldura. Decoys só do `poolFonte` (excl. vencedor quando possível). */
+function buildRouletteStrip(poolFonte, winner, nDecoys = 78) {
   if (!winner) return []
   const strip = []
   const n = Math.max(24, nDecoys)
+  const src = poolFonte.filter((e) => e.id !== winner.id)
+  const pickFrom = src.length > 0 ? src : poolFonte
   for (let i = 0; i < n; i += 1) {
-    strip.push(pool[Math.floor(Math.random() * pool.length)])
+    strip.push(pickFrom[Math.floor(Math.random() * pickFrom.length)])
   }
   strip.push(winner)
+  for (let t = 0; t < REEL_TAIL_ROW_COUNT; t += 1) {
+    strip.push(pickFrom[Math.floor(Math.random() * pickFrom.length)])
+  }
   return strip
-}
-
-const REEL_STRIP_MAX_LEN = 100
-
-function trimStripToMax(strip, maxLen = REEL_STRIP_MAX_LEN) {
-  if (strip.length <= maxLen) return strip
-  return strip.slice(-maxLen)
 }
 
 /** Repetições do pool em ordem fixa para a roleta visível em repouso (loop suave). */
@@ -81,23 +79,25 @@ function DraggableCardSorteio({ equipe, onContextMenu }) {
       {...listeners}
       {...attributes}
     >
-      <div
-        className={[
-          'group flex w-full min-w-0 items-center gap-2 rounded-lg border py-2 text-sm font-medium select-none bg-white border-[#e2e8f0] text-[#1e293b]',
-          'transition-[box-shadow,background-color,border-color,transform] duration-200 ease-out',
-          'hover:border-[#0f766e] hover:bg-[#f0fdfa] hover:shadow-md hover:shadow-[0_6px_20px_-8px_rgba(15,118,110,0.35)] hover:ring-2 hover:ring-[#0f766e]/20',
-          'active:scale-[0.99] active:shadow-sm',
-          padSlot ? 'pl-3 pr-7' : 'px-3',
-        ].join(' ')}
-      >
-        <Trophy
-          size={13}
-          className="shrink-0 text-[#0f766e] transition-transform duration-200 group-hover:scale-110 group-hover:text-[#0d9488]"
-        />
-        <span className="min-w-0 flex-1 truncate transition-colors duration-200 group-hover:text-[#0f766e]">
-          {equipe.nome_escola}
-        </span>
-      </div>
+      <Tooltip title={equipe.nome_escola} placement="top" mouseEnterDelay={0.35}>
+        <div
+          className={[
+            'group flex w-full min-w-0 items-center gap-2 rounded-lg border py-2 text-sm font-medium select-none bg-white border-[#e2e8f0] text-[#1e293b]',
+            'transition-[box-shadow,background-color,border-color,transform] duration-200 ease-out',
+            'hover:border-[#0f766e] hover:bg-[#f0fdfa] hover:shadow-md hover:shadow-[0_6px_20px_-8px_rgba(15,118,110,0.35)] hover:ring-2 hover:ring-[#0f766e]/20',
+            'active:scale-[0.99] active:shadow-sm',
+            padSlot ? 'pl-3 pr-7' : 'px-3',
+          ].join(' ')}
+        >
+          <Trophy
+            size={13}
+            className="shrink-0 text-[#0f766e] transition-transform duration-200 group-hover:scale-110 group-hover:text-[#0d9488]"
+          />
+          <span className="min-w-0 flex-1 truncate transition-colors duration-200 group-hover:text-[#0f766e]">
+            {equipe.nome_escola}
+          </span>
+        </div>
+      </Tooltip>
     </div>
   )
 }
@@ -188,11 +188,18 @@ function DroppablePoolSorteio({ pool, totalPool }) {
 /** Linhas visíveis (ímpar): faixa central = slot vencedor. */
 const REEL_VISIBLE_ROWS = 5
 const REEL_CENTER_ROW = Math.floor(REEL_VISIBLE_ROWS / 2)
+/** Linhas na viewport abaixo da faixa central — precisam existir na faixa após o vencedor para não ficar “vazio”. */
+const REEL_TAIL_ROW_COUNT = Math.max(0, REEL_VISIBLE_ROWS - 1 - REEL_CENTER_ROW)
 
-function stripScrollTargetY(stripLen, itemHeight) {
-  if (stripLen < 1) return 0
-  const w = stripLen - 1
-  return REEL_CENTER_ROW * itemHeight - w * itemHeight
+function reelWinnerIndex(stripLen) {
+  if (stripLen < 1) return -1
+  return Math.max(0, stripLen - 1 - REEL_TAIL_ROW_COUNT)
+}
+
+/** Alinha a linha `winnerIndex` (topo da célula) com a faixa central do viewport. */
+function stripScrollTargetY(winnerIndex, itemHeight) {
+  if (winnerIndex < 0) return 0
+  return REEL_CENTER_ROW * itemHeight - winnerIndex * itemHeight
 }
 
 /** Duração do giro (s): keyframes cobrem várias “voltas” antes da freada. */
@@ -202,9 +209,12 @@ const REEL_DURATION_REDUCED = 2.35
 /** Linhas comuns: branco / slate claro (padrão do painel). */
 const REEL_STRIP_ROW_EVEN = 'border-b border-[#e2e8f0] bg-white text-[#0f172a]'
 const REEL_STRIP_ROW_ODD = 'border-b border-[#e2e8f0] bg-[#f8fafc] text-[#0f172a]'
-/** Linha sorteada: teal institucional (#0f766e). */
+/** Linha sorteada (atual): teal institucional (#0f766e). */
 const REEL_WINNER_ROW_CLASSES =
   'border-b border-[#0f766e]/35 bg-[#ecfdf5] text-[#0f766e] font-bold shadow-[inset_0_0_0_1px_rgba(15,118,110,0.12)]'
+/** Linha de escola já sorteada (permanece na faixa, não pode ser sorteada de novo). */
+const REEL_HISTORICO_ROW_CLASSES =
+  'border-b border-[#e2e8f0] bg-[#f1f5f9] text-[#64748b] font-medium'
 
 /**
  * Reel: `reelY` persiste entre giros; `idleY` só anima em repouso.
@@ -218,6 +228,7 @@ function RoletaVirtual({
   onAnimationComplete,
   mode = 'idle',
   idleCycleLength = 0,
+  historicoSorteadoIds = [],
 }) {
   const idleY = useMotionValue(0)
   const ty = useTransform([reelY, idleY], ([r, i]) =>
@@ -253,12 +264,18 @@ function RoletaVirtual({
       idleAnimRef.current.stop()
       idleAnimRef.current = null
     }
+    /* Continuidade: o scroll do repouso vive em `idleY`; soma em `reelY` antes de zerar,
+       para o próximo giro partir exatamente de onde a faixa parou visualmente. */
+    const carryIdle = idleY.get()
+    const snap = itemHeight
+    const merged = reelY.get() + carryIdle
+    reelY.set(Math.round(merged / snap) * snap)
     idleY.set(0)
 
     firedRef.current = false
     setWinnerLanded(false)
 
-    const target = stripScrollTargetY(strip.length, itemHeight)
+    const target = stripScrollTargetY(reelWinnerIndex(strip.length), itemHeight)
     const start = reelY.get()
 
     const fireOnce = () => {
@@ -328,9 +345,12 @@ function RoletaVirtual({
     }
   }, [mode, strip, itemHeight, reducedMotion, idleY, idleCycleLength])
 
+  const historicoSet = useMemo(() => new Set(historicoSorteadoIds), [historicoSorteadoIds])
+
   if (strip.length === 0) return null
 
-  const winner = strip[strip.length - 1]
+  const winnerIndex = mode === 'idle' ? -1 : reelWinnerIndex(strip.length)
+  const winner = winnerIndex >= 0 ? strip[winnerIndex] : null
 
   const maskSoft = 'linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%)'
 
@@ -355,21 +375,27 @@ function RoletaVirtual({
           <Motion.div className="relative will-change-transform" style={{ transform: ty }}>
             {strip.map((eq, i) => {
               const isWinnerRow =
-                i === strip.length - 1 && (mode === 'settled' || (mode === 'spin' && winnerLanded))
+                winnerIndex >= 0 &&
+                i === winnerIndex &&
+                (mode === 'settled' || (mode === 'spin' && winnerLanded))
+              const isHistoricoRow = !isWinnerRow && historicoSet.has(eq.id)
               const cycleClass = i % 2 === 0 ? REEL_STRIP_ROW_EVEN : REEL_STRIP_ROW_ODD
+              const rowClass = isWinnerRow
+                ? REEL_WINNER_ROW_CLASSES
+                : isHistoricoRow
+                  ? REEL_HISTORICO_ROW_CLASSES
+                  : cycleClass
+              const textColor = isWinnerRow ? '#0f766e' : isHistoricoRow ? '#64748b' : '#0f172a'
               return (
                 <div
                   key={`reel-row-${i}-${eq.id}`}
                   className={[
                     'flex items-center justify-center border-b px-3 text-center text-sm font-semibold tracking-tight md:text-base',
-                    isWinnerRow ? REEL_WINNER_ROW_CLASSES : cycleClass,
+                    rowClass,
                   ].join(' ')}
                   style={{ height: itemHeight }}
                 >
-                  <span
-                    className="max-w-[95%] truncate"
-                    style={{ color: isWinnerRow ? '#0f766e' : '#0f172a' }}
-                  >
+                  <span className="max-w-[95%] truncate" style={{ color: textColor }}>
                     {eq.nome_escola}
                   </span>
                 </div>
@@ -408,7 +434,7 @@ function RoletaVirtual({
         />
       </div>
 
-      {(mode === 'spin' || mode === 'settled') && (
+      {(mode === 'spin' || mode === 'settled') && winner && (
         <span className="sr-only">Sorteado: {winner.nome_escola}</span>
       )}
     </div>
@@ -429,6 +455,7 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
   const [busca, setBusca] = useState('')
   const [animating, setAnimating] = useState(false)
   const [rouletteStrip, setRouletteStrip] = useState([])
+  const [historicoSorteadoIds, setHistoricoSorteadoIds] = useState([])
   const [highlightDest, setHighlightDest] = useState(null)
   const [lastRoleta, setLastRoleta] = useState(null)
   const reducedMotion = useReducedMotion()
@@ -476,15 +503,11 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
         return next
       })
       setLastRoleta({ equipe, gi, si })
-      setRouletteStrip((prev) => {
-        const t = trimStripToMax(prev)
-        reelY.set(stripScrollTargetY(t.length, itemHeight))
-        return t
-      })
+      setHistoricoSorteadoIds((prev) => (prev.includes(equipe.id) ? prev : [...prev, equipe.id]))
       setHighlightDest(null)
       setAnimating(false)
     }, dwellMs)
-  }, [reducedMotion, itemHeight, reelY])
+  }, [reducedMotion])
 
   function findSource(equipeId) {
     if (pool.some((e) => e.id === equipeId)) return { tipo: 'pool' }
@@ -581,10 +604,16 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
     let strip
     if (rouletteStrip.length > 0) {
       const mid = []
+      const poolDecoy = pool.filter((e) => e.id !== equipe.id)
+      const pickFrom = poolDecoy.length > 0 ? poolDecoy : pool
       for (let i = 0; i < appendDecoys; i += 1) {
-        mid.push(pool[Math.floor(Math.random() * pool.length)])
+        mid.push(pickFrom[Math.floor(Math.random() * pickFrom.length)])
       }
-      strip = [...rouletteStrip, ...mid, equipe]
+      const tail = []
+      for (let t = 0; t < REEL_TAIL_ROW_COUNT; t += 1) {
+        tail.push(pickFrom[Math.floor(Math.random() * pickFrom.length)])
+      }
+      strip = [...rouletteStrip, ...mid, equipe, ...tail]
     } else {
       strip = buildRouletteStrip(pool, equipe, firstSpinDecoys)
     }
@@ -605,6 +634,7 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
     setPool((prev) => [...prev, equipe])
     setLastRoleta(null)
     setRouletteStrip([])
+    setHistoricoSorteadoIds([])
     reelY.set(0)
   }
 
@@ -702,6 +732,7 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
                 idleCycleLength={pool.length}
                 itemHeight={itemHeight}
                 reducedMotion={!!reducedMotion}
+                historicoSorteadoIds={historicoSorteadoIds}
                 onAnimationComplete={applyRoletaPlacement}
               />
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
