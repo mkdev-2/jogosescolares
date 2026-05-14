@@ -226,4 +226,19 @@ export const campeonatosService = {
     const data = await handleResponse(res, 'Erro ao buscar ranking de artilheiros')
     return Array.isArray(data) ? data : []
   },
+
+  async getPenalidadesPartida(campeonatoId, partidaId) {
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/penalidades`)
+    const data = await handleResponse(res, 'Erro ao buscar penalidades da partida')
+    return Array.isArray(data) ? data : []
+  },
+
+  async registrarPenalidades(campeonatoId, partidaId, payload, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/penalidades${qs}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    return handleResponse(res, 'Erro ao registrar penalidades')
+  },
 }

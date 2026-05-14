@@ -2,6 +2,7 @@
 Modelos Pydantic para validação de dados de entrada e saída.
 """
 from datetime import datetime
+from enum import Enum
 from typing import Optional, Literal, Union
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -1124,6 +1125,33 @@ class RankingArtilheirosItem(BaseModel):
     estudante_nome: str
     escola_nome: str
     total_gols: int
+
+
+# ========== PENALIDADES ==========
+
+class TipoPenalidade(str, Enum):
+    CARTAO_AMARELO = "CARTAO_AMARELO"
+    CARTAO_VERMELHO = "CARTAO_VERMELHO"
+    ADVERTENCIA = "ADVERTENCIA"
+
+
+class PenalidadeInput(BaseModel):
+    estudante_id: int
+    equipe_id: int
+    tipo: TipoPenalidade
+
+
+class RegistrarPenalidadesInput(BaseModel):
+    penalidades: list[PenalidadeInput] = Field(default_factory=list)
+
+
+class PenalidadeOutput(BaseModel):
+    id: int
+    estudante_id: int
+    estudante_nome: str
+    equipe_id: int
+    escola_nome: str
+    tipo: TipoPenalidade
 
 
 RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]

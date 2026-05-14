@@ -37,8 +37,10 @@ from app.schemas import (
     LocalResumo,
     PartidaAgendamentoInput,
     PartidaResultadoInput,
+    PenalidadeOutput,
     RankingArtilheirosItem,
     RegistrarArtilheirosInput,
+    RegistrarPenalidadesInput,
     WildcardCandidatoInfo,
 )
 from app.services.chaveamentos_service import (
@@ -2685,6 +2687,138 @@ async def registrar_artilheiros_partida(
             equipe_id=r["equipe_id"],
             escola_nome=r["escola_nome"],
             quantidade=r["quantidade"],
+        )
+        for r in rows
+    ]
+
+
+# Penalidades
+# ---------------------------------------------------------------------------
+
+@router.get("/{campeonato_id}/partidas/{partida_id}/penalidades", response_model=list[PenalidadeOutput])
+async def get_penalidades_partida(
+    campeonato_id: int,
+    partida_id: int,
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna as penalidades registradas em uma partida."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT pp.id, pp.estudante_id, ea.nome AS estudante_nome,
+                   pp.equipe_id, esc.nome_escola AS escola_nome,
+                   pp.tipo
+            FROM partida_penalidades pp
+            JOIN estudantes_atletas ea ON ea.id = pp.estudante_id
+            JOIN equipes eq ON eq.id = pp.equipe_id
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE pp.partida_id = %s
+            ORDER BY pp.equipe_id, ea.nome
+            """,
+            (partida_id,),
+        )
+        rows = await cur.fetchall()
+    return [
+        PenalidadeOutput(
+            id=r["id"],
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            equipe_id=r["equipe_id"],
+            escola_nome=r["escola_nome"],
+            tipo=r["tipo"],
+        )
+        for r in rows
+    ]
+
+
+@router.put("/{campeonato_id}/partidas/{partida_id}/penalidades", response_model=list[PenalidadeOutput])
+async def registrar_penalidades_partida(
+    campeonato_id: int,
+    partida_id: int,
+    data: RegistrarPenalidadesInput,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Registra (substitui) as penalidades de uma partida."""
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT mandante_equipe_id, visitante_equipe_id
+            FROM campeonato_partidas cp
+            JOIN campeonatos c ON c.id = cp.campeonato_id
+            WHERE cp.id = %s AND cp.campeonato_id = %s
+              AND (%s IS NULL OR c.edicao_id = %s)
+            """,
+            (partida_id, campeonato_id, resolved_edicao_id, resolved_edicao_id),
+        )
+        partida = await cur.fetchone()
+
+    if not partida:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+
+    mandante_id = partida["mandante_equipe_id"]
+    visitante_id = partida["visitante_equipe_id"]
+    equipes_validas = {mandante_id, visitante_id}
+
+    for pen in data.penalidades:
+        if pen.equipe_id not in equipes_validas:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Equipe {pen.equipe_id} não participa desta partida.",
+            )
+
+    async with conn.cursor() as cur:
+        for pen in data.penalidades:
+            await cur.execute(
+                "SELECT 1 FROM equipe_estudantes WHERE equipe_id = %s AND estudante_id = %s",
+                (pen.equipe_id, pen.estudante_id),
+            )
+            if not await cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Estudante {pen.estudante_id} não está inscrito na equipe {pen.equipe_id}.",
+                )
+
+        await cur.execute("DELETE FROM partida_penalidades WHERE partida_id = %s", (partida_id,))
+        for pen in data.penalidades:
+            await cur.execute(
+                """
+                INSERT INTO partida_penalidades (partida_id, equipe_id, estudante_id, tipo)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (partida_id, pen.equipe_id, pen.estudante_id, pen.tipo),
+            )
+        await conn.commit()
+
+        await cur.execute(
+            """
+            SELECT pp.id, pp.estudante_id, ea.nome AS estudante_nome,
+                   pp.equipe_id, esc.nome_escola AS escola_nome,
+                   pp.tipo
+            FROM partida_penalidades pp
+            JOIN estudantes_atletas ea ON ea.id = pp.estudante_id
+            JOIN equipes eq ON eq.id = pp.equipe_id
+            JOIN escolas esc ON esc.id = eq.escola_id
+            WHERE pp.partida_id = %s
+            ORDER BY pp.equipe_id, ea.nome
+            """,
+            (partida_id,),
+        )
+        rows = await cur.fetchall()
+
+    return [
+        PenalidadeOutput(
+            id=r["id"],
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            equipe_id=r["equipe_id"],
+            escola_nome=r["escola_nome"],
+            tipo=r["tipo"],
         )
         for r in rows
     ]

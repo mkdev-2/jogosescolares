@@ -1,16 +1,19 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, DatePicker, Dropdown, Form, Input, InputNumber, Modal, Popover, Radio, Select, Table, Tag, Tooltip, message, Spin } from 'antd'
+import { Button, DatePicker, Dropdown, Form, Input, InputNumber, Modal, Popover, Radio, Select, Table, Tabs, Tag, Tooltip, message, Spin } from 'antd'
 import {
   AppstoreOutlined,
   BarsOutlined,
   ClockCircleOutlined,
+  DeleteOutlined,
   EditOutlined,
   MoreOutlined,
   PartitionOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { ArrowLeft, ChevronDown, Trophy } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ShieldAlert, Trophy } from 'lucide-react'
+import { IoMdFootball } from 'react-icons/io'
 import { campeonatosService } from '../services/campeonatosService'
 import { equipesService } from '../services/equipesService'
 import { locaisService } from '../services/locaisService'
@@ -296,9 +299,16 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
 }
 
 // ── RegistrarArtilheirosModal ─────────────────────────────────────────────────
-function RegistrarArtilheirosModal({ partida, campeonatoId, onClose }) {
+const TIPO_PENALIDADE_LABELS = {
+  CARTAO_AMARELO: 'Cartão Amarelo',
+  CARTAO_VERMELHO: 'Cartão Vermelho',
+  ADVERTENCIA: 'Advertência',
+}
+
+function RegistrarArtilheirosModal({ partida, campeonatoId, registraArtilheiro, onClose }) {
   const [atletas, setAtletas] = useState({ mandante: [], visitante: [] })
-  const [gols, setGols] = useState({})
+  const [linhas, setLinhas] = useState([])
+  const [penalidades, setPenalidades] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -306,110 +316,226 @@ function RegistrarArtilheirosModal({ partida, campeonatoId, onClose }) {
   const placarVisitante = partida.placar_visitante ?? 0
 
   useEffect(() => {
-    const fetchAtletas = async () => {
+    const fetchData = async () => {
       try {
-        const [m, v] = await Promise.all([
+        const [m, v, artExist, penExist] = await Promise.all([
           equipesService.getById(partida.mandante_equipe_id),
           equipesService.getById(partida.visitante_equipe_id),
+          registraArtilheiro ? campeonatosService.getArtilheirosPartida(campeonatoId, partida.id) : Promise.resolve([]),
+          campeonatosService.getPenalidadesPartida(campeonatoId, partida.id),
         ])
-        const existentes = await campeonatosService.getArtilheirosPartida(campeonatoId, partida.id)
-        const golosIniciais = {}
-        existentes.forEach((a) => { golosIniciais[`${a.equipe_id}_${a.estudante_id}`] = a.quantidade })
         setAtletas({ mandante: m.estudantes || [], visitante: v.estudantes || [] })
-        setGols(golosIniciais)
+        setLinhas(artExist.map((a) => ({
+          uid: `${a.equipe_id}_${a.estudante_id}`,
+          equipeId: a.equipe_id,
+          estudanteId: a.estudante_id,
+          quantidade: a.quantidade,
+        })))
+        setPenalidades(penExist.map((p) => ({
+          uid: String(p.id),
+          equipeId: p.equipe_id,
+          estudanteId: p.estudante_id,
+          tipo: p.tipo,
+        })))
       } catch {
-        message.error('Erro ao carregar atletas')
+        message.error('Erro ao carregar dados da partida')
       } finally {
         setLoading(false)
       }
     }
-    fetchAtletas()
-  }, [campeonatoId, partida.id, partida.mandante_equipe_id, partida.visitante_equipe_id])
+    fetchData()
+  }, [campeonatoId, partida.id, partida.mandante_equipe_id, partida.visitante_equipe_id, registraArtilheiro])
 
-  const setGol = (equipeId, estudanteId, valor) => {
-    setGols((prev) => ({ ...prev, [`${equipeId}_${estudanteId}`]: valor || 0 }))
-  }
-
-  const somaMandante = atletas.mandante.reduce((s, a) => s + (gols[`${partida.mandante_equipe_id}_${a.id}`] || 0), 0)
-  const somaVisitante = atletas.visitante.reduce((s, a) => s + (gols[`${partida.visitante_equipe_id}_${a.id}`] || 0), 0)
+  const somaMandante = linhas.reduce((s, l) => l.equipeId === partida.mandante_equipe_id ? s + (l.quantidade || 0) : s, 0)
+  const somaVisitante = linhas.reduce((s, l) => l.equipeId === partida.visitante_equipe_id ? s + (l.quantidade || 0) : s, 0)
   const somasCorretas = somaMandante === placarMandante && somaVisitante === placarVisitante
+
+  const removeLinha = (uid) => setLinhas((prev) => prev.filter((l) => l.uid !== uid))
+  const updateLinha = (uid, field, value) => setLinhas((prev) => prev.map((l) =>
+    l.uid !== uid ? l : { ...l, [field]: value }
+  ))
+
+  const removePenalidade = (uid) => setPenalidades((prev) => prev.filter((p) => p.uid !== uid))
+  const updatePenalidade = (uid, field, value) => setPenalidades((prev) => prev.map((p) =>
+    p.uid !== uid ? p : { ...p, [field]: value }
+  ))
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const artilheiros = []
-      atletas.mandante.forEach((a) => {
-        const q = gols[`${partida.mandante_equipe_id}_${a.id}`] || 0
-        if (q > 0) artilheiros.push({ estudante_id: a.id, equipe_id: partida.mandante_equipe_id, quantidade: q })
-      })
-      atletas.visitante.forEach((a) => {
-        const q = gols[`${partida.visitante_equipe_id}_${a.id}`] || 0
-        if (q > 0) artilheiros.push({ estudante_id: a.id, equipe_id: partida.visitante_equipe_id, quantidade: q })
-      })
-      await campeonatosService.registrarArtilheiros(campeonatoId, partida.id, { artilheiros })
-      message.success('Artilheiros registrados')
+      const calls = []
+      if (registraArtilheiro) {
+        const artilheiros = linhas
+          .filter((l) => l.estudanteId && l.quantidade > 0)
+          .map((l) => ({ estudante_id: l.estudanteId, equipe_id: l.equipeId, quantidade: l.quantidade }))
+        calls.push(campeonatosService.registrarArtilheiros(campeonatoId, partida.id, { artilheiros }))
+      }
+      const penalidadesPayload = penalidades
+        .filter((p) => p.estudanteId && p.tipo)
+        .map((p) => ({ estudante_id: p.estudanteId, equipe_id: p.equipeId, tipo: p.tipo }))
+      calls.push(campeonatosService.registrarPenalidades(campeonatoId, partida.id, { penalidades: penalidadesPayload }))
+      await Promise.all(calls)
+      message.success('Eventos registrados com sucesso')
       onClose()
     } catch (err) {
-      message.error(err.message || 'Erro ao salvar artilheiros')
+      message.error(err.message || 'Erro ao salvar')
     } finally {
       setSaving(false)
     }
   }
 
-  const atletasSection = (label, equipeId, lista, somaAtual, placarEsperado) => (
-    <div className="mb-4">
-      <p className="text-[0.8125rem] font-semibold text-[#64748b] uppercase tracking-wider mb-2 m-0">
-        {label}
-        <span className={`ml-2 text-[0.875rem] font-bold ${somaAtual === placarEsperado ? 'text-emerald-600' : 'text-amber-600'}`}>
-          {somaAtual}/{placarEsperado}
+  const filterJogador = (input, opt) => opt?.label?.toLowerCase().includes(input.toLowerCase())
+
+  const opcoesEquipe = {
+    [partida.mandante_equipe_id]: atletas.mandante.map((a) => ({ value: a.id, label: a.nome })),
+    [partida.visitante_equipe_id]: atletas.visitante.map((a) => ({ value: a.id, label: a.nome })),
+  }
+
+  const linhasMandante = linhas.filter((l) => l.equipeId === partida.mandante_equipe_id)
+  const linhasVisitante = linhas.filter((l) => l.equipeId === partida.visitante_equipe_id)
+  const penMandante = penalidades.filter((p) => p.equipeId === partida.mandante_equipe_id)
+  const penVisitante = penalidades.filter((p) => p.equipeId === partida.visitante_equipe_id)
+
+  const addLinhaEquipe = (equipeId) =>
+    setLinhas((prev) => [...prev, { uid: String(Date.now()), equipeId, estudanteId: null, quantidade: 1 }])
+  const addPenalidadeEquipe = (equipeId) =>
+    setPenalidades((prev) => [...prev, { uid: String(Date.now()), equipeId, estudanteId: null, tipo: null }])
+
+  const renderLinhasEquipe = (lista, equipeId, soma, placar) => (
+    <div className="flex flex-col gap-2">
+      {lista.map((l) => (
+        <div key={l.uid} className="flex items-center gap-2">
+          <Select
+            showSearch
+            placeholder="Buscar jogador..."
+            options={opcoesEquipe[equipeId] || []}
+            value={l.estudanteId || undefined}
+            onChange={(v) => updateLinha(l.uid, 'estudanteId', v)}
+            filterOption={filterJogador}
+            className="flex-1 min-w-0"
+            size="small"
+          />
+          <InputNumber
+            min={1}
+            value={l.quantidade}
+            onChange={(v) => updateLinha(l.uid, 'quantidade', v ?? 1)}
+            className="w-16 shrink-0"
+            size="small"
+          />
+          <Button type="text" size="small" icon={<DeleteOutlined />} onClick={() => removeLinha(l.uid)} danger className="shrink-0" />
+        </div>
+      ))}
+      <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => addLinhaEquipe(equipeId)} className="w-full">
+        Adicionar artilheiro
+      </Button>
+    </div>
+  )
+
+  const renderPenalidadesEquipe = (lista, equipeId) => (
+    <div className="flex flex-col gap-2">
+      {lista.map((p) => (
+        <div key={p.uid} className="flex items-center gap-2">
+          <Select
+            showSearch
+            placeholder="Buscar jogador..."
+            options={opcoesEquipe[equipeId] || []}
+            value={p.estudanteId || undefined}
+            onChange={(v) => updatePenalidade(p.uid, 'estudanteId', v)}
+            filterOption={filterJogador}
+            className="flex-1 min-w-0"
+            size="small"
+          />
+          <Select
+            placeholder="Tipo"
+            value={p.tipo || undefined}
+            onChange={(v) => updatePenalidade(p.uid, 'tipo', v)}
+            className="w-40 shrink-0"
+            size="small"
+            options={Object.entries(TIPO_PENALIDADE_LABELS).map(([value, label]) => ({ value, label }))}
+          />
+          <Button type="text" size="small" icon={<DeleteOutlined />} onClick={() => removePenalidade(p.uid)} danger className="shrink-0" />
+        </div>
+      ))}
+      <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => addPenalidadeEquipe(equipeId)} className="w-full">
+        Adicionar penalidade
+      </Button>
+    </div>
+  )
+
+  const EquipeHeader = ({ nome, soma, placar }) => (
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-[0.75rem] font-semibold text-[#64748b] uppercase tracking-wider truncate">{nome}</span>
+      {placar !== undefined && (
+        <span className={`text-[0.8125rem] font-bold ml-auto shrink-0 ${soma === placar ? 'text-emerald-600' : 'text-amber-600'}`}>
+          {soma}/{placar}
         </span>
-      </p>
-      {lista.length === 0 && <p className="text-sm text-[#94a3b8] italic m-0">Nenhum atleta inscrito</p>}
-      <div className="flex flex-col gap-1.5">
-        {lista.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-3">
-            <span className="text-[0.875rem] text-[#334155] flex-1 min-w-0 truncate">{a.nome}</span>
-            <InputNumber
-              min={0}
-              value={gols[`${equipeId}_${a.id}`] || 0}
-              onChange={(v) => setGol(equipeId, a.id, v ?? 0)}
-              className="w-20 shrink-0"
-              size="small"
-            />
-          </div>
-        ))}
+      )}
+    </div>
+  )
+
+  const tabArtilheiros = (
+    <div className="flex flex-col gap-4">
+      <div>
+        <EquipeHeader nome={partida.mandante_nome || 'Mandante'} soma={somaMandante} placar={placarMandante} />
+        {renderLinhasEquipe(linhasMandante, partida.mandante_equipe_id, somaMandante, placarMandante)}
+      </div>
+      <div className="border-t border-[#e2e8f0] pt-4">
+        <EquipeHeader nome={partida.visitante_nome || 'Visitante'} soma={somaVisitante} placar={placarVisitante} />
+        {renderLinhasEquipe(linhasVisitante, partida.visitante_equipe_id, somaVisitante, placarVisitante)}
+      </div>
+      {!somasCorretas && (linhasMandante.some((l) => l.estudanteId) || linhasVisitante.some((l) => l.estudanteId)) && (
+        <p className="text-[0.8125rem] text-amber-600 m-0">
+          A soma de pontos de cada equipe deve coincidir com o placar.
+        </p>
+      )}
+    </div>
+  )
+
+  const tabPenalidades = (
+    <div className="flex flex-col gap-4">
+      <div>
+        <EquipeHeader nome={partida.mandante_nome || 'Mandante'} />
+        {renderPenalidadesEquipe(penMandante, partida.mandante_equipe_id)}
+      </div>
+      <div className="border-t border-[#e2e8f0] pt-4">
+        <EquipeHeader nome={partida.visitante_nome || 'Visitante'} />
+        {renderPenalidadesEquipe(penVisitante, partida.visitante_equipe_id)}
       </div>
     </div>
   )
 
+  const tabItems = [
+    ...(registraArtilheiro ? [{
+      key: 'artilheiros',
+      label: <span className="flex items-center gap-1.5"><IoMdFootball />Artilheiros</span>,
+      children: tabArtilheiros,
+    }] : []),
+    {
+      key: 'penalidades',
+      label: <span className="flex items-center gap-1.5"><ShieldAlert size={14} />Penalidades</span>,
+      children: tabPenalidades,
+    },
+  ]
+
+  const okDisabled = loading || (registraArtilheiro && !somasCorretas)
+
   return (
     <Modal
       open
-      title="Registrar artilheiros"
+      title="Registrar eventos da partida"
       onCancel={onClose}
       onOk={handleSave}
       okText="Salvar"
       cancelText="Pular"
       confirmLoading={saving}
-      okButtonProps={{ disabled: !somasCorretas || loading }}
+      okButtonProps={{ disabled: okDisabled }}
       destroyOnClose
-      width={420}
+      width={500}
     >
       {loading ? (
         <div className="flex justify-center py-6"><Spin /></div>
       ) : (
-        <>
-          <p className="text-sm text-[#64748b] mb-4 m-0">
-            <strong>{partida.mandante_nome}</strong> {placarMandante}–{placarVisitante} <strong>{partida.visitante_nome}</strong>
-          </p>
-          {atletasSection(partida.mandante_nome || 'Mandante', partida.mandante_equipe_id, atletas.mandante, somaMandante, placarMandante)}
-          {atletasSection(partida.visitante_nome || 'Visitante', partida.visitante_equipe_id, atletas.visitante, somaVisitante, placarVisitante)}
-          {!somasCorretas && (
-            <p className="text-[0.8125rem] text-amber-600 m-0">
-              A soma de gols de cada equipe deve coincidir com o placar da partida.
-            </p>
-          )}
-        </>
+        <Tabs items={tabItems} size="small" className="mt-1" />
       )}
     </Modal>
   )
@@ -1821,7 +1947,7 @@ export default function CampeonatoDetalhe() {
     setModalPartida(null)
     setRefreshKey((k) => k + 1)
     fetchData()
-    if (config?.registra_artilheiro && payload?.resultado_tipo !== 'WXO') {
+    if (payload?.resultado_tipo !== 'WXO') {
       setModalArtilheiros({
         ...partida,
         placar_mandante: payload?.placar_mandante ?? partida.placar_mandante,
@@ -2108,11 +2234,12 @@ export default function CampeonatoDetalhe() {
         />
       )}
 
-      {/* Artilheiros modal */}
+      {/* Artilheiros / Penalidades modal */}
       {modalArtilheiros && (
         <RegistrarArtilheirosModal
           partida={modalArtilheiros}
           campeonatoId={campeonatoId}
+          registraArtilheiro={!!config?.registra_artilheiro}
           onClose={() => setModalArtilheiros(null)}
         />
       )}
