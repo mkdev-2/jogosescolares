@@ -24,6 +24,7 @@ const PERFIL_PATH = 'perfil'
 const NOTICIAS_PATH = 'noticias'
 const MIDIAS_PATH = 'midias'
 const LOCAIS_PATH = 'locais'
+const BOLETINS_PDF_PATH = 'boletins/pdf'
 
 /**
  * Faz upload para o MinIO via backend. bucket e path na query; body só o file.
@@ -105,7 +106,7 @@ export function getStorageUrl(path) {
 
   // Legado: chave sem prefixo do bucket (ex.: só "midias/..." ou "hero/...")
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/', 'boletins/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }
@@ -142,7 +143,7 @@ function getStorageRelativePath(path) {
   rel = rel.split(/[?#]/)[0].replace(/^\/+/, '')
   if (!rel) return ''
   if (!rel.startsWith(`${BUCKET}/`)) {
-    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/']
+    const legacyPrefixes = ['midias/', 'hero/', 'estudantes/', 'noticias/', 'perfil/', 'escolas/', 'locais/', 'boletins/']
     if (legacyPrefixes.some((p) => rel.startsWith(p))) {
       rel = `${BUCKET}/${rel}`
     }
@@ -319,5 +320,23 @@ export async function uploadLocalFoto(file, edicaoId) {
   const ext = (file.name.split('.').pop()?.toLowerCase() || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg'
   const seg = edicaoId != null && edicaoId !== '' ? String(edicaoId) : 'sem-edicao'
   const path = `${LOCAIS_PATH}/${seg}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  return uploadToStorage(file, BUCKET, path)
+}
+
+/**
+ * Upload de PDF para boletins oficiais (área administrativa autenticada).
+ * @param {File} file
+ * @returns {Promise<string>} Path relativo (bucket/path) para getStorageUrl
+ */
+export async function uploadBoletimPdf(file) {
+  const t = file.type || ''
+  if (t && t !== 'application/pdf') {
+    throw new Error('Envie apenas arquivo PDF.')
+  }
+  const name = (file.name || '').toLowerCase()
+  if (name && !name.endsWith('.pdf')) {
+    throw new Error('Envie apenas arquivo PDF.')
+  }
+  const path = `${BOLETINS_PDF_PATH}/${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`
   return uploadToStorage(file, BUCKET, path)
 }

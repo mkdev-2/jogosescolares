@@ -34,6 +34,7 @@ from app.public_campeonatos import router as public_campeonatos_router
 from app.public_locais import router as public_locais_router
 from app.relatorios import router as relatorios_router
 from app.staff import router as staff_router
+from app.boletins import router as boletins_router
 try:
     from app.storage import router as storage_router
     STORAGE_AVAILABLE = True
@@ -120,6 +121,7 @@ app.include_router(public_campeonatos_router)
 app.include_router(public_locais_router)
 app.include_router(relatorios_router)
 app.include_router(staff_router)
+app.include_router(boletins_router)
 if STORAGE_AVAILABLE and storage_router:
     app.include_router(storage_router)
 
@@ -146,6 +148,7 @@ async def root():
             "noticias": "/api/noticias",
             "categorias-noticias": "/api/categorias-noticias",
             "edicoes": "/api/edicoes",
+            "boletins": "/api/boletins",
             "storage": "/api/storage" if STORAGE_AVAILABLE else None,
             "docs": "/docs",
         },

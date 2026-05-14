@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2, FileBarChart2, MapPin } from 'lucide-react'
+import { LayoutDashboard, Trophy, Menu, X, User, LogOut, ChevronDown, ChevronRight, Activity, History, Users, ClipboardList, UserPlus, GraduationCap, UsersRound, Building2, Settings, UserCheck, Newspaper, Tag, Megaphone, UserCircle, Image, IdCard, Calendar, ChevronsUpDown, Check, Loader2, FileBarChart2, MapPin, FileText } from 'lucide-react'
 
 import { useAuth } from '../../contexts/AuthContext'
 import StorageImage from '../StorageImage'
@@ -40,6 +40,7 @@ const menuGroups = [
       { label: 'Solicitações de Adesão', path: '/app/administrativo', icon: ClipboardList, tab: 'usuarios-pendentes', adminOnly: true },
       { label: 'Credenciais', path: '/app/administrativo', icon: IdCard, tab: 'credenciais', adminOnly: true },
       { label: 'Edições', path: '/app/administrativo', icon: Calendar, tab: 'edicoes', adminOnly: true },
+      { label: 'Boletins', path: '/app/administrativo', icon: FileText, tab: 'boletins', adminOnly: true },
       { label: 'Configurações', path: '/app/administrativo', icon: Settings, tab: 'configuracoes', adminOnly: true },
       { label: 'Auditoria', path: '/app/auditoria', icon: History, adminOnly: true },
     ],

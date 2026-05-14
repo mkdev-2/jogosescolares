@@ -38,6 +38,7 @@ import CampeonatoDetalhe from './pages/CampeonatoDetalhe'
 import Relatorios from './pages/Relatorios'
 import Resultados from './pages/Resultados'
 import ResultadoDetalhe from './pages/ResultadoDetalhe'
+import PublicBoletinsPage from './pages/PublicBoletinsPage'
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/resultados" element={<Resultados />} />
           <Route path="/resultados/:id" element={<ResultadoDetalhe />} />
+          <Route path="/boletins" element={<PublicBoletinsPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/app" element={<Dashboard />} />
             <Route path="/app/minha-conta" element={<MinhaConta />} />

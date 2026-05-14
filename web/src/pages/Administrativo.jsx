@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, Settings, ClipboardList, IdCard, History, Calendar } from 'lucide-react'
+import { Users, Settings, ClipboardList, IdCard, History, Calendar, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import Usuarios from './Usuarios'
 import Configuracoes from './Configuracoes'
@@ -8,12 +8,14 @@ import UsuariosPendentes from './UsuariosPendentes'
 import Credenciais from './Credenciais'
 import Auditoria from './Auditoria'
 import Edicoes from './Edicoes'
+import Boletins from './Boletins'
 
 const ALL_TABS = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'usuarios-pendentes', label: 'Solicitações de Adesão', icon: ClipboardList, adminOnly: true },
   { id: 'credenciais', label: 'Credenciais', icon: IdCard, adminOnly: true },
   { id: 'edicoes', label: 'Edições', icon: Calendar, adminOnly: true },
+  { id: 'boletins', label: 'Boletins', icon: FileText, adminOnly: true },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
   { id: 'auditoria', label: 'Auditoria', icon: History, adminOnly: true },
 ]
@@ -74,6 +76,7 @@ export default function Administrativo() {
           {activeTab === 'usuarios-pendentes' && <UsuariosPendentes embedded />}
           {activeTab === 'credenciais' && <Credenciais embedded />}
           {activeTab === 'edicoes' && <Edicoes embedded />}
+          {activeTab === 'boletins' && <Boletins embedded />}
           {activeTab === 'configuracoes' && <Configuracoes embedded />}
           {activeTab === 'auditoria' && <Auditoria embedded />}
         </div>

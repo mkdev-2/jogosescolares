@@ -3,6 +3,7 @@ import HeroSection from '../components/landing/HeroSection'
 import HowToParticipate from '../components/landing/HowToParticipate'
 import LocaisCarousel from '../components/landing/LocaisCarousel'
 import GallerySection from '../components/landing/GallerySection'
+import BoletinsOficiaisSection from '../components/landing/BoletinsOficiaisSection'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
 import InstagramWidget from '../components/landing/InstagramWidget'
 
@@ -30,6 +31,8 @@ export default function LandingPage() {
 
       {/* Restante do Conteúdo */}
       <GallerySection />
+
+      <BoletinsOficiaisSection limit={4} />
       
       {/* Widget do Instagram */}
       {/* <InstagramWidget /> */}
