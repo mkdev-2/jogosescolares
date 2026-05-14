@@ -660,6 +660,9 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
     ? `Grupo ${highlightDest.nomeGrupo} · posição ${highlightDest.slotOrd}`
     : null
 
+  /** Manter painel da roleta montado durante o giro e com faixa ativa, mesmo com pool vazio (última equipe). */
+  const mostrarPainelRoleta = pool.length > 0 || animating || rouletteStrip.length > 0
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 rounded-2xl bg-[#fafafa] p-4 md:p-6">
@@ -718,7 +721,7 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
             </div>
           </div>
 
-          {pool.length > 0 && (
+          {mostrarPainelRoleta && (
             <aside className="flex w-full shrink-0 flex-col items-stretch gap-4 lg:sticky lg:top-4 lg:w-[min(22rem,100%)] lg:self-start">
               {tituloDestaque && (
                 <p className="m-0 w-full text-center text-lg font-bold text-[#0f766e] md:text-xl">
