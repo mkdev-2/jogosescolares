@@ -392,8 +392,8 @@ async def gerar_estrutura_campeonato(
             vagas_bracket: int
             vagas_wildcard: int
 
-            # --- N = 3 ou 5: grupo único, round-robin, top 2 disputam FINAL ---
-            if total_equipes in (3, 5):
+            # --- N = 3, 4 ou 5: grupo único, round-robin, top 2 disputam FINAL ---
+            if total_equipes in (3, 4, 5):
                 regra_distribuicao = "UNICO"
                 vagas_bracket = 2
                 vagas_wildcard = 0
@@ -423,8 +423,8 @@ async def gerar_estrutura_campeonato(
                 # Top 2 seeds como placeholder do bracket; substituídos após o grupo fechar
                 participantes_diretos = equipe_ids[:2]
 
-            # --- N = 2 ou 4: chave direta, sem grupos ---
-            elif total_equipes in (2, 4):
+            # --- N = 2: chave direta, sem grupos ---
+            elif total_equipes == 2:
                 regra_distribuicao = "DIRETO"
                 vagas_bracket = total_equipes
                 vagas_wildcard = 0

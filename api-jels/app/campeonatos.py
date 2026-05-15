@@ -1456,7 +1456,7 @@ async def get_estrutura_grupos_preview(
             vagas_wildcard=0,
         )
 
-    if total_equipes in (2, 4):
+    if total_equipes == 2:
         return EstruturaGruposPreviewResponse(
             total_equipes=total_equipes,
             regra="DIRETO",
@@ -1466,7 +1466,7 @@ async def get_estrutura_grupos_preview(
             vagas_wildcard=0,
         )
 
-    if total_equipes in (3, 5):
+    if total_equipes in (3, 4, 5):
         return EstruturaGruposPreviewResponse(
             total_equipes=total_equipes,
             regra="UNICO",
@@ -1515,7 +1515,7 @@ async def criar_com_sorteio(
         )
 
     # Calcula a estrutura esperada e valida que os grupos enviados batem com ela
-    if total_equipes in (3, 5):
+    if total_equipes in (3, 4, 5):
         regra_distrib = "UNICO"
         vagas_bracket_calc = 2
         vagas_wc_calc = 0
@@ -1531,7 +1531,7 @@ async def criar_com_sorteio(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="N=2 e N=4 não utilizam fase de grupos. Use a geração automática.",
+            detail="N=2 não utiliza fase de grupos. Use a geração automática.",
         )
 
     tamanhos_recebidos = sorted([len(g.equipes) for g in data.grupos])
