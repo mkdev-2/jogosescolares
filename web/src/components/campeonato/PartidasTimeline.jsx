@@ -1,5 +1,12 @@
 import { FASE_LABEL } from './TournamentBracket'
 
+function formatHorario(iso) {
+  if (iso == null || String(iso).trim() === '') return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
 function PartidaCard({ partida, grupoNome, highlighted }) {
   const hasResult = !!partida.resultado_tipo
   const mandanteWon = hasResult && partida.vencedor_equipe_id === partida.mandante_equipe_id
@@ -48,9 +55,17 @@ function PartidaCard({ partida, grupoNome, highlighted }) {
           {hasResult ? 'Enc.' : 'Pend.'}
         </span>
       </div>
-      {(partida.local?.nome || partida.local?.link_maps) && (
+      {(partida.local?.nome || partida.local?.link_maps || partida.inicio_em) && (
         <div className="flex items-center gap-2 pl-0 sm:pl-[4.25rem] text-[10px] text-slate-500 min-w-0">
-          <span className="truncate">{partida.local?.nome}</span>
+          {formatHorario(partida.inicio_em) && (
+            <span className="shrink-0 font-medium text-slate-600">{formatHorario(partida.inicio_em)}</span>
+          )}
+          {formatHorario(partida.inicio_em) && (partida.local?.nome || partida.local?.link_maps) && (
+            <span className="text-slate-300 shrink-0">·</span>
+          )}
+          {partida.local?.nome && (
+            <span className="truncate">{partida.local.nome}</span>
+          )}
           {partida.local?.link_maps && (
             <a
               href={partida.local.link_maps}

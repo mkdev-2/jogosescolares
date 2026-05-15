@@ -44,12 +44,31 @@ def _snake_distribuicao(equipe_ids: list[int], num_grupos: int) -> list[list[int
     return grupos
 
 
-def _gerar_confrontos_round_robin(equipes_grupo: list[int]) -> list[tuple[int, int]]:
-    confrontos: list[tuple[int, int]] = []
-    for i in range(len(equipes_grupo)):
-        for j in range(i + 1, len(equipes_grupo)):
-            confrontos.append((equipes_grupo[i], equipes_grupo[j]))
-    return confrontos
+def _gerar_rodadas_round_robin(equipes: list[int]) -> list[list[tuple[int, int]]]:
+    """
+    Algoritmo do círculo: agrupa os confrontos em rodadas onde nenhuma equipe
+    se repete. Para N ímpar, um slot None (bye) é adicionado internamente e
+    os confrontos com bye são omitidos — cada equipe descansa uma rodada.
+    """
+    teams: list[int | None] = list(equipes)
+    if len(teams) % 2 == 1:
+        teams.append(None)
+
+    num_rounds = len(teams) - 1
+    half = len(teams) // 2
+    rodadas: list[list[tuple[int, int]]] = []
+
+    for _ in range(num_rounds):
+        rodada = [
+            (teams[i], teams[-1 - i])  # type: ignore[misc]
+            for i in range(half)
+            if teams[i] is not None and teams[-1 - i] is not None
+        ]
+        rodadas.append(rodada)
+        # Rotaciona mantendo teams[0] fixo
+        teams = [teams[0]] + [teams[-1]] + teams[1:-1]
+
+    return rodadas
 
 
 def _proxima_potencia_2(n: int) -> int:
@@ -411,14 +430,15 @@ async def gerar_estrutura_campeonato(
                         (grupo_id, equipe_id, seed_idx),
                     )
 
-                for rodada_idx, (mandante_id, visitante_id) in enumerate(_gerar_confrontos_round_robin(equipe_ids), start=1):
-                    await cur.execute(
-                        """
-                        INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
-                        VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
-                        """,
-                        (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
-                    )
+                for rodada_idx, confrontos in enumerate(_gerar_rodadas_round_robin(equipe_ids), start=1):
+                    for mandante_id, visitante_id in confrontos:
+                        await cur.execute(
+                            """
+                            INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
+                            VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
+                            """,
+                            (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
+                        )
 
                 # Top 2 seeds como placeholder do bracket; substituídos após o grupo fechar
                 participantes_diretos = equipe_ids[:2]
@@ -466,14 +486,15 @@ async def gerar_estrutura_campeonato(
                             (grupo_id, equipe_id, seed_idx),
                         )
 
-                    for rodada_idx, (mandante_id, visitante_id) in enumerate(_gerar_confrontos_round_robin(equipes_grupo), start=1):
-                        await cur.execute(
-                            """
-                            INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
-                            VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
-                            """,
-                            (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
-                        )
+                    for rodada_idx, confrontos in enumerate(_gerar_rodadas_round_robin(equipes_grupo), start=1):
+                        for mandante_id, visitante_id in confrontos:
+                            await cur.execute(
+                                """
+                                INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
+                                VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
+                                """,
+                                (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
+                            )
 
                     # Seeds iniciais como placeholder no bracket
                     participantes_diretos.extend(equipes_grupo[:classif_diretos])
@@ -558,14 +579,15 @@ async def gerar_partidas_para_grupos_existentes(
             equipes_grupo = [int(r["equipe_id"]) for r in await cur.fetchall()]
             total_equipes += len(equipes_grupo)
 
-            for rodada_idx, (mandante_id, visitante_id) in enumerate(_gerar_confrontos_round_robin(equipes_grupo), start=1):
-                await cur.execute(
-                    """
-                    INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
-                    VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
-                    """,
-                    (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
-                )
+            for rodada_idx, confrontos in enumerate(_gerar_rodadas_round_robin(equipes_grupo), start=1):
+                for mandante_id, visitante_id in confrontos:
+                    await cur.execute(
+                        """
+                        INSERT INTO campeonato_partidas (campeonato_id, fase, rodada, grupo_id, mandante_equipe_id, visitante_equipe_id, is_bye)
+                        VALUES (%s, 'GRUPOS', %s, %s, %s, %s, FALSE)
+                        """,
+                        (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
+                    )
 
             participantes_diretos.extend(equipes_grupo[:classif_diretos])
 
