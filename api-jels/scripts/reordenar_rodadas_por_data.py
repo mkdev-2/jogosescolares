@@ -28,7 +28,7 @@ if sys.platform == "win32":
 
 from seed_utils import get_connection
 
-_PROD_URL = "postgresql://jogosescolares:jogosescolares_pass@147.93.178.221:5438/jogosescolares"
+_PROD_URL = "url do banco aqui"
 
 
 def _parse_args():

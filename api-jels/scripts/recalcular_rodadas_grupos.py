@@ -30,7 +30,7 @@ import os
 from seed_utils import get_connection
 from app.services.chaveamentos_service import _gerar_rodadas_round_robin
 
-_PROD_URL = "postgresql://jogosescolares:jogosescolares_pass@147.93.178.221:5438/jogosescolares"
+_PROD_URL = "url do banco aqui"
 
 
 def _parse_args():
