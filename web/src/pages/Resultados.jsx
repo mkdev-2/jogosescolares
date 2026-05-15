@@ -189,6 +189,12 @@ function ProximosConfrontosSection({ confrontos, showSport }) {
 }
 
 function SportAccordionSidebar({ esportes, selectedVarianteId, expandedEsporteId, onSelectVariante, onToggleEsporte }) {
+  const sorted = [...esportes].sort((a, b) => {
+    const aHas = a.variantes.some((v) => v.campeonato !== null) ? 0 : 1
+    const bHas = b.variantes.some((v) => v.campeonato !== null) ? 0 : 1
+    return aHas - bHas
+  })
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
@@ -197,7 +203,7 @@ function SportAccordionSidebar({ esportes, selectedVarianteId, expandedEsporteId
         </span>
       </div>
       <div className="divide-y divide-slate-100">
-        {esportes.map((esp) => {
+        {sorted.map((esp) => {
           const isOpen = expandedEsporteId === esp.id
           const hasCampeonato = esp.variantes.some((v) => v.campeonato !== null)
           return (

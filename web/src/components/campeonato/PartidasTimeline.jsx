@@ -12,10 +12,21 @@ function formatHorario(iso) {
   return `${diaSemanaCapitalizado}, ${data}, ${hora}`
 }
 
-function PartidaCard({ partida, grupoNome, highlighted }) {
+function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked }) {
   const hasResult = !!partida.resultado_tipo
+  const isKnockout = partida.fase !== 'GRUPOS'
   const mandanteWon = hasResult && partida.vencedor_equipe_id === partida.mandante_equipe_id
   const visitanteWon = hasResult && partida.vencedor_equipe_id === partida.visitante_equipe_id
+
+  const mandanteNome = isKnockout && !knockoutTeamsLocked
+    ? 'A definir'
+    : (partida.mandante_nome || 'A definir')
+  const visitanteNome = isKnockout && !knockoutTeamsLocked
+    ? 'A definir'
+    : (partida.visitante_nome || 'A definir')
+
+  const mandanteIndefinido = mandanteNome === 'A definir'
+  const visitanteIndefinido = visitanteNome === 'A definir'
 
   return (
     <div
@@ -33,8 +44,8 @@ function PartidaCard({ partida, grupoNome, highlighted }) {
           </span>
         )}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 flex-1 min-w-0">
-          <span className={`text-xs truncate text-right ${mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-            {partida.mandante_nome || `Equipe ${partida.mandante_equipe_id}`}
+          <span className={`text-xs truncate text-right ${mandanteIndefinido ? 'italic text-slate-400' : mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+            {mandanteNome}
           </span>
           <div className="flex flex-col items-center shrink-0">
             {hasResult ? (
@@ -50,8 +61,8 @@ function PartidaCard({ partida, grupoNome, highlighted }) {
               <span className="text-[9px] font-bold text-amber-600 mt-0.5 leading-none">WxO</span>
             )}
           </div>
-          <span className={`text-xs truncate ${visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-            {partida.visitante_nome || `Equipe ${partida.visitante_equipe_id}`}
+          <span className={`text-xs truncate ${visitanteIndefinido ? 'italic text-slate-400' : visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+            {visitanteNome}
           </span>
         </div>
         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${
@@ -124,6 +135,11 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
   const gruposJogos = jogos.filter((p) => p.fase === 'GRUPOS')
   const knockoutJogos = jogos.filter((p) => p.fase !== 'GRUPOS')
 
+  // Equipes nas eliminatórias só são exibidas após a fase de grupos estar concluída.
+  // Em torneios sem grupos (chaveamento puro), os times são pré-definidos e sempre exibidos.
+  const knockoutTeamsLocked =
+    gruposJogos.length === 0 || gruposJogos.every((p) => !!p.resultado_tipo)
+
   const porRodada = {}
   for (const p of gruposJogos) {
     if (!porRodada[p.rodada]) porRodada[p.rodada] = []
@@ -186,6 +202,7 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
                     partida={p}
                     grupoNome={null}
                     highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
+                    knockoutTeamsLocked={knockoutTeamsLocked}
                   />
                 ))}
               </div>
