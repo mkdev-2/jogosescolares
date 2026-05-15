@@ -1161,6 +1161,7 @@ class PartidaAgendamentoInput(BaseModel):
     """Payload para definir ou limpar a data/hora de uma partida."""
     inicio_em: Optional[datetime] = None
     local_id: Optional[int] = None
+    rodada: Optional[int] = Field(default=None, ge=1)
 
 
 class PartidaResultadoInput(BaseModel):

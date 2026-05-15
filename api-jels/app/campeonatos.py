@@ -2318,7 +2318,7 @@ async def agendar_partida(
 
         await cur.execute(
             """
-            SELECT id, campeonato_id, is_bye, inicio_em, local_id
+            SELECT id, campeonato_id, is_bye, inicio_em, local_id, rodada
             FROM campeonato_partidas
             WHERE id = %s AND campeonato_id = %s
             """,
@@ -2338,13 +2338,16 @@ async def agendar_partida(
         if "local_id" in data.model_fields_set:
             set_parts.insert(1, "local_id = %s")
             qparams.insert(1, data.local_id)
+        if "rodada" in data.model_fields_set and data.rodada is not None:
+            set_parts.insert(1, "rodada = %s")
+            qparams.insert(1, data.rodada)
 
         await cur.execute(
             f"""
             UPDATE campeonato_partidas
             SET {", ".join(set_parts)}
             WHERE id = %s
-            RETURNING id, inicio_em, local_id, updated_at
+            RETURNING id, inicio_em, local_id, rodada, updated_at
             """,
             tuple(qparams) + (partida_id,),
         )
@@ -2361,11 +2364,13 @@ async def agendar_partida(
             "campeonato_id": campeonato_id,
             "inicio_em": partida["inicio_em"],
             "local_id": partida.get("local_id"),
+            "rodada": partida.get("rodada"),
         },
         detalhes_depois={
             "campeonato_id": campeonato_id,
             "inicio_em": updated["inicio_em"],
             "local_id": updated.get("local_id"),
+            "rodada": updated.get("rodada"),
         },
         mensagem=f"Usuário {current_user['nome']} alterou o agendamento da partida {partida_id}.",
     )
@@ -2374,6 +2379,7 @@ async def agendar_partida(
         "partida_id": updated["id"],
         "inicio_em": updated["inicio_em"].isoformat() if updated.get("inicio_em") else None,
         "local_id": updated.get("local_id"),
+        "rodada": updated.get("rodada"),
         "updated_at": updated["updated_at"].isoformat() if updated.get("updated_at") else None,
     }
 

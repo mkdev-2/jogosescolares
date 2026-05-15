@@ -811,14 +811,15 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
   }, [edicaoId])
 
   const initialValues = {
+    rodada: partida.rodada ?? undefined,
     inicio_em: partida.inicio_em ? dayjs(partida.inicio_em) : null,
     local_id: partida.local_id ?? partida.local?.id ?? undefined,
   }
 
-  const saveAgendamento = async (inicioEm, localId) => {
+  const saveAgendamento = async (inicioEm, localId, rodada) => {
     setSaving(true)
     const isoValue = inicioEm ? inicioEm.second(0).millisecond(0).format('YYYY-MM-DDTHH:mm:ss') : null
-    const payload = { inicio_em: isoValue, local_id: localId ?? null }
+    const payload = { inicio_em: isoValue, local_id: localId ?? null, rodada: rodada ?? undefined }
     try {
       if (saveOverride) {
         await saveOverride(partida.id, payload)
@@ -837,7 +838,7 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
-      await saveAgendamento(values.inicio_em, values.local_id)
+      await saveAgendamento(values.inicio_em, values.local_id, values.rodada)
     } catch (err) {
       if (err?.errorFields) return
       message.error(err.message || 'Erro ao agendar partida')
@@ -846,7 +847,8 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
 
   const clearHorario = async () => {
     const localId = form.getFieldValue('local_id')
-    await saveAgendamento(null, localId)
+    const rodada = form.getFieldValue('rodada')
+    await saveAgendamento(null, localId, rodada)
   }
 
   return (
@@ -883,6 +885,9 @@ function AgendarPartidaModal({ partida, campeonatoId, onSuccess, onClose, saveOv
         <strong>{equipeNome(partida, 'visitante')}</strong>
       </p>
       <Form form={form} layout="vertical" initialValues={initialValues}>
+        <Form.Item name="rodada" label="Rodada" rules={[{ type: 'integer', min: 1, message: 'Rodada deve ser ≥ 1' }]}>
+          <InputNumber min={1} className="w-full" placeholder="Rodada definida pelo sistema" />
+        </Form.Item>
         <Form.Item name="inicio_em" label="Data e horário do jogo">
           <DatePicker
             showTime={{ format: 'HH:mm' }}
