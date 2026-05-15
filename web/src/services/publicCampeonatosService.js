@@ -57,4 +57,12 @@ export const publicCampeonatosService = {
     const data = await handleResponse(res, 'Erro ao carregar artilheiros')
     return Array.isArray(data) ? data : []
   },
+
+  /** Destaques da rodada (landing): pacotes por campeonato com jogo, defesa e pontuadores quando aplicável. */
+  async getDestaquesLanding(edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${edicaoId}` : ''
+    const res = await apiFetch(`${BASE}/destaques-landing${qs}`)
+    const data = await handleResponse(res, 'Erro ao carregar destaques')
+    return data && Array.isArray(data.items) ? data.items : []
+  },
 }

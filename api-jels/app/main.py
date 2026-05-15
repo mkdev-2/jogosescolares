@@ -1,11 +1,12 @@
 """
 Jogos Escolares API Service - Ponto de entrada.
 """
-import traceback
 import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import ResponseValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -74,14 +75,24 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(ResponseValidationError)
+async def response_validation_exception_handler(request: Request, exc: ResponseValidationError):
+    """Resposta não bate com response_model (não é pydantic.ValidationError)."""
+    logger.error(f"Erro de validação de resposta: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": jsonable_encoder(exc.errors()),
+            "type": "ResponseValidationError",
+            "path": str(request.url.path),
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handler global para exceções."""
-    from fastapi import HTTPException
     from pydantic import ValidationError
-
-    if isinstance(exc, HTTPException):
-        raise exc
 
     if isinstance(exc, ValidationError):
         logger.error(f"Erro de validação: {exc}", exc_info=True)

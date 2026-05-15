@@ -514,7 +514,8 @@ async def get_config_pontuacao(
                    wxo_pts_vencedor, wxo_pts_perdedor, wxo_placar_pro, wxo_placar_contra,
                    wxo_placar_pro_sec, wxo_placar_contra_sec,
                    ignorar_placar_extra,
-                   criterios_desempate_2, criterios_desempate_3plus
+                   criterios_desempate_2, criterios_desempate_3plus,
+                   registra_artilheiro
             FROM esporte_config_pontuacao
             WHERE esporte_id = %s AND edicao_id = %s
             """,
