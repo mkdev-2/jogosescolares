@@ -1,10 +1,15 @@
+import { ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { FASE_LABEL } from './TournamentBracket'
 
 function formatHorario(iso) {
   if (iso == null || String(iso).trim() === '') return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  const diaSemana = d.toLocaleString('pt-BR', { weekday: 'long' })
+  const diaSemanaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1)
+  const data = d.toLocaleDateString('pt-BR')
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return `${diaSemanaCapitalizado}, ${data}, ${hora}`
 }
 
 function PartidaCard({ partida, grupoNome, highlighted }) {
@@ -55,29 +60,42 @@ function PartidaCard({ partida, grupoNome, highlighted }) {
           {hasResult ? 'Enc.' : 'Pend.'}
         </span>
       </div>
-      {(partida.local?.nome || partida.local?.link_maps || partida.inicio_em) && (
-        <div className="flex items-center gap-2 pl-0 sm:pl-[4.25rem] text-[10px] text-slate-500 min-w-0">
-          {formatHorario(partida.inicio_em) && (
-            <span className="shrink-0 font-medium text-slate-600">{formatHorario(partida.inicio_em)}</span>
-          )}
-          {formatHorario(partida.inicio_em) && (partida.local?.nome || partida.local?.link_maps) && (
-            <span className="text-slate-300 shrink-0">·</span>
-          )}
-          {partida.local?.nome && (
-            <span className="truncate">{partida.local.nome}</span>
-          )}
-          {partida.local?.link_maps && (
-            <a
-              href={partida.local.link_maps}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-teal-600 font-semibold shrink-0"
-            >
-              Maps
-            </a>
-          )}
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-3 pl-0 sm:pl-[4.25rem] text-[10px] text-slate-500 min-w-0">
+        {formatHorario(partida.inicio_em) ? (
+          <span className="flex items-center gap-1 shrink-0 font-medium text-slate-600">
+            <ClockCircleOutlined style={{ fontSize: 10 }} />
+            {formatHorario(partida.inicio_em)}
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 shrink-0 italic text-slate-300">
+            <ClockCircleOutlined style={{ fontSize: 10 }} />
+            Sem data definida
+          </span>
+        )}
+        {(partida.local?.nome || partida.local?.link_maps) ? (
+          <span className="flex items-center gap-1 min-w-0">
+            <EnvironmentOutlined style={{ fontSize: 10 }} className="shrink-0" />
+            {partida.local?.nome && (
+              <span className="truncate">{partida.local.nome}</span>
+            )}
+            {partida.local?.link_maps && (
+              <a
+                href={partida.local.link_maps}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal-600 font-semibold shrink-0"
+              >
+                Maps
+              </a>
+            )}
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 italic text-slate-300">
+            <EnvironmentOutlined style={{ fontSize: 10 }} />
+            Sem local definido
+          </span>
+        )}
+      </div>
     </div>
   )
 }
