@@ -17,6 +17,7 @@ export default function PublicHeader() {
 
   const navLinks = [
     { path: '/', label: 'Início' },
+    { path: '/agenda', label: 'Agenda' },
     { path: '/resultados', label: 'Resultados' },
     { path: '/cadastro', label: 'Cadastro de Escola', external: true },
   ]

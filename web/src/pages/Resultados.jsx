@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Spin, Select } from 'antd'
-import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users, Dumbbell, Clock, MapPin } from 'lucide-react'
+import { Spin } from 'antd'
+import { Trophy, Calendar, ChevronDown, ChevronRight, ExternalLink, Users, Dumbbell, Clock, MapPin, X, SlidersHorizontal } from 'lucide-react'
 import { publicCampeonatosService } from '../services/publicCampeonatosService'
 import PublicHeader from '../components/landing/PublicHeader'
 import FooterInstitucional from '../components/landing/FooterInstitucional'
@@ -469,57 +469,22 @@ export default function Resultados() {
     setExpandedEsporteId((prev) => (prev === esporteId ? null : esporteId))
   }
 
-  const [mobileEsporteId, setMobileEsporteId] = useState(null)
-  const [mobileCategoriaId, setMobileCategoriaId] = useState(null)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [mobileSidebarVisible, setMobileSidebarVisible] = useState(false)
 
-  useEffect(() => {
-    if (!selectedVarianteId || esportes.length === 0) return
-    for (const e of esportes) {
-      const v = e.variantes.find((x) => x.id === selectedVarianteId)
-      if (v) {
-        setMobileEsporteId(e.id)
-        setMobileCategoriaId(v.categoria_nome)
-        break
-      }
-    }
-  }, [selectedVarianteId, esportes])
-
-  const mobileEsporteOptions = [...esportes]
-    .sort((a, b) => {
-      const aHas = a.variantes.some((v) => v.campeonato !== null) ? 0 : 1
-      const bHas = b.variantes.some((v) => v.campeonato !== null) ? 0 : 1
-      return aHas - bHas
-    })
-    .map((e) => ({ label: e.nome, value: e.id }))
-
-  const mobileEsporte = esportes.find((e) => e.id === mobileEsporteId) ?? null
-
-  const mobileCategoriaOptions = mobileEsporte
-    ? [...new Set(mobileEsporte.variantes.map((v) => v.categoria_nome))].map((c) => ({ label: c, value: c }))
-    : []
-
-  const mobileNaipeOptions = mobileEsporte && mobileCategoriaId
-    ? mobileEsporte.variantes
-        .filter((v) => v.categoria_nome === mobileCategoriaId)
-        .map((v) => ({ label: v.naipe_nome, value: v.id }))
-    : []
-
-  const mobileNaipeValue = mobileNaipeOptions.some((o) => o.value === selectedVarianteId)
-    ? selectedVarianteId
-    : null
-
-  function handleMobileEsporteChange(id) {
-    setMobileEsporteId(id)
-    setMobileCategoriaId(null)
+  function openMobileSidebar() {
+    setMobileSidebarOpen(true)
+    requestAnimationFrame(() => requestAnimationFrame(() => setMobileSidebarVisible(true)))
   }
 
-  function handleMobileCategoriaChange(cat) {
-    setMobileCategoriaId(cat)
+  function closeMobileSidebar() {
+    setMobileSidebarVisible(false)
+    setTimeout(() => setMobileSidebarOpen(false), 300)
   }
 
-  function handleMobileNaipeChange(varianteId) {
-    const variante = esportes.flatMap((e) => e.variantes).find((v) => v.id === varianteId)
-    if (variante) handleSelectVariante(variante)
+  function handleMobileSelectVariante(variante) {
+    handleSelectVariante(variante)
+    closeMobileSidebar()
   }
 
   const hasGroups = (campDetail?.estrutura?.grupos?.length || 0) > 0
@@ -573,37 +538,60 @@ export default function Resultados() {
               showSport={showSportLabel}
             />
 
-            <div className="lg:hidden flex flex-col gap-2">
-              <Select
-                placeholder="Esporte"
-                style={{ width: '100%' }}
-                value={mobileEsporteId}
-                onChange={handleMobileEsporteChange}
-                options={mobileEsporteOptions}
-                size="large"
-                allowClear
-                onClear={() => { setMobileEsporteId(null); setMobileCategoriaId(null) }}
-              />
-              <Select
-                placeholder="Modalidade"
-                style={{ width: '100%' }}
-                value={mobileCategoriaId}
-                onChange={handleMobileCategoriaChange}
-                options={mobileCategoriaOptions}
-                disabled={!mobileEsporteId}
-                size="large"
-                allowClear
-                onClear={() => setMobileCategoriaId(null)}
-              />
-              <Select
-                placeholder="Naipe"
-                style={{ width: '100%' }}
-                value={mobileNaipeValue}
-                onChange={handleMobileNaipeChange}
-                options={mobileNaipeOptions}
-                disabled={!mobileCategoriaId}
-                size="large"
-              />
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={openMobileSidebar}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm text-left cursor-pointer hover:border-teal-400 transition-colors"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <SlidersHorizontal size={15} className="text-teal-600 shrink-0" />
+                  {selectedEsporte ? (
+                    <span className="text-sm font-semibold text-slate-700 truncate">
+                      {selectedEsporte.nome}
+                      {selectedVarianteId && (() => {
+                        const v = selectedEsporte.variantes.find((x) => x.id === selectedVarianteId)
+                        return v ? <span className="font-normal text-slate-400"> · {v.categoria_nome} · {v.naipe_nome}</span> : null
+                      })()}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-slate-400">Selecionar esporte e modalidade</span>
+                  )}
+                </span>
+                <ChevronRight size={14} className="text-slate-400 shrink-0" />
+              </button>
+
+              {mobileSidebarOpen && (
+                <>
+                  <div
+                    className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${mobileSidebarVisible ? 'opacity-100' : 'opacity-0'}`}
+                    onClick={closeMobileSidebar}
+                  />
+                  <div className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${mobileSidebarVisible ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/60 shrink-0">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Esportes e modalidades
+                      </span>
+                      <button
+                        type="button"
+                        onClick={closeMobileSidebar}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors border-0 bg-transparent cursor-pointer text-slate-500"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <SportAccordionSidebar
+                        esportes={esportes}
+                        selectedVarianteId={selectedVarianteId}
+                        expandedEsporteId={expandedEsporteId}
+                        onSelectVariante={handleMobileSelectVariante}
+                        onToggleEsporte={handleToggleEsporte}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex gap-6 items-start">
