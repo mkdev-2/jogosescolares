@@ -141,28 +141,85 @@ function buildConnectorPaths(roundsData) {
 }
 
 // ── RegistrarResultadoModal ───────────────────────────────────────────────────
+
+function SetInputRow({ index, nomeMandante, nomeVisitante, sets, onChange }) {
+  const set = sets[index] ?? { mandante: null, visitante: null }
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-semibold text-slate-500 uppercase mb-1">SET {index + 1}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-slate-600 mb-1 truncate">{nomeMandante}</label>
+          <InputNumber
+            min={0}
+            value={set.mandante}
+            onChange={val => onChange(index, 'mandante', val)}
+            className="w-full"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-600 mb-1 truncate">{nomeVisitante}</label>
+          <InputNumber
+            min={0}
+            value={set.visitante}
+            onChange={val => onChange(index, 'visitante', val)}
+            className="w-full"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function calcularSets(sets) {
+  const validos = sets.filter(s => s.mandante !== null && s.visitante !== null)
+  const mSets = validos.filter(s => s.mandante > s.visitante).length
+  const vSets = validos.filter(s => s.visitante > s.mandante).length
+  const mPts = validos.reduce((acc, s) => acc + (s.mandante ?? 0), 0)
+  const vPts = validos.reduce((acc, s) => acc + (s.visitante ?? 0), 0)
+  return { mSets, vSets, mPts, vPts, preenchidos: validos.length }
+}
+
 function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onClose }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const usaSec = config?.unidade_placar === 'SETS'
+  const usaSets = config?.unidade_placar === 'SETS'
   const unidadePrimaria = config?.unidade_placar || 'GOLS'
-  const unidadeSecundaria = config?.unidade_placar_sec || 'PONTOS'
   const isEditing = !!partida.resultado_tipo
+
+  // Estado de sets para sports de sets
+  const setsIniciais = (() => {
+    if (partida.sets_detalhe?.length) {
+      return partida.sets_detalhe.map(s => ({ mandante: s.mandante, visitante: s.visitante }))
+    }
+    return [{ mandante: null, visitante: null }, { mandante: null, visitante: null }]
+  })()
+  const [sets, setSets] = useState(setsIniciais)
 
   const initialValues = (() => {
     if (!partida.resultado_tipo) return { resultado_tipo: 'NORMAL' }
-    const vals = {
-      resultado_tipo: partida.resultado_tipo,
-      placar_mandante: partida.placar_mandante,
-      placar_visitante: partida.placar_visitante,
-      placar_mandante_sec: partida.placar_mandante_sec ?? undefined,
-      placar_visitante_sec: partida.placar_visitante_sec ?? undefined,
+    const vals = { resultado_tipo: partida.resultado_tipo }
+    if (!usaSets) {
+      vals.placar_mandante = partida.placar_mandante
+      vals.placar_visitante = partida.placar_visitante
+      vals.placar_mandante_sec = partida.placar_mandante_sec ?? undefined
+      vals.placar_visitante_sec = partida.placar_visitante_sec ?? undefined
     }
     if (partida.resultado_tipo === 'WXO') {
       vals.desistente_wxo = partida.vencedor_equipe_id === partida.mandante_equipe_id ? 'VISITANTE' : 'MANDANTE'
     }
     return vals
   })()
+
+  const handleSetChange = (index, side, val) => {
+    setSets(prev => {
+      const next = [...prev]
+      next[index] = { ...next[index], [side]: val }
+      return next
+    })
+  }
+
+  const { mSets, vSets, mPts, vPts, preenchidos } = calcularSets(sets)
 
   const handleSave = async () => {
     try {
@@ -171,26 +228,42 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
       const isWxo = values.resultado_tipo === 'WXO'
       const vencedorWxo = values.desistente_wxo === 'MANDANTE' ? 'VISITANTE' : 'MANDANTE'
       const mandanteVence = !isWxo || vencedorWxo === 'MANDANTE'
-      const payload = {
-        resultado_tipo: values.resultado_tipo,
-        vencedor_wxo: isWxo ? vencedorWxo : undefined,
-        placar_mandante: isWxo
-          ? (mandanteVence ? (config?.wxo_placar_pro ?? 1) : (config?.wxo_placar_contra ?? 0))
-          : values.placar_mandante,
-        placar_visitante: isWxo
-          ? (mandanteVence ? (config?.wxo_placar_contra ?? 0) : (config?.wxo_placar_pro ?? 1))
-          : values.placar_visitante,
-        placar_mandante_sec: usaSec
-          ? (isWxo
-              ? (mandanteVence ? (config?.wxo_placar_pro_sec ?? 50) : (config?.wxo_placar_contra_sec ?? 0))
-              : values.placar_mandante_sec)
-          : null,
-        placar_visitante_sec: usaSec
-          ? (isWxo
-              ? (mandanteVence ? (config?.wxo_placar_contra_sec ?? 0) : (config?.wxo_placar_pro_sec ?? 50))
-              : values.placar_visitante_sec)
-          : null,
+
+      let payload
+      if (usaSets && !isWxo) {
+        // Validar: deve resultar em 2-0 ou 2-1
+        const calc = calcularSets(sets)
+        if (calc.preenchidos < 2 || (calc.mSets !== 2 && calc.vSets !== 2)) {
+          message.error('Preencha os sets corretamente — o vencedor deve ganhar 2 sets (2×0 ou 2×1).')
+          setSaving(false)
+          return
+        }
+        const setsEnviar = sets
+          .filter(s => s.mandante !== null && s.visitante !== null)
+          .map((s, i) => ({ set: i + 1, mandante: s.mandante, visitante: s.visitante }))
+        payload = {
+          resultado_tipo: 'NORMAL',
+          sets_detalhe: setsEnviar,
+        }
+      } else {
+        payload = {
+          resultado_tipo: values.resultado_tipo,
+          vencedor_wxo: isWxo ? vencedorWxo : undefined,
+          placar_mandante: isWxo
+            ? (mandanteVence ? (config?.wxo_placar_pro ?? 1) : (config?.wxo_placar_contra ?? 0))
+            : values.placar_mandante,
+          placar_visitante: isWxo
+            ? (mandanteVence ? (config?.wxo_placar_contra ?? 0) : (config?.wxo_placar_pro ?? 1))
+            : values.placar_visitante,
+          placar_mandante_sec: usaSets
+            ? (mandanteVence ? (config?.wxo_placar_pro_sec ?? 50) : (config?.wxo_placar_contra_sec ?? 0))
+            : null,
+          placar_visitante_sec: usaSets
+            ? (mandanteVence ? (config?.wxo_placar_contra_sec ?? 0) : (config?.wxo_placar_pro_sec ?? 50))
+            : null,
+        }
       }
+
       await campeonatosService.registrarResultado(campeonatoId, partida.id, payload)
       message.success('Resultado registrado com sucesso')
       onSuccess(payload)
@@ -206,6 +279,9 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
   const desistente = Form.useWatch('desistente_wxo', form)
   const isWxo = tipo === 'WXO'
 
+  const nomeMandante = partida.mandante_nome || 'Mandante'
+  const nomeVisitante = partida.visitante_nome || 'Visitante'
+
   return (
     <Modal
       open
@@ -218,9 +294,9 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
       width={440}
     >
       <p className="text-sm text-[#64748b] mb-4">
-        <strong>{partida.mandante_nome || 'Mandante'}</strong>
+        <strong>{nomeMandante}</strong>
         {' vs '}
-        <strong>{partida.visitante_nome || 'Visitante'}</strong>
+        <strong>{nomeVisitante}</strong>
       </p>
       <Form form={form} layout="vertical" initialValues={initialValues}>
         <Form.Item name="resultado_tipo" label="Tipo de resultado">
@@ -230,42 +306,56 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           </Radio.Group>
         </Form.Item>
 
-        {!isWxo && (
+        {!isWxo && usaSets && (
+          <div className="bg-slate-50 rounded-lg p-3 mb-2">
+            {sets.map((_, i) => (
+              <SetInputRow
+                key={i}
+                index={i}
+                nomeMandante={nomeMandante}
+                nomeVisitante={nomeVisitante}
+                sets={sets}
+                onChange={handleSetChange}
+              />
+            ))}
+            {preenchidos >= 2 && mSets === 1 && vSets === 1 && sets.length < 3 && (
+              <Button
+                type="dashed"
+                size="small"
+                className="w-full mb-3"
+                onClick={() => setSets(prev => [...prev, { mandante: null, visitante: null }])}
+              >
+                + Adicionar SET 3 (desempate)
+              </Button>
+            )}
+            {preenchidos >= 2 && (mSets === 2 || vSets === 2) && (
+              <div className="text-xs text-center text-slate-600 border-t pt-2 mt-1">
+                <strong>{mSets === 2 ? nomeMandante : nomeVisitante}</strong> vence{' '}
+                {Math.max(mSets, vSets)}×{Math.min(mSets, vSets)}
+                {' · '}pontos: {mPts}–{vPts}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isWxo && !usaSets && (
           <>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
                 name="placar_mandante"
-                label={`${partida.mandante_nome || 'Mandante'} (${unidadePrimaria})`}
+                label={`${nomeMandante} (${unidadePrimaria})`}
                 rules={[{ required: true, message: 'Obrigatório' }]}
               >
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
               <Form.Item
                 name="placar_visitante"
-                label={`${partida.visitante_nome || 'Visitante'} (${unidadePrimaria})`}
+                label={`${nomeVisitante} (${unidadePrimaria})`}
                 rules={[{ required: true, message: 'Obrigatório' }]}
               >
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
             </div>
-            {usaSec && (
-              <div className="grid grid-cols-2 gap-3">
-                <Form.Item
-                  name="placar_mandante_sec"
-                  label={`${partida.mandante_nome || 'Mandante'} (${unidadeSecundaria})`}
-                  rules={[{ required: true, message: 'Obrigatório' }]}
-                >
-                  <InputNumber min={0} className="w-full" />
-                </Form.Item>
-                <Form.Item
-                  name="placar_visitante_sec"
-                  label={`${partida.visitante_nome || 'Visitante'} (${unidadeSecundaria})`}
-                  rules={[{ required: true, message: 'Obrigatório' }]}
-                >
-                  <InputNumber min={0} className="w-full" />
-                </Form.Item>
-              </div>
-            )}
           </>
         )}
 
@@ -277,16 +367,14 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
               rules={[{ required: true, message: 'Selecione a equipe que desistiu' }]}
             >
               <Radio.Group>
-                <Radio value="MANDANTE">{partida.mandante_nome || 'Mandante'}</Radio>
-                <Radio value="VISITANTE">{partida.visitante_nome || 'Visitante'}</Radio>
+                <Radio value="MANDANTE">{nomeMandante}</Radio>
+                <Radio value="VISITANTE">{nomeVisitante}</Radio>
               </Radio.Group>
             </Form.Item>
             {desistente && (
               <p className="text-sm text-amber-700 bg-amber-50 rounded p-3">
                 <strong>
-                  {desistente === 'MANDANTE'
-                    ? (partida.visitante_nome || 'Visitante')
-                    : (partida.mandante_nome || 'Mandante')}
+                  {desistente === 'MANDANTE' ? nomeVisitante : nomeMandante}
                 </strong>{' '}
                 vence com placar {config?.wxo_placar_pro ?? 1}–{config?.wxo_placar_contra ?? 0}.
               </p>

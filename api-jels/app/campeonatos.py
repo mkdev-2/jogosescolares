@@ -1,6 +1,7 @@
 """
 Roteador de campeonatos: CRUD administrativo inicial (Fase 1).
 """
+import json
 from math import log2
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -2095,6 +2096,7 @@ async def get_estrutura(
                    cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
+                   cp.sets_detalhe,
                    cp.resultado_tipo, cp.registrado_em,
                    cp.created_at, cp.updated_at,
                    esc_m.nome_escola AS mandante_nome,
@@ -2191,6 +2193,7 @@ async def get_estrutura(
             placar_visitante=r.get("placar_visitante"),
             placar_mandante_sec=r.get("placar_mandante_sec"),
             placar_visitante_sec=r.get("placar_visitante_sec"),
+            sets_detalhe=r.get("sets_detalhe"),
             resultado_tipo=r.get("resultado_tipo"),
             registrado_em=r["registrado_em"].isoformat() if r.get("registrado_em") else None,
             created_at=r["created_at"].isoformat() if r.get("created_at") else None,
@@ -2432,6 +2435,25 @@ async def registrar_resultado_partida(
     if partida["is_bye"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Partida BYE não pode ter resultado registrado.")
 
+    # Para esportes de sets: calcular placar derivado a partir dos sets individuais
+    config = await get_config_pontuacao(conn, campeonato_id)
+    usa_sets = config and config.get("unidade_placar") == "SETS"
+    sets_detalhe_json = None
+
+    if data.sets_detalhe and usa_sets and data.resultado_tipo == "NORMAL":
+        sets = [s.model_dump() for s in data.sets_detalhe]
+        m_sets = sum(1 for s in sets if s["mandante"] > s["visitante"])
+        v_sets = sum(1 for s in sets if s["visitante"] > s["mandante"])
+        m_pts = sum(s["mandante"] for s in sets)
+        v_pts = sum(s["visitante"] for s in sets)
+        data = data.model_copy(update={
+            "placar_mandante": m_sets,
+            "placar_visitante": v_sets,
+            "placar_mandante_sec": m_pts,
+            "placar_visitante_sec": v_pts,
+        })
+        sets_detalhe_json = json.dumps(sets)
+
     # Determina vencedor a partir do placar
     vencedor_id: int | None = None
     if data.resultado_tipo == "WXO":
@@ -2455,6 +2477,7 @@ async def registrar_resultado_partida(
                 placar_visitante     = %s,
                 placar_mandante_sec  = %s,
                 placar_visitante_sec = %s,
+                sets_detalhe         = %s,
                 resultado_tipo       = %s,
                 vencedor_equipe_id   = %s,
                 registrado_em        = NOW(),
@@ -2467,6 +2490,7 @@ async def registrar_resultado_partida(
                 data.placar_visitante,
                 data.placar_mandante_sec,
                 data.placar_visitante_sec,
+                sets_detalhe_json,
                 data.resultado_tipo,
                 vencedor_id,
                 current_user["id"],
@@ -2484,7 +2508,7 @@ async def registrar_resultado_partida(
         await conn.commit()
 
     grupo_id = partida["grupo_id"]
-    config = await get_config_pontuacao(conn, campeonato_id)
+    # config já foi buscado acima para calcular sets
 
     # --- Fase de grupos: verificar se o grupo ficou completo ---
     grupo_concluido = False

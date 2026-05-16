@@ -528,6 +528,7 @@ async def get_campeonato_publico(
                    cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
+                   cp.sets_detalhe,
                    cp.resultado_tipo,
                    esc_m.nome_escola AS mandante_nome,
                    esc_v.nome_escola AS visitante_nome,
@@ -617,6 +618,7 @@ async def get_campeonato_publico(
                 "placar_visitante": rd.get("placar_visitante"),
                 "placar_mandante_sec": rd.get("placar_mandante_sec"),
                 "placar_visitante_sec": rd.get("placar_visitante_sec"),
+                "sets_detalhe": rd.get("sets_detalhe"),
                 "resultado_tipo": rd.get("resultado_tipo"),
             }
         )

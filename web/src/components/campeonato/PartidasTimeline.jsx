@@ -49,11 +49,18 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked }) {
           </span>
           <div className="flex flex-col items-center shrink-0">
             {hasResult ? (
-              <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
-                {partida.placar_mandante}
-                <span className="text-slate-400 mx-0.5 font-normal">×</span>
-                {partida.placar_visitante}
-              </span>
+              <>
+                <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
+                  {partida.placar_mandante}
+                  <span className="text-slate-400 mx-0.5 font-normal">×</span>
+                  {partida.placar_visitante}
+                </span>
+                {partida.sets_detalhe?.length > 0 && (
+                  <span className="text-[9px] text-slate-400 mt-0.5 leading-tight whitespace-nowrap">
+                    {partida.sets_detalhe.map(s => `${s.mandante}-${s.visitante}`).join('  ')}
+                  </span>
+                )}
+              </>
             ) : (
               <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">vs</span>
             )}

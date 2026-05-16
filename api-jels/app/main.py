@@ -50,6 +50,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Gerencia o ciclo de vida da aplicação."""
     await db.connect()
+    db_url = os.getenv("DATABASE_URL", "não definida")
+    logger.info(">>> DATABASE_URL em uso: %s", db_url)
     yield
     await db.close()
 

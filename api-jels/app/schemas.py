@@ -789,6 +789,7 @@ class CampeonatoPartidaResponse(BaseModel):
     placar_visitante: Optional[int] = None
     placar_mandante_sec: Optional[int] = None
     placar_visitante_sec: Optional[int] = None
+    sets_detalhe: Optional[list[dict]] = None
     resultado_tipo: Optional[str] = None
     registrado_em: Optional[str] = None
     created_at: Optional[str] = None
@@ -1164,20 +1165,35 @@ class PartidaAgendamentoInput(BaseModel):
     rodada: Optional[int] = Field(default=None, ge=1)
 
 
+class SetDetalhe(BaseModel):
+    """Placar de um set individual (para esportes disputados em sets)."""
+    set: int = Field(..., ge=1, le=3)
+    mandante: int = Field(..., ge=0)
+    visitante: int = Field(..., ge=0)
+
+
 class PartidaResultadoInput(BaseModel):
-    """Payload para registrar o resultado de uma partida."""
-    placar_mandante: int = Field(..., ge=0)
-    placar_visitante: int = Field(..., ge=0)
+    """Payload para registrar o resultado de uma partida.
+
+    Para esportes disputados em sets (Voleibol, Vôlei de Praia): fornecer
+    `sets_detalhe` com o placar de cada set; o backend calcula os campos
+    derivados (placar_mandante = sets vencidos, placar_mandante_sec = pontos
+    totais). Para demais esportes: fornecer placar_mandante/visitante direto.
+    """
+    placar_mandante: Optional[int] = Field(None, ge=0)
+    placar_visitante: Optional[int] = Field(None, ge=0)
     placar_mandante_sec: Optional[int] = Field(None, ge=0)
     placar_visitante_sec: Optional[int] = Field(None, ge=0)
     resultado_tipo: RESULTADO_TIPO = "NORMAL"
-    # Para WxO: qual equipe vence (MANDANTE ou VISITANTE). Obrigatório quando resultado_tipo == "WXO".
     vencedor_wxo: Optional[Literal["MANDANTE", "VISITANTE"]] = None
+    sets_detalhe: Optional[list[SetDetalhe]] = None
 
     @model_validator(mode="after")
-    def validar_vencedor_wxo(self):
+    def validar(self):
         if self.resultado_tipo == "WXO" and self.vencedor_wxo is None:
             raise ValueError("Para resultado WxO, informe vencedor_wxo (MANDANTE ou VISITANTE).")
+        if self.resultado_tipo == "NORMAL" and self.sets_detalhe is None and self.placar_mandante is None:
+            raise ValueError("Informe placar_mandante ou sets_detalhe.")
         return self
 
 
