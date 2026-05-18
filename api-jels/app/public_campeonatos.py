@@ -25,7 +25,8 @@ from app.services.pontuacao_service import (
     calcular_ranking_wildcards,
     get_config_pontuacao,
 )
-
+# New import for async DB access
+import psycopg
 router = APIRouter(prefix="/api/public/campeonatos", tags=["public"])
 
 _STATUSES_VISIVEIS = ("GERADO", "EM_ANDAMENTO", "FINALIZADO")
@@ -488,7 +489,7 @@ async def _destaques_one_campeonato(
     unidade = (config or {}).get("unidade_placar")
     registra = bool(config and config.get("registra_artilheiro"))
     mostrar_pont = bool(
-        registra and unidade and str(unidade).upper() in ("GOLS", "CESTAS"),
+        registra and unidade and str(unidade).upper() in ("GOLS", "CESTAS", "PONTOS", "SETS"),
     )
 
     async with conn.cursor() as cur:
@@ -616,7 +617,7 @@ async def _destaques_one_campeonato(
                       AND cp.resultado_tipo = ANY(%s)
                     GROUP BY ea.id, ea.nome, ea.foto_url, esc.nome_escola
                     ORDER BY total DESC, ea.nome
-                    LIMIT 3
+                    LIMIT 10
                     """,
                     (cid, rodada_ref, list(_RESULTADO_DESTAQUE)),
                 )
@@ -630,6 +631,7 @@ async def _destaques_one_campeonato(
                         escola_nome=str(r["escola_nome"] or ""),
                         total=int(r["total"]),
                         foto_url=r.get("foto_url"),
+                        estudante_foto_url=r.get("foto_url"),
                     )
                 )
         except UndefinedTable:

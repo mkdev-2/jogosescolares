@@ -1151,6 +1151,7 @@ class DestaquePontuadorLanding(BaseModel):
     escola_nome: str
     total: int
     foto_url: str | None = None
+    estudante_foto_url: str | None = None
 
 
 class DestaquesCampeonatoLandingItem(BaseModel):
