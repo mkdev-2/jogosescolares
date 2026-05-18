@@ -12,7 +12,7 @@ function formatHorario(iso) {
   return `${diaSemanaCapitalizado}, ${data}, ${hora}`
 }
 
-function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked }) {
+function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, maxSets }) {
   const hasResult = !!partida.resultado_tipo
   const isKnockout = partida.fase !== 'GRUPOS'
   const mandanteWon = hasResult && partida.vencedor_equipe_id === partida.mandante_equipe_id
@@ -28,92 +28,100 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked }) {
   const mandanteIndefinido = mandanteNome === 'A definir'
   const visitanteIndefinido = visitanteNome === 'A definir'
 
+  // altura fixa para a célula de sets: garante mesma altura em todos os cards
+  const setsMinHeight = maxSets > 0 ? maxSets * 10 : undefined
+
   return (
     <div
       id={`resultados-partida-${partida.id}`}
-      className={`bg-white rounded-lg border px-3 py-2.5 flex flex-col gap-1 transition-colors ${
+      className={`bg-white rounded-lg border px-3 py-2 flex items-start gap-3 transition-colors ${
         highlighted
           ? 'border-teal-400 ring-2 ring-teal-500 ring-offset-1 shadow-md'
           : 'border-slate-200 hover:border-slate-300'
       }`}
     >
-      <div className="flex items-center gap-3">
-        {grupoNome != null && (
-          <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 w-14 text-center leading-tight">
-            Gr. {grupoNome}
-          </span>
-        )}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 flex-1 min-w-0">
-          <span className={`text-xs truncate text-right ${mandanteIndefinido ? 'italic text-slate-400' : mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-            {mandanteNome}
-          </span>
-          <div className="flex flex-col items-center shrink-0">
-            {hasResult ? (
-              <>
-                <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
-                  {partida.placar_mandante}
-                  <span className="text-slate-400 mx-0.5 font-normal">×</span>
-                  {partida.placar_visitante}
-                </span>
-                {partida.sets_detalhe?.length > 0 && (
-                  <span className="text-[9px] text-slate-400 mt-0.5 leading-tight whitespace-nowrap">
-                    {partida.sets_detalhe.map(s => `${s.mandante}-${s.visitante}`).join('  ')}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">vs</span>
-            )}
-            {partida.resultado_tipo === 'WXO' && (
-              <span className="text-[9px] font-bold text-amber-600 mt-0.5 leading-none">WxO</span>
-            )}
-          </div>
-          <span className={`text-xs truncate ${visitanteIndefinido ? 'italic text-slate-400' : visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
-            {visitanteNome}
-          </span>
-        </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${
-          hasResult ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-        }`}>
-          {hasResult ? 'Enc.' : 'Pend.'}
+      {grupoNome != null && (
+        <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0 w-14 text-center leading-tight mt-0.5">
+          Gr. {grupoNome}
         </span>
-      </div>
-      <div className="flex items-center justify-between gap-3 pl-0 sm:pl-[4.25rem] text-[10px] text-slate-500 min-w-0">
+      )}
+
+      {/* grid 3col × 2row: linha 1 = equipes+placar, linha 2 = data+sets+local */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-x-2 gap-y-1 flex-1 min-w-0">
+        {/* Linha 1 — equipes e placar geral */}
+        <span className={`text-xs truncate text-right leading-tight mt-px ${mandanteIndefinido ? 'italic text-slate-400' : mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+          {mandanteNome}
+        </span>
+        <div className="flex flex-col items-center shrink-0">
+          {hasResult ? (
+            <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
+              {partida.placar_mandante}
+              <span className="text-slate-400 mx-0.5 font-normal">×</span>
+              {partida.placar_visitante}
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">vs</span>
+          )}
+          {partida.resultado_tipo === 'WXO' && (
+            <span className="text-[9px] font-bold text-amber-600 leading-none">WxO</span>
+          )}
+        </div>
+        <span className={`text-xs truncate leading-tight mt-px ${visitanteIndefinido ? 'italic text-slate-400' : visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
+          {visitanteNome}
+        </span>
+
+        {/* Linha 2 — data, sets e local */}
         {formatHorario(partida.inicio_em) ? (
-          <span className="flex items-center gap-1 shrink-0 font-medium text-slate-600">
-            <ClockCircleOutlined style={{ fontSize: 10 }} />
-            {formatHorario(partida.inicio_em)}
+          <span className="flex items-center gap-1 text-[10px] font-medium text-slate-600 min-w-0">
+            <ClockCircleOutlined style={{ fontSize: 10 }} className="shrink-0 pt-2" />
+            <span className="truncate pt-2">{formatHorario(partida.inicio_em)}</span>
           </span>
         ) : (
-          <span className="flex items-center gap-1 shrink-0 italic text-slate-300">
+          <span className="flex items-center gap-1 text-[10px] italic text-slate-300">
             <ClockCircleOutlined style={{ fontSize: 10 }} />
             Sem data definida
           </span>
         )}
+
+        <div
+          className="flex flex-col items-center gap-px"
+          style={setsMinHeight ? { minHeight: setsMinHeight } : undefined}
+        >
+          {hasResult && partida.sets_detalhe?.map((s, i) => (
+            <span key={i} className="text-[9px] text-slate-400 leading-none whitespace-nowrap">
+              {s.mandante}-{s.visitante}
+            </span>
+          ))}
+        </div>
+
         {(partida.local?.nome || partida.local?.link_maps) ? (
-          <span className="flex items-center gap-1 min-w-0">
-            <EnvironmentOutlined style={{ fontSize: 10 }} className="shrink-0" />
-            {partida.local?.nome && (
-              <span className="truncate">{partida.local.nome}</span>
-            )}
+          <span className="flex items-center justify-end gap-1 text-[10px] text-slate-500 min-w-0">
+            <EnvironmentOutlined style={{ fontSize: 10 }} className="shrink-0 pt-2" />
+            {partida.local?.nome && <span className="truncate pt-2">{partida.local.nome}</span>}
             {partida.local?.link_maps && (
               <a
                 href={partida.local.link_maps}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-teal-600 font-semibold shrink-0"
+                className="text-teal-600 font-semibold shrink-0 pt-2"
               >
-                Maps
+                Ver Mapa
               </a>
             )}
           </span>
         ) : (
-          <span className="flex items-center gap-1 italic text-slate-300">
+          <span className="flex items-center justify-end gap-1 text-[10px] italic text-slate-300">
             <EnvironmentOutlined style={{ fontSize: 10 }} />
             Sem local definido
           </span>
         )}
       </div>
+
+      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 mt-0.5 ${
+        hasResult ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+      }`}>
+        {hasResult ? 'Enc.' : 'Pend.'}
+      </span>
     </div>
   )
 }
@@ -138,6 +146,8 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
   const jogos = partidas.filter((p) => !p.is_bye)
 
   const grupoMap = Object.fromEntries((grupos || []).map((g) => [g.id, g.nome]))
+
+  const maxSets = Math.max(0, ...jogos.map((p) => p.sets_detalhe?.length ?? 0))
 
   const gruposJogos = jogos.filter((p) => p.fase === 'GRUPOS')
   const knockoutJogos = jogos.filter((p) => p.fase !== 'GRUPOS')
@@ -185,6 +195,7 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
                     partida={p}
                     grupoNome={grupoMap[p.grupo_id]}
                     highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
+                    maxSets={maxSets}
                   />
                 ))}
               </div>
@@ -210,6 +221,7 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
                     grupoNome={null}
                     highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
                     knockoutTeamsLocked={knockoutTeamsLocked}
+                    maxSets={maxSets}
                   />
                 ))}
               </div>
