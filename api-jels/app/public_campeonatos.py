@@ -2,17 +2,31 @@
 Endpoints públicos de campeonatos — sem autenticação.
 Expostos em /api/public/campeonatos para a página de Resultados.
 """
+from __future__ import annotations
+
+from collections import defaultdict
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
+from psycopg.errors import UndefinedTable
 
 from app.database import get_db
 from app.edicao_context import resolve_edicao_id
+from app.schemas import (
+    DestaqueEquipeDefesaLanding,
+    DestaqueJogoLanding,
+    DestaquePontuadorLanding,
+    DestaquesCampeonatoLandingItem,
+    DestaquesLandingResponse,
+)
 from app.services.pontuacao_service import (
     calcular_classificacao_grupo,
     calcular_ranking_wildcards,
     get_config_pontuacao,
 )
-
+# New import for async DB access
+import psycopg
 router = APIRouter(prefix="/api/public/campeonatos", tags=["public"])
 
 _STATUSES_VISIVEIS = ("GERADO", "EM_ANDAMENTO", "FINALIZADO")
@@ -442,6 +456,263 @@ async def list_proximos_confrontos(
 
     rows.sort(key=_sort_key)
     return [_row_proximo_confronto_clean(r) for r in rows[:limite]]
+
+
+_RESULTADO_DESTAQUE = ("NORMAL", "WXO")
+_LANDING_CAMP_LIMIT = 40
+
+
+def _contra_equipe_na_partida(p: dict, equipe_id: int, config: dict | None) -> int:
+    """Unidades sofridas (placar primário do adversário), com handebol ignorando extra em sec."""
+    mid = p.get("mandante_equipe_id")
+    vid = p.get("visitante_equipe_id")
+    if mid != equipe_id and vid != equipe_id:
+        return 0
+    is_mandante = equipe_id == mid
+    if is_mandante:
+        raw_contra = int(p.get("placar_visitante") or 0)
+        sec_contra = int(p.get("placar_visitante_sec") or 0)
+    else:
+        raw_contra = int(p.get("placar_mandante") or 0)
+        sec_contra = int(p.get("placar_mandante_sec") or 0)
+    if config and config.get("ignorar_placar_extra"):
+        return max(0, raw_contra - sec_contra)
+    return raw_contra
+
+
+async def _destaques_one_campeonato(
+    conn: psycopg.AsyncConnection,
+    meta: dict[str, Any],
+) -> DestaquesCampeonatoLandingItem | None:
+    cid = int(meta["campeonato_id"])
+    config = await get_config_pontuacao(conn, cid)
+    unidade = (config or {}).get("unidade_placar")
+    registra = bool(config and config.get("registra_artilheiro"))
+    mostrar_pont = bool(
+        registra and unidade and str(unidade).upper() in ("GOLS", "CESTAS", "PONTOS", "SETS"),
+    )
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT MAX(cp.rodada) AS r
+            FROM campeonato_partidas cp
+            WHERE cp.campeonato_id = %s
+              AND cp.fase = 'GRUPOS'
+              AND cp.resultado_tipo = ANY(%s)
+              AND cp.is_bye = FALSE
+              AND cp.mandante_equipe_id IS NOT NULL
+              AND cp.visitante_equipe_id IS NOT NULL
+            """,
+            (cid, list(_RESULTADO_DESTAQUE)),
+        )
+        row_max = await cur.fetchone()
+    rodada_ref = int(row_max["r"]) if row_max and row_max["r"] is not None else 0
+    if rodada_ref < 1:
+        return None
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT cp.id, cp.rodada, cp.mandante_equipe_id, cp.visitante_equipe_id,
+                   cp.placar_mandante, cp.placar_visitante,
+                   cp.placar_mandante_sec, cp.placar_visitante_sec,
+                   esc_m.nome_escola AS mandante_nome,
+                   esc_v.nome_escola AS visitante_nome
+            FROM campeonato_partidas cp
+            LEFT JOIN equipes eq_m ON eq_m.id = cp.mandante_equipe_id
+            LEFT JOIN escolas esc_m ON esc_m.id = eq_m.escola_id
+            LEFT JOIN equipes eq_v ON eq_v.id = cp.visitante_equipe_id
+            LEFT JOIN escolas esc_v ON esc_v.id = eq_v.escola_id
+            WHERE cp.campeonato_id = %s
+              AND cp.rodada = %s
+              AND cp.fase = 'GRUPOS'
+              AND cp.resultado_tipo = ANY(%s)
+              AND cp.is_bye = FALSE
+              AND cp.mandante_equipe_id IS NOT NULL
+              AND cp.visitante_equipe_id IS NOT NULL
+            """,
+            (cid, rodada_ref, list(_RESULTADO_DESTAQUE)),
+        )
+        partidas = [dict(r) for r in await cur.fetchall()]
+
+    if not partidas:
+        return None
+
+    jogo_best: dict | None = None
+    best_key = (-1, -1, -1)
+    for p in partidas:
+        pm = int(p.get("placar_mandante") or 0)
+        pv = int(p.get("placar_visitante") or 0)
+        s = pm + pv
+        sec = int(p.get("placar_mandante_sec") or 0) + int(p.get("placar_visitante_sec") or 0)
+        pid = int(p["id"])
+        key = (s, sec, pid)
+        if key > best_key:
+            best_key = key
+            jogo_best = p
+
+    jogo_out: DestaqueJogoLanding | None = None
+    if jogo_best:
+        jogo_out = DestaqueJogoLanding(
+            partida_id=int(jogo_best["id"]),
+            rodada=int(jogo_best["rodada"]),
+            mandante_nome=jogo_best.get("mandante_nome"),
+            visitante_nome=jogo_best.get("visitante_nome"),
+            placar_mandante=jogo_best.get("placar_mandante"),
+            placar_visitante=jogo_best.get("placar_visitante"),
+            placar_mandante_sec=jogo_best.get("placar_mandante_sec"),
+            placar_visitante_sec=jogo_best.get("placar_visitante_sec"),
+        )
+
+    sofridos: dict[int, int] = defaultdict(int)
+    jogos: dict[int, int] = defaultdict(int)
+    nomes: dict[int, str] = {}
+    for p in partidas:
+        mid = int(p["mandante_equipe_id"])
+        vid = int(p["visitante_equipe_id"])
+        cm = _contra_equipe_na_partida(p, mid, config)
+        cv = _contra_equipe_na_partida(p, vid, config)
+        sofridos[mid] += cm
+        sofridos[vid] += cv
+        jogos[mid] += 1
+        jogos[vid] += 1
+        if p.get("mandante_nome"):
+            nomes[mid] = str(p["mandante_nome"])
+        if p.get("visitante_nome"):
+            nomes[vid] = str(p["visitante_nome"])
+
+    equipe_defesa_out: DestaqueEquipeDefesaLanding | None = None
+    if sofridos:
+        min_s = min(sofridos.values())
+        candidatos = [(eid, s) for eid, s in sofridos.items() if s == min_s and jogos.get(eid, 0) >= 1]
+        if candidatos:
+            eid_pick = min(candidatos, key=lambda x: (x[1], x[0]))[0]
+            equipe_defesa_out = DestaqueEquipeDefesaLanding(
+                equipe_id=eid_pick,
+                nome_escola=nomes.get(eid_pick) or f"Equipe {eid_pick}",
+                sofridos_rodada=int(sofridos[eid_pick]),
+                jogos_rodada=int(jogos[eid_pick]),
+            )
+
+    top_pont: list[DestaquePontuadorLanding] = []
+    if mostrar_pont:
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT ea.id AS estudante_id,
+                           ea.nome AS estudante_nome,
+                           ea.foto_url,
+                           esc.nome_escola AS escola_nome,
+                           SUM(pa.quantidade)::int AS total
+                    FROM partida_artilheiros pa
+                    JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
+                    JOIN equipes eq ON eq.id = pa.equipe_id
+                    JOIN escolas esc ON esc.id = eq.escola_id
+                    JOIN campeonato_partidas cp ON cp.id = pa.partida_id
+                    WHERE cp.campeonato_id = %s
+                      AND cp.rodada = %s
+                      AND cp.fase = 'GRUPOS'
+                      AND cp.resultado_tipo = ANY(%s)
+                    GROUP BY ea.id, ea.nome, ea.foto_url, esc.nome_escola
+                    ORDER BY total DESC, ea.nome
+                    LIMIT 10
+                    """,
+                    (cid, rodada_ref, list(_RESULTADO_DESTAQUE)),
+                )
+                rows_art = await cur.fetchall()
+            for i, r in enumerate(rows_art, start=1):
+                top_pont.append(
+                    DestaquePontuadorLanding(
+                        posicao=i,
+                        estudante_id=int(r["estudante_id"]),
+                        estudante_nome=str(r["estudante_nome"]),
+                        escola_nome=str(r["escola_nome"] or ""),
+                        total=int(r["total"]),
+                        foto_url=r.get("foto_url"),
+                        estudante_foto_url=r.get("foto_url"),
+                    )
+                )
+        except UndefinedTable:
+            top_pont = []
+
+    return DestaquesCampeonatoLandingItem(
+        campeonato_id=cid,
+        campeonato_nome=str(meta["campeonato_nome"]),
+        esporte_id=str(meta["esporte_id"]),
+        esporte_nome=str(meta["esporte_nome"]),
+        esporte_icone=meta.get("esporte_icone"),
+        categoria_nome=str(meta["categoria_nome"]),
+        naipe_nome=str(meta["naipe_nome"]),
+        tipo_modalidade_nome=str(meta["tipo_modalidade_nome"]),
+        unidade_placar=str(unidade) if unidade else None,
+        registra_artilheiro=registra,
+        mostrar_pontuadores_individuais=mostrar_pont,
+        rodada_referencia=rodada_ref,
+        jogo_destaque=jogo_out,
+        equipe_defesa=equipe_defesa_out,
+        top_pontuadores=top_pont,
+    )
+
+
+@router.get("/destaques-landing", response_model=DestaquesLandingResponse)
+async def list_destaques_landing(
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+):
+    """Agrega destaques da última rodada com resultado por campeonato (automático), para a landing."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT c.id AS campeonato_id,
+                   c.nome AS campeonato_nome,
+                   esp.id::text AS esporte_id,
+                   esp.nome AS esporte_nome,
+                   esp.icone AS esporte_icone,
+                   cat.nome AS categoria_nome,
+                   nai.nome AS naipe_nome,
+                   tm.nome AS tipo_modalidade_nome
+            FROM campeonatos c
+            JOIN esporte_variantes ev ON ev.id = c.esporte_variante_id
+            JOIN esportes esp ON esp.id = ev.esporte_id
+            JOIN categorias cat ON cat.id = ev.categoria_id
+            JOIN naipes nai ON nai.id = ev.naipe_id
+            JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
+            WHERE c.edicao_id = %s
+              AND c.status = ANY(%s)
+              AND c.origem <> 'MANUAL'
+              AND EXISTS (
+                  SELECT 1
+                  FROM campeonato_partidas cp
+                  WHERE cp.campeonato_id = c.id
+                    AND cp.fase = 'GRUPOS'
+                    AND cp.resultado_tipo = ANY(%s)
+                    AND cp.is_bye = FALSE
+                    AND cp.mandante_equipe_id IS NOT NULL
+                    AND cp.visitante_equipe_id IS NOT NULL
+              )
+            ORDER BY esp.nome, cat.nome, nai.nome, c.id
+            LIMIT %s
+            """,
+            (
+                resolved_edicao_id,
+                list(_STATUSES_VISIVEIS),
+                list(_RESULTADO_DESTAQUE),
+                _LANDING_CAMP_LIMIT,
+            ),
+        )
+        metas = [dict(r) for r in await cur.fetchall()]
+
+    items: list[DestaquesCampeonatoLandingItem] = []
+    for meta in metas:
+        item = await _destaques_one_campeonato(conn, meta)
+        if item:
+            items.append(item)
+
+    return DestaquesLandingResponse(items=items)
 
 
 @router.get("/{campeonato_id}")

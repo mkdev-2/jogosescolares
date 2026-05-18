@@ -1155,6 +1155,56 @@ class PenalidadeOutput(BaseModel):
     tipo: TipoPenalidade
 
 
+class DestaqueJogoLanding(BaseModel):
+    partida_id: int
+    rodada: int
+    mandante_nome: str | None = None
+    visitante_nome: str | None = None
+    placar_mandante: int | None = None
+    placar_visitante: int | None = None
+    placar_mandante_sec: int | None = None
+    placar_visitante_sec: int | None = None
+
+
+class DestaqueEquipeDefesaLanding(BaseModel):
+    equipe_id: int
+    nome_escola: str
+    sofridos_rodada: int
+    jogos_rodada: int
+
+
+class DestaquePontuadorLanding(BaseModel):
+    posicao: int
+    estudante_id: int
+    estudante_nome: str
+    escola_nome: str
+    total: int
+    foto_url: str | None = None
+    estudante_foto_url: str | None = None
+
+
+class DestaquesCampeonatoLandingItem(BaseModel):
+    campeonato_id: int
+    campeonato_nome: str
+    esporte_id: str
+    esporte_nome: str
+    esporte_icone: str | None = None
+    categoria_nome: str
+    naipe_nome: str
+    tipo_modalidade_nome: str
+    unidade_placar: str | None = None
+    registra_artilheiro: bool = False
+    mostrar_pontuadores_individuais: bool = False
+    rodada_referencia: int
+    jogo_destaque: DestaqueJogoLanding | None = None
+    equipe_defesa: DestaqueEquipeDefesaLanding | None = None
+    top_pontuadores: list[DestaquePontuadorLanding] = Field(default_factory=list)
+
+
+class DestaquesLandingResponse(BaseModel):
+    items: list[DestaquesCampeonatoLandingItem]
+
+
 RESULTADO_TIPO = Literal["NORMAL", "WXO", "ADIADA", "CANCELADA"]
 
 
