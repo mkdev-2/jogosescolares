@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Loader2, Trophy, User, Target, X, Calendar } from 'lucide-react'
 import ModalidadeIcon from '../catalogos/ModalidadeIcon'
 import { publicCampeonatosService } from '../../services/publicCampeonatosService'
-import StorageImage from '../StorageImage'
 
 function initials(name) {
   if (!name || typeof name !== 'string') return '?'
@@ -27,8 +26,8 @@ function AvatarAtleta({ nome, fotoUrl, className = '', round = false }) {
   const base = round ? 'rounded-full' : 'rounded-xl'
   if (fotoUrl) {
     return (
-      <StorageImage
-        path={fotoUrl}
+      <img
+        src={fotoUrl}
         alt=""
         className={`object-cover bg-slate-100 ${base} ${className}`}
         loading="lazy"
@@ -251,7 +250,7 @@ export default function DestaquesRodadaSection() {
             </span>
           </div>
           <h2 className="m-0 font-display text-2xl font-black uppercase tracking-tight text-[#042f2e] md:text-3xl">
-            Destaques da <span className="text-emerald-600">rodada</span>
+            Destaques do <span className="text-emerald-600">campeonato</span>
           </h2>
         </div>
 
@@ -296,8 +295,8 @@ export default function DestaquesRodadaSection() {
                           key={camp.campeonato_id}
                           onClick={() => setActiveCampId(String(camp.campeonato_id))}
                           className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${active
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 shadow-sm ring-1 ring-emerald-100/30'
-                              : 'text-slate-400 hover:text-slate-600 border border-transparent'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 shadow-sm ring-1 ring-emerald-100/30'
+                            : 'text-slate-400 hover:text-slate-600 border border-transparent'
                             }`}
                         >
                           {camp.naipe_nome} — {camp.categoria_nome}
@@ -327,12 +326,12 @@ export default function DestaquesRodadaSection() {
                   return (
                     <div key={camp.campeonato_id} className="flex flex-col gap-6">
                       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-stretch">
-                        {/* Coluna Esquerda: Artilharia da rodada (Top 10 Destaques) - Ocupa 2/4 (Metade da tela) */}
+                        {/* Coluna Esquerda: Melhores Pontuadores (Top 10 Destaques) - Ocupa 2/4 (Metade da tela) */}
                         <div className="lg:col-span-2">
                           {mostrarInd && top.length > 0 ? (
                             <LightCard
-                              title="Artilharia da rodada"
-                              subtitle={String(camp.naipe_nome).toUpperCase() === 'FEMININO' ? 'TOP 10 ARTILHEIRAS' : 'TOP 10 ARTILHEIROS'}
+                              title="Melhores Pontuadores"
+                              subtitle={String(camp.naipe_nome).toUpperCase() === 'FEMININO' ? 'TOP 10 ATLETAS' : 'TOP 10 ATLETAS'}
                               icon={Trophy}
                               className="h-full"
                             >

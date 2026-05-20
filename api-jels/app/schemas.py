@@ -155,6 +155,7 @@ class EsporteVarianteResponse(BaseModel):
     tipo_modalidade_id: str
     tipo_modalidade_codigo: Optional[str] = None
     tipo_modalidade_nome: Optional[str] = None
+    esporte_permite_campeonato: bool = False
     created_at: Optional[str] = None
 
 
