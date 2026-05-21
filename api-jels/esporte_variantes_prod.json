@@ -1,0 +1,911 @@
+[
+  {
+    "id": "425e12cb-1fa5-46f6-ab45-aa6d69aa04db",
+    "esporte_id": "c54d24b2-4fd1-49e5-9ced-a264f02583fc",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-13 16:20:00.925295",
+    "edicao_id": 1
+  },
+  {
+    "id": "17da51fb-1cc4-41c0-828a-f902499e68c8",
+    "esporte_id": "c54d24b2-4fd1-49e5-9ced-a264f02583fc",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-13 16:20:00.925295",
+    "edicao_id": 1
+  },
+  {
+    "id": "38cb9e76-182b-4742-ad9e-c6e734beeedd",
+    "esporte_id": "c54d24b2-4fd1-49e5-9ced-a264f02583fc",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-13 16:20:00.925295",
+    "edicao_id": 1
+  },
+  {
+    "id": "1d9a0fa8-ea5a-4afd-99a9-d5ed3b0db046",
+    "esporte_id": "c54d24b2-4fd1-49e5-9ced-a264f02583fc",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-13 16:20:00.925295",
+    "edicao_id": 1
+  },
+  {
+    "id": "50c7fb6a-f995-423c-a8d1-6f02326b6f4d",
+    "esporte_id": "835c6137-7673-44c7-9a5e-55dd063f54e2",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:45:28.779891",
+    "edicao_id": 1
+  },
+  {
+    "id": "0cd62199-69c5-4dce-8dd5-8652a571cf6a",
+    "esporte_id": "835c6137-7673-44c7-9a5e-55dd063f54e2",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:45:28.779891",
+    "edicao_id": 1
+  },
+  {
+    "id": "74f32ada-0e8c-45e1-9525-6ffd9004cd79",
+    "esporte_id": "835c6137-7673-44c7-9a5e-55dd063f54e2",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:45:28.779891",
+    "edicao_id": 1
+  },
+  {
+    "id": "ab49cac5-b697-442d-8e68-528d73370b93",
+    "esporte_id": "835c6137-7673-44c7-9a5e-55dd063f54e2",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:45:28.779891",
+    "edicao_id": 1
+  },
+  {
+    "id": "a9444d2d-1f46-4c84-a852-a30986016ebf",
+    "esporte_id": "fbc77054-573c-4d0e-b888-0702f39ea501",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:46:16.664855",
+    "edicao_id": 1
+  },
+  {
+    "id": "5dd7b26c-e997-44ab-9e55-36133c62e1ae",
+    "esporte_id": "fbc77054-573c-4d0e-b888-0702f39ea501",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:46:16.664855",
+    "edicao_id": 1
+  },
+  {
+    "id": "d412c951-8bd5-4a4a-bc62-4371c13aab80",
+    "esporte_id": "fbc77054-573c-4d0e-b888-0702f39ea501",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:46:16.664855",
+    "edicao_id": 1
+  },
+  {
+    "id": "95f42e26-5963-4da2-ad2b-e7d19231ea32",
+    "esporte_id": "fbc77054-573c-4d0e-b888-0702f39ea501",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:46:16.664855",
+    "edicao_id": 1
+  },
+  {
+    "id": "8ae5fa0b-c374-45d4-970a-77fa4729b57e",
+    "esporte_id": "185cbd16-3bef-43d7-87a5-70bcc283715e",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:47:10.513668",
+    "edicao_id": 1
+  },
+  {
+    "id": "b0126c26-16b5-4135-9160-d3f2d57daf24",
+    "esporte_id": "185cbd16-3bef-43d7-87a5-70bcc283715e",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:47:10.513668",
+    "edicao_id": 1
+  },
+  {
+    "id": "4b57aa0a-608e-4d57-b6cd-167cd549c6da",
+    "esporte_id": "185cbd16-3bef-43d7-87a5-70bcc283715e",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:47:10.513668",
+    "edicao_id": 1
+  },
+  {
+    "id": "4b9d1556-aeb9-453d-aa9a-2ca8db837422",
+    "esporte_id": "185cbd16-3bef-43d7-87a5-70bcc283715e",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:47:10.513668",
+    "edicao_id": 1
+  },
+  {
+    "id": "02030620-2ec0-46ba-aeaa-7032b169df12",
+    "esporte_id": "c3c4ccb1-f5c3-4872-94f2-25ac78e37864",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:48:09.226098",
+    "edicao_id": 1
+  },
+  {
+    "id": "8d4ca7fc-953c-44a8-8a88-90a09d5c114e",
+    "esporte_id": "c3c4ccb1-f5c3-4872-94f2-25ac78e37864",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:48:09.226098",
+    "edicao_id": 1
+  },
+  {
+    "id": "a783209e-1673-4455-abd0-26ff84333ac1",
+    "esporte_id": "c3c4ccb1-f5c3-4872-94f2-25ac78e37864",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:48:09.226098",
+    "edicao_id": 1
+  },
+  {
+    "id": "f8eb01e9-db25-4fe7-b29b-b2bd4d486c8d",
+    "esporte_id": "c3c4ccb1-f5c3-4872-94f2-25ac78e37864",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-14 11:48:09.226098",
+    "edicao_id": 1
+  },
+  {
+    "id": "472569a0-b6d0-43db-a49e-dd33bf4a89c5",
+    "esporte_id": "8ee62af4-d613-4c18-adc8-fad5b168aa82",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:07.617414",
+    "edicao_id": 1
+  },
+  {
+    "id": "243ac793-a44f-4681-bcb5-987cb26ad1b0",
+    "esporte_id": "8ee62af4-d613-4c18-adc8-fad5b168aa82",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:07.617414",
+    "edicao_id": 1
+  },
+  {
+    "id": "179ba195-78bb-42cf-b631-6a64b1ec6af3",
+    "esporte_id": "8ee62af4-d613-4c18-adc8-fad5b168aa82",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:07.617414",
+    "edicao_id": 1
+  },
+  {
+    "id": "5d0ebd86-5af0-45a0-9a57-45a335032d08",
+    "esporte_id": "8ee62af4-d613-4c18-adc8-fad5b168aa82",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:07.617414",
+    "edicao_id": 1
+  },
+  {
+    "id": "08e5c154-ac16-45c0-a891-94b119a03dc5",
+    "esporte_id": "daa83e38-a1e7-4718-88f2-31fc1830af5d",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:30.067302",
+    "edicao_id": 1
+  },
+  {
+    "id": "fd8f5b23-bbe0-4d7c-b0be-a8caed4a6bbc",
+    "esporte_id": "daa83e38-a1e7-4718-88f2-31fc1830af5d",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:30.067302",
+    "edicao_id": 1
+  },
+  {
+    "id": "50017c24-1e21-49dc-a4a4-5bf9e7ffd9de",
+    "esporte_id": "daa83e38-a1e7-4718-88f2-31fc1830af5d",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:30.067302",
+    "edicao_id": 1
+  },
+  {
+    "id": "48d9efad-6179-4163-ae80-3f23a4b4537e",
+    "esporte_id": "daa83e38-a1e7-4718-88f2-31fc1830af5d",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:30.067302",
+    "edicao_id": 1
+  },
+  {
+    "id": "db3c4322-6c3b-4830-ae50-f8c71e61097a",
+    "esporte_id": "af9b62bc-9ccf-4169-82c7-9e45b543b528",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:49.861902",
+    "edicao_id": 1
+  },
+  {
+    "id": "6778079d-b391-4b8d-90e3-e9b3cebbbc59",
+    "esporte_id": "af9b62bc-9ccf-4169-82c7-9e45b543b528",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:49.861902",
+    "edicao_id": 1
+  },
+  {
+    "id": "127b3c91-e7a1-457f-9eae-b853846a8e5d",
+    "esporte_id": "af9b62bc-9ccf-4169-82c7-9e45b543b528",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:49.861902",
+    "edicao_id": 1
+  },
+  {
+    "id": "6ea5188f-9f3b-41f8-bb17-686d3cb0584e",
+    "esporte_id": "af9b62bc-9ccf-4169-82c7-9e45b543b528",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:49:49.861902",
+    "edicao_id": 1
+  },
+  {
+    "id": "adf01b2e-8fb6-48ee-acb8-0c6feb119f32",
+    "esporte_id": "207f29e2-6946-44fc-9985-ec8702f1b252",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:11.163114",
+    "edicao_id": 1
+  },
+  {
+    "id": "40abbb7b-b87f-4f1b-9916-58d7954b8f53",
+    "esporte_id": "207f29e2-6946-44fc-9985-ec8702f1b252",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:11.163114",
+    "edicao_id": 1
+  },
+  {
+    "id": "b383298f-d6ad-43b2-9394-7408e3cdfde5",
+    "esporte_id": "207f29e2-6946-44fc-9985-ec8702f1b252",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:11.163114",
+    "edicao_id": 1
+  },
+  {
+    "id": "60fe5440-537a-410a-93c2-145385e323b3",
+    "esporte_id": "207f29e2-6946-44fc-9985-ec8702f1b252",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:11.163114",
+    "edicao_id": 1
+  },
+  {
+    "id": "b2f43bcc-03ab-43e1-97f3-c4717abd895a",
+    "esporte_id": "b4fa9676-e8c5-435d-81ad-80c8b28fe223",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:24.883338",
+    "edicao_id": 1
+  },
+  {
+    "id": "7f8d8f6a-d25b-4a9b-afba-b0d7b98e8d89",
+    "esporte_id": "b4fa9676-e8c5-435d-81ad-80c8b28fe223",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:24.883338",
+    "edicao_id": 1
+  },
+  {
+    "id": "6f6a2904-576a-490f-87f6-55e22a8304bf",
+    "esporte_id": "b4fa9676-e8c5-435d-81ad-80c8b28fe223",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:24.883338",
+    "edicao_id": 1
+  },
+  {
+    "id": "cea74d4b-e91b-4b0b-93c2-b56e464afdf8",
+    "esporte_id": "b4fa9676-e8c5-435d-81ad-80c8b28fe223",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:24.883338",
+    "edicao_id": 1
+  },
+  {
+    "id": "69fc11b3-b73e-48bb-90cd-47669eb867eb",
+    "esporte_id": "1da44bb8-81de-4e88-a5d2-231ede3ce2c2",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:39.509348",
+    "edicao_id": 1
+  },
+  {
+    "id": "39a5990e-483a-4f4f-8f69-3e920a9a2fdd",
+    "esporte_id": "1da44bb8-81de-4e88-a5d2-231ede3ce2c2",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:39.509348",
+    "edicao_id": 1
+  },
+  {
+    "id": "f220b99a-e156-4106-812f-a9c03a437c6b",
+    "esporte_id": "1da44bb8-81de-4e88-a5d2-231ede3ce2c2",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:39.509348",
+    "edicao_id": 1
+  },
+  {
+    "id": "4443477d-834c-4165-9479-7bdb2b8684b7",
+    "esporte_id": "1da44bb8-81de-4e88-a5d2-231ede3ce2c2",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:39.509348",
+    "edicao_id": 1
+  },
+  {
+    "id": "3e41e28d-fce5-4131-9ec9-2693d88dcadd",
+    "esporte_id": "e7937ec9-3833-4517-88a1-3f44aa82ce4d",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:55.550947",
+    "edicao_id": 1
+  },
+  {
+    "id": "17f81e1b-fdfe-4e5e-bf53-4e3f8bbd1d59",
+    "esporte_id": "e7937ec9-3833-4517-88a1-3f44aa82ce4d",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:55.550947",
+    "edicao_id": 1
+  },
+  {
+    "id": "0cab86de-a6c2-4a8c-9a9d-c462016726f4",
+    "esporte_id": "e7937ec9-3833-4517-88a1-3f44aa82ce4d",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:55.550947",
+    "edicao_id": 1
+  },
+  {
+    "id": "ee92807a-72ec-4ac4-92ee-466bd2f2a22b",
+    "esporte_id": "e7937ec9-3833-4517-88a1-3f44aa82ce4d",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:50:55.550947",
+    "edicao_id": 1
+  },
+  {
+    "id": "4fa98178-c87b-41d9-94e7-afcbb3d44ba8",
+    "esporte_id": "713601de-7be8-4997-be2a-531f6bdd14c7",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:01.257191",
+    "edicao_id": 1
+  },
+  {
+    "id": "891ec08f-f803-4a33-92ed-90e39dfee7ab",
+    "esporte_id": "713601de-7be8-4997-be2a-531f6bdd14c7",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:01.257191",
+    "edicao_id": 1
+  },
+  {
+    "id": "15dc08df-bcec-4c82-9a16-70c6c50d573c",
+    "esporte_id": "713601de-7be8-4997-be2a-531f6bdd14c7",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:01.257191",
+    "edicao_id": 1
+  },
+  {
+    "id": "2f681039-a525-4020-9286-63e7f3f8056f",
+    "esporte_id": "713601de-7be8-4997-be2a-531f6bdd14c7",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:01.257191",
+    "edicao_id": 1
+  },
+  {
+    "id": "26c57dc1-98ab-4198-b7f7-31104057b7fd",
+    "esporte_id": "fa18fec2-5009-4100-9a87-f61ebd28bc69",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:35.333438",
+    "edicao_id": 1
+  },
+  {
+    "id": "e7cf1514-0acf-4905-b4b7-296e3a958931",
+    "esporte_id": "fa18fec2-5009-4100-9a87-f61ebd28bc69",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:35.333438",
+    "edicao_id": 1
+  },
+  {
+    "id": "db942032-77ee-4f36-bca0-1ae8bac83b3c",
+    "esporte_id": "fa18fec2-5009-4100-9a87-f61ebd28bc69",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:35.333438",
+    "edicao_id": 1
+  },
+  {
+    "id": "8bfc4b25-e9ca-4c3b-8f34-3150136b4473",
+    "esporte_id": "fa18fec2-5009-4100-9a87-f61ebd28bc69",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:52:35.333438",
+    "edicao_id": 1
+  },
+  {
+    "id": "ada8fcf2-8790-416f-a97b-e4a4f5b12b22",
+    "esporte_id": "2c1bb8c8-8b90-4772-bcfd-29e6685fdcae",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:53:39.824415",
+    "edicao_id": 1
+  },
+  {
+    "id": "3957e6d4-0ce2-4865-aee7-f999c320c24b",
+    "esporte_id": "2c1bb8c8-8b90-4772-bcfd-29e6685fdcae",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:53:39.824415",
+    "edicao_id": 1
+  },
+  {
+    "id": "f00391dd-9669-49d9-947b-507313b22dd3",
+    "esporte_id": "2c1bb8c8-8b90-4772-bcfd-29e6685fdcae",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:53:39.824415",
+    "edicao_id": 1
+  },
+  {
+    "id": "74ff4211-e282-4d7f-a4ad-a57066b73d7b",
+    "esporte_id": "2c1bb8c8-8b90-4772-bcfd-29e6685fdcae",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:53:39.824415",
+    "edicao_id": 1
+  },
+  {
+    "id": "c2d797a9-e930-402d-8f82-787e3066b554",
+    "esporte_id": "9821515b-2a39-42ca-931a-e880e1cca4ad",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:16.019586",
+    "edicao_id": 1
+  },
+  {
+    "id": "c8241203-9b04-45c4-9243-ccdd8f79f77d",
+    "esporte_id": "9821515b-2a39-42ca-931a-e880e1cca4ad",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:16.019586",
+    "edicao_id": 1
+  },
+  {
+    "id": "624c38e9-8602-47f5-bab6-f664a4a62319",
+    "esporte_id": "9821515b-2a39-42ca-931a-e880e1cca4ad",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:16.019586",
+    "edicao_id": 1
+  },
+  {
+    "id": "ec013041-28f9-4256-a068-0c0641dea7a3",
+    "esporte_id": "9821515b-2a39-42ca-931a-e880e1cca4ad",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:16.019586",
+    "edicao_id": 1
+  },
+  {
+    "id": "c7764ed6-5537-47e3-adfa-71453055800f",
+    "esporte_id": "ae58b858-cb8f-4df5-90d0-d18d08d22c9b",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:51.248353",
+    "edicao_id": 1
+  },
+  {
+    "id": "729c17e0-3802-47a4-91fd-f04d05bf28fa",
+    "esporte_id": "ae58b858-cb8f-4df5-90d0-d18d08d22c9b",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:51.248353",
+    "edicao_id": 1
+  },
+  {
+    "id": "12e75bd9-4de9-4ac6-88e1-a5c1e7e59da0",
+    "esporte_id": "ae58b858-cb8f-4df5-90d0-d18d08d22c9b",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:51.248353",
+    "edicao_id": 1
+  },
+  {
+    "id": "a62146a6-ef2d-40ce-8903-9bb6077cc620",
+    "esporte_id": "ae58b858-cb8f-4df5-90d0-d18d08d22c9b",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:54:51.248353",
+    "edicao_id": 1
+  },
+  {
+    "id": "9e865ef7-891b-4eb4-8a9f-1a794992511f",
+    "esporte_id": "25f16583-553c-42e9-b983-ae1e2c2b9cfc",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:13.444069",
+    "edicao_id": 1
+  },
+  {
+    "id": "a3988c41-9f50-4355-bccb-ada1255f5448",
+    "esporte_id": "25f16583-553c-42e9-b983-ae1e2c2b9cfc",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:13.444069",
+    "edicao_id": 1
+  },
+  {
+    "id": "539418ca-b2cb-4213-a003-accff403f5fd",
+    "esporte_id": "25f16583-553c-42e9-b983-ae1e2c2b9cfc",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:13.444069",
+    "edicao_id": 1
+  },
+  {
+    "id": "7eada08c-51c1-4c57-aea5-cf9b09a8724d",
+    "esporte_id": "25f16583-553c-42e9-b983-ae1e2c2b9cfc",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:13.444069",
+    "edicao_id": 1
+  },
+  {
+    "id": "5144900a-919b-4219-84c6-73418cb3c092",
+    "esporte_id": "740fabcf-b8af-4a53-ac4c-9089ec9ab005",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:40.145737",
+    "edicao_id": 1
+  },
+  {
+    "id": "6e015620-cdd9-4b06-8cd8-83b195f02bf0",
+    "esporte_id": "740fabcf-b8af-4a53-ac4c-9089ec9ab005",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:40.145737",
+    "edicao_id": 1
+  },
+  {
+    "id": "f881de68-8a95-401d-bd1c-196cddfd553a",
+    "esporte_id": "740fabcf-b8af-4a53-ac4c-9089ec9ab005",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:40.145737",
+    "edicao_id": 1
+  },
+  {
+    "id": "3d08fa51-7685-4573-9b4a-5046a0bfec9a",
+    "esporte_id": "740fabcf-b8af-4a53-ac4c-9089ec9ab005",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:40.145737",
+    "edicao_id": 1
+  },
+  {
+    "id": "06bc4f67-5d35-4cd2-a11b-7dd6bfd35cc2",
+    "esporte_id": "64c10774-32c1-4589-9b59-816e5cbe897b",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:56.133827",
+    "edicao_id": 1
+  },
+  {
+    "id": "711e0db8-64c9-4819-b6c0-1601b6ee125e",
+    "esporte_id": "64c10774-32c1-4589-9b59-816e5cbe897b",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:56.133827",
+    "edicao_id": 1
+  },
+  {
+    "id": "95926a3f-25a4-4861-a6ec-f1aba806e453",
+    "esporte_id": "64c10774-32c1-4589-9b59-816e5cbe897b",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:56.133827",
+    "edicao_id": 1
+  },
+  {
+    "id": "0696004f-9513-44eb-9720-b649911de27a",
+    "esporte_id": "64c10774-32c1-4589-9b59-816e5cbe897b",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:55:56.133827",
+    "edicao_id": 1
+  },
+  {
+    "id": "d34e88f2-4ae9-486c-b3e6-0179c8e1a4bc",
+    "esporte_id": "f476e8e3-e9ed-4308-b1d0-9f13d729e561",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:56:35.714701",
+    "edicao_id": 1
+  },
+  {
+    "id": "a3b2f928-a2e1-487b-b735-e80683e6ac9f",
+    "esporte_id": "f476e8e3-e9ed-4308-b1d0-9f13d729e561",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:56:35.714701",
+    "edicao_id": 1
+  },
+  {
+    "id": "f25c5ae4-7a4c-4f5e-aa9c-46a3d7531d39",
+    "esporte_id": "f476e8e3-e9ed-4308-b1d0-9f13d729e561",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:56:35.714701",
+    "edicao_id": 1
+  },
+  {
+    "id": "b97a221f-3b61-4f34-baf0-cba8b3692745",
+    "esporte_id": "f476e8e3-e9ed-4308-b1d0-9f13d729e561",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:56:35.714701",
+    "edicao_id": 1
+  },
+  {
+    "id": "41d3b505-e01d-47cf-98ef-133937adf86f",
+    "esporte_id": "53b71176-cfe9-4550-b7c0-b58de2294e10",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:57:21.398956",
+    "edicao_id": 1
+  },
+  {
+    "id": "d20b03ec-910c-4815-917b-8b672bc47717",
+    "esporte_id": "53b71176-cfe9-4550-b7c0-b58de2294e10",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:57:21.398956",
+    "edicao_id": 1
+  },
+  {
+    "id": "a12d47ce-eb90-4dad-80b2-4ac624743fc6",
+    "esporte_id": "53b71176-cfe9-4550-b7c0-b58de2294e10",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:57:21.398956",
+    "edicao_id": 1
+  },
+  {
+    "id": "a781e0b4-bbe4-4c48-8fd2-1e85d6286e25",
+    "esporte_id": "53b71176-cfe9-4550-b7c0-b58de2294e10",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:57:21.398956",
+    "edicao_id": 1
+  },
+  {
+    "id": "db13fef9-435b-410d-8136-699ad84287a2",
+    "esporte_id": "10ce2287-90e0-46c5-973b-d8092a8f52a4",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:58:31.082375",
+    "edicao_id": 1
+  },
+  {
+    "id": "7f55e8cc-33f4-406f-bdf9-166fec54484e",
+    "esporte_id": "10ce2287-90e0-46c5-973b-d8092a8f52a4",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:58:31.082375",
+    "edicao_id": 1
+  },
+  {
+    "id": "4dfeecdf-5f6c-40cc-9985-ba1e7f6a34f5",
+    "esporte_id": "10ce2287-90e0-46c5-973b-d8092a8f52a4",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:58:31.082375",
+    "edicao_id": 1
+  },
+  {
+    "id": "359e0467-db09-477b-a7a2-f79549999d5f",
+    "esporte_id": "10ce2287-90e0-46c5-973b-d8092a8f52a4",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-14 11:58:31.082375",
+    "edicao_id": 1
+  },
+  {
+    "id": "68285f13-b9f4-4b55-a663-9f2217255319",
+    "esporte_id": "ac61d2bb-c341-4b10-9eeb-7115c3463a8a",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-15 19:51:51.154581",
+    "edicao_id": 1
+  },
+  {
+    "id": "f472eafc-70df-4a4a-85d5-c229b3b54d77",
+    "esporte_id": "ac61d2bb-c341-4b10-9eeb-7115c3463a8a",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-15 19:51:51.154581",
+    "edicao_id": 1
+  },
+  {
+    "id": "9ce6d00b-fcbc-4b2d-bc3f-029c1cce3873",
+    "esporte_id": "ac61d2bb-c341-4b10-9eeb-7115c3463a8a",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-15 19:51:51.154581",
+    "edicao_id": 1
+  },
+  {
+    "id": "432064d4-9e4d-4be2-9810-5bab6220043e",
+    "esporte_id": "ac61d2bb-c341-4b10-9eeb-7115c3463a8a",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "70ada5a1-75f7-4a56-9644-45015d15973f",
+    "created_at": "2026-04-15 19:51:51.154581",
+    "edicao_id": 1
+  },
+  {
+    "id": "900d48d8-d7d0-494b-b79c-4514388075fa",
+    "esporte_id": "7521d98b-f16b-45c7-b0d6-f9b8e586df2e",
+    "categoria_id": "79f4979b-ea8b-4b9e-8ef2-0e3a58509c34",
+    "naipe_id": "9d113b47-257e-4a9f-99cf-c65c2d84f60d",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-22 17:49:22.705040",
+    "edicao_id": 1
+  },
+  {
+    "id": "a6325762-7bc5-4e01-9487-23be5430514b",
+    "esporte_id": "a1f7ffc9-9e57-4a93-baa2-71a4a2d65605",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-24 13:55:20.757920",
+    "edicao_id": 1
+  },
+  {
+    "id": "48adc53d-17bc-413d-b855-23b7de7fb051",
+    "esporte_id": "a1f7ffc9-9e57-4a93-baa2-71a4a2d65605",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "410177ca-e2ce-4d3c-96f0-84feaff341cc",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-24 13:55:20.757920",
+    "edicao_id": 1
+  },
+  {
+    "id": "3ca12442-771f-4268-9e77-00bf7fd53052",
+    "esporte_id": "a1f7ffc9-9e57-4a93-baa2-71a4a2d65605",
+    "categoria_id": "65a490ec-c88d-4e5e-951b-a2c9d6d1853b",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-24 13:55:20.757920",
+    "edicao_id": 1
+  },
+  {
+    "id": "de3def08-2de7-4c49-85df-ada460678595",
+    "esporte_id": "a1f7ffc9-9e57-4a93-baa2-71a4a2d65605",
+    "categoria_id": "2935e982-d6b5-4dba-bfd5-fb62a06be1d5",
+    "naipe_id": "446a2d9a-63f6-4cc1-95eb-19b1ea4a43df",
+    "tipo_modalidade_id": "aac10b6e-c210-4ef1-86cb-64a4b7ab8778",
+    "created_at": "2026-04-24 13:55:20.757920",
+    "edicao_id": 1
+  }
+]

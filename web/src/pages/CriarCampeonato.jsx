@@ -11,6 +11,18 @@ import SorteioGruposAoVivo from '../components/campeonato/SorteioGruposAoVivo'
 
 const VAGAS_ELIM_OPTS = [2, 4, 8, 16]
 
+/** Coletivas ou esporte com permite_campeonato (ex.: Vôlei de Praia individual). */
+function varianteElegivelCampeonato(v) {
+  if (!v) return false
+  if (v.tipo_modalidade_codigo === 'COLETIVAS' || v.tipo_modalidade_nome === 'COLETIVAS') return true
+  return Boolean(v.esporte_permite_campeonato)
+}
+
+/** Uma equipe por escola (coletivas e esportes com campeonato habilitado). */
+function varianteUnicaEquipePorEscola(v) {
+  return varianteElegivelCampeonato(v)
+}
+
 /** Nome exibido do grupo: A…Z, depois 27, 28, … */
 function nomeGrupoLabel(index) {
   if (index < 26) return String.fromCharCode(65 + index)
@@ -724,7 +736,7 @@ export default function CriarCampeonato() {
     const idsComCampeonato = new Set(campeonatosExistentes.map((c) => c.esporte_variante_id))
     return variantes.filter(
       (v) =>
-        (modoCadastro === 'manual' || v.tipo_modalidade_nome === 'COLETIVAS') &&
+        (modoCadastro === 'manual' || varianteElegivelCampeonato(v)) &&
         !idsComCampeonato.has(v.id) &&
         (!edicaoId || v.edicao_id === edicaoId)
     )
@@ -967,7 +979,7 @@ export default function CriarCampeonato() {
               ? `${varianteSelecionada ? varianteLabel(varianteSelecionada) : ''} · ${equipesSorteio.length} equipes confirmadas`
               : modoCadastro === 'manual'
                 ? 'Cadastro manual para publicação de confrontos, classificação e resultados'
-                : 'Modalidades coletivas · Sorteio manual de grupos'}
+                : 'Modalidades com campeonato · Sorteio manual de grupos'}
           </p>
         </div>
       </div>
@@ -1009,7 +1021,7 @@ export default function CriarCampeonato() {
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-[#374151]">Modalidade</label>
               <Select
-                placeholder={modoCadastro === 'manual' ? 'Selecione a modalidade' : 'Selecione a modalidade coletiva'}
+                placeholder={modoCadastro === 'manual' ? 'Selecione a modalidade' : 'Selecione a modalidade'}
                 disabled={bloqueioManual}
                 value={varianteId}
                 onChange={setVarianteId}
@@ -1294,7 +1306,7 @@ export default function CriarCampeonato() {
             Adicionar escola sem equipe cadastrada
           </span>
           <p className="text-xs text-[#64748b] m-0">
-            {varianteSelecionada?.tipo_modalidade_nome === 'COLETIVAS'
+            {varianteUnicaEquipePorEscola(varianteSelecionada)
               ? 'Apenas escolas que ainda não possuem equipe nesta modalidade.'
               : 'Qualquer escola pode ser adicionada (múltiplas equipes por escola permitidas).'}
           </p>
@@ -1308,7 +1320,7 @@ export default function CriarCampeonato() {
               onChange={setEscolaParaAdicionar}
               options={escolas
                 .filter((esc) =>
-                  varianteSelecionada?.tipo_modalidade_nome === 'COLETIVAS'
+                  varianteUnicaEquipePorEscola(varianteSelecionada)
                     ? !equipes.some((e) => e.escola_id === esc.id)
                     : true
                 )

@@ -62,6 +62,14 @@ from app.services.pontuacao_service import (
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
 
+_WHERE_VARIANTE_ELEGIVEL_CAMPEONATO = (
+    "(tm.codigo = 'COLETIVAS' OR COALESCE(esp.permite_campeonato, FALSE) = TRUE)"
+)
+_DETAIL_VARIANTE_NAO_ELEGIVEL = (
+    "Variante não encontrada na edição ou não é elegível para campeonato "
+    "(modalidade coletiva ou esporte com campeonato habilitado)."
+)
+
 _SQL_MANUAL_CONFRONTO_BASE = """
     SELECT cmc.*,
            COALESCE(pa.nome_exibicao, cmc.participante_a_nome) AS participante_a_nome,
@@ -1341,8 +1349,8 @@ async def criar_equipe_provisoria(
     Cria uma equipe provisória para uma escola que não possui equipe cadastrada na
     variante/edição, permitindo incluí-la no sorteio de um campeonato de última hora.
     A escola deve preencher professor-técnico e atletas posteriormente.
-    Regras: COLETIVAS → 1 equipe por escola (o trigger do banco garante);
-            INDIVIDUAIS → múltiplas equipes por escola são permitidas.
+    Regras: COLETIVAS ou esporte com permite_campeonato → 1 equipe por escola (trigger);
+            demais INDIVIDUAIS → múltiplas equipes por escola são permitidas.
     """
     _require_admin(current_user)
     resolved_edicao_id = await resolve_edicao_id(conn, data.edicao_id)
@@ -1404,7 +1412,7 @@ async def criar_equipe_provisoria(
 
 @router.get("/estrutura-grupos-preview", response_model=EstruturaGruposPreviewResponse)
 async def get_estrutura_grupos_preview(
-    esporte_variante_id: str = Query(..., description="ID da variante COLETIVA"),
+    esporte_variante_id: str = Query(..., description="ID da variante elegível para campeonato"),
     edicao_id: int | None = Query(None, description="Contexto de edição; se omitido usa a ativa"),
     total_equipes: int | None = Query(None, description="Total real de equipes confirmadas; se omitido conta do banco"),
     conn: psycopg.AsyncConnection = Depends(get_db),
@@ -1420,18 +1428,19 @@ async def get_estrutura_grupos_preview(
 
     async with conn.cursor() as cur:
         await cur.execute(
-            """
+            f"""
             SELECT ev.id
             FROM esporte_variantes ev
+            JOIN esportes esp ON esp.id = ev.esporte_id
             JOIN tipos_modalidade tm ON tm.id = ev.tipo_modalidade_id
-            WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+            WHERE ev.id = %s AND ev.edicao_id = %s AND {_WHERE_VARIANTE_ELEGIVEL_CAMPEONATO}
             """,
             (esporte_variante_id, resolved_edicao_id),
         )
         if not await cur.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+                detail=_DETAIL_VARIANTE_NAO_ELEGIVEL,
             )
 
         if total_equipes is None:
@@ -1556,7 +1565,7 @@ async def criar_com_sorteio(
     async with conn.transaction():
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                f"""
                 SELECT ev.id,
                        esp.nome AS esporte_nome,
                        cat.nome AS categoria_nome,
@@ -1566,7 +1575,7 @@ async def criar_com_sorteio(
                 JOIN esportes esp        ON esp.id = ev.esporte_id
                 JOIN categorias cat      ON cat.id = ev.categoria_id
                 JOIN naipes nai          ON nai.id = ev.naipe_id
-                WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+                WHERE ev.id = %s AND ev.edicao_id = %s AND {_WHERE_VARIANTE_ELEGIVEL_CAMPEONATO}
                 """,
                 (data.esporte_variante_id, resolved_edicao_id),
             )
@@ -1574,7 +1583,7 @@ async def criar_com_sorteio(
             if not variante:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+                    detail=_DETAIL_VARIANTE_NAO_ELEGIVEL,
                 )
 
             await cur.execute(
@@ -1696,7 +1705,7 @@ async def criar_automatico(
     async with conn.transaction():
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                f"""
                 SELECT ev.id,
                        esp.nome AS esporte_nome,
                        cat.nome AS categoria_nome,
@@ -1706,7 +1715,7 @@ async def criar_automatico(
                 JOIN esportes esp        ON esp.id = ev.esporte_id
                 JOIN categorias cat      ON cat.id = ev.categoria_id
                 JOIN naipes nai          ON nai.id = ev.naipe_id
-                WHERE ev.id = %s AND ev.edicao_id = %s AND tm.codigo = 'COLETIVAS'
+                WHERE ev.id = %s AND ev.edicao_id = %s AND {_WHERE_VARIANTE_ELEGIVEL_CAMPEONATO}
                 """,
                 (data.esporte_variante_id, resolved_edicao_id),
             )
@@ -1714,7 +1723,7 @@ async def criar_automatico(
             if not variante:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Variante não encontrada na edição ou não é modalidade COLETIVA.",
+                    detail=_DETAIL_VARIANTE_NAO_ELEGIVEL,
                 )
 
             await cur.execute(

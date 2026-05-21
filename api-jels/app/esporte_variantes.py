@@ -38,6 +38,7 @@ def _row_to_response(row: dict) -> EsporteVarianteResponse:
         tipo_modalidade_id=str(row["tipo_modalidade_id"]),
         tipo_modalidade_codigo=row.get("tipo_modalidade_codigo"),
         tipo_modalidade_nome=row.get("tipo_modalidade_nome"),
+        esporte_permite_campeonato=bool(row.get("esporte_permite_campeonato", False)),
         created_at=row["created_at"].isoformat() if row.get("created_at") else None,
     )
 
@@ -57,7 +58,8 @@ async def list_esporte_variantes(
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
-                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
+                   e.permite_campeonato AS esporte_permite_campeonato
             FROM esporte_variantes ev
             JOIN esportes e ON e.id = ev.esporte_id
             JOIN categorias c ON c.id = ev.categoria_id
@@ -74,7 +76,8 @@ async def list_esporte_variantes(
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
-                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
+                   e.permite_campeonato AS esporte_permite_campeonato
             FROM esporte_variantes ev
             JOIN esportes e ON e.id = ev.esporte_id
             JOIN categorias c ON c.id = ev.categoria_id
@@ -117,7 +120,8 @@ async def list_variantes_minha_escola(
                e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                n.codigo AS naipe_codigo, n.nome AS naipe_nome,
-               tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+               tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
+               e.permite_campeonato AS esporte_permite_campeonato
         FROM esporte_variantes ev
         JOIN esportes e ON e.id = ev.esporte_id
         JOIN categorias c ON c.id = ev.categoria_id
@@ -149,7 +153,8 @@ async def get_esporte_variante(
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
-                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
+                   e.permite_campeonato AS esporte_permite_campeonato
             FROM esporte_variantes ev
             JOIN esportes e ON e.id = ev.esporte_id
             JOIN categorias c ON c.id = ev.categoria_id
@@ -216,7 +221,8 @@ async def create_esporte_variante(
                    e.requisitos AS esporte_requisitos, e.ativa AS esporte_ativa,
                    c.nome AS categoria_nome, c.idade_min AS categoria_idade_min, c.idade_max AS categoria_idade_max,
                    n.codigo AS naipe_codigo, n.nome AS naipe_nome,
-                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome
+                   tm.codigo AS tipo_modalidade_codigo, tm.nome AS tipo_modalidade_nome,
+                   e.permite_campeonato AS esporte_permite_campeonato
             FROM esporte_variantes ev
             JOIN esportes e ON e.id = ev.esporte_id
             JOIN categorias c ON c.id = ev.categoria_id

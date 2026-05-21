@@ -1,17 +1,12 @@
 /**
  * Configuração de API e cliente HTTP.
- * Em desenvolvimento: sempre usa proxy (/api-service, /api-postgrest) para evitar CORS.
- * O target do proxy é definido no vite.config.js (server.proxy) via VITE_API_SERVICE_URL, VITE_POSTGREST_URL.
- * Em produção: usa URLs diretas das variáveis de ambiente.
+ * Em desenvolvimento: proxy (/api-service, /api-postgrest) via vite.config.js.
+ * Em produção: VITE_* no build ou inferência a partir do host (jels.* → auth-jels.*, …).
  */
-const isDev = import.meta.env.DEV
+import { resolveApiServiceUrl, resolvePostgrestUrl } from './backendUrls'
 
-const API_SERVICE_URL = isDev
-  ? '/api-service'
-  : (import.meta.env.VITE_API_SERVICE_URL || '')
-const POSTGREST_URL = isDev
-  ? '/api-postgrest'
-  : (import.meta.env.VITE_POSTGREST_URL || '')
+const API_SERVICE_URL = resolveApiServiceUrl()
+const POSTGREST_URL = resolvePostgrestUrl()
 
 const TOKEN_KEY = 'jogos-escolares-access-token'
 const REFRESH_TOKEN_KEY = 'jogos-escolares-refresh-token'

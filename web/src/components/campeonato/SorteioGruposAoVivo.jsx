@@ -9,7 +9,7 @@ import {
 import { Button, Tag, Tooltip } from 'antd'
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
-import { Play, Search, Trophy, Undo2 } from 'lucide-react'
+import { ListOrdered, Play, Search, SkipForward, Square, Trophy } from 'lucide-react'
 import { destinoRodizio } from './sorteioGruposRodizio'
 
 const Motion = motion
@@ -229,6 +229,7 @@ function RoletaVirtual({
   mode = 'idle',
   idleCycleLength = 0,
   historicoSorteadoIds = [],
+  skipSpinNonce = 0,
 }) {
   const idleY = useMotionValue(0)
   const ty = useTransform([reelY, idleY], ([r, i]) =>
@@ -317,6 +318,32 @@ function RoletaVirtual({
       spinAnimRef.current = null
     }
   }, [mode, strip, itemHeight, reducedMotion, reelY, idleY])
+
+  useEffect(() => {
+    if (skipSpinNonce < 1 || strip.length === 0) return undefined
+
+    if (idleAnimRef.current) {
+      idleAnimRef.current.stop()
+      idleAnimRef.current = null
+    }
+    if (spinAnimRef.current) {
+      spinAnimRef.current.stop()
+      spinAnimRef.current = null
+    }
+
+    const carryIdle = idleY.get()
+    const snap = itemHeight
+    const merged = reelY.get() + carryIdle
+    reelY.set(Math.round(merged / snap) * snap)
+    idleY.set(0)
+
+    const target = stripScrollTargetY(reelWinnerIndex(strip.length), itemHeight)
+    reelY.set(target)
+    setWinnerLanded(true)
+    firedRef.current = true
+
+    return undefined
+  }, [skipSpinNonce, strip, itemHeight, reelY, idleY])
 
   useEffect(() => {
     if (mode !== 'idle' || strip.length === 0) {
@@ -457,9 +484,15 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
   const [rouletteStrip, setRouletteStrip] = useState([])
   const [historicoSorteadoIds, setHistoricoSorteadoIds] = useState([])
   const [highlightDest, setHighlightDest] = useState(null)
-  const [lastRoleta, setLastRoleta] = useState(null)
+  const [skipSpinNonce, setSkipSpinNonce] = useState(0)
+  const [exibindoResultado, setExibindoResultado] = useState(false)
+  const [sorteioAutomatico, setSorteioAutomatico] = useState(false)
   const reducedMotion = useReducedMotion()
   const reelY = useMotionValue(0)
+
+  const DWELL_MS_NORMAL = 2400
+  const DWELL_MS_SKIP = 700
+  const AUTO_PAUSE_MS = 450
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -470,6 +503,17 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
 
   const pendingApplyRef = useRef(null)
   const dwellTimerRef = useRef(null)
+  const autoAdvanceTimerRef = useRef(null)
+  const autoPausaEntreGirosRef = useRef(false)
+
+  const pararSorteioAutomatico = useCallback(() => {
+    setSorteioAutomatico(false)
+    autoPausaEntreGirosRef.current = false
+    if (autoAdvanceTimerRef.current != null) {
+      window.clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
+  }, [])
 
   useEffect(
     () => () => {
@@ -477,37 +521,59 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
         window.clearTimeout(dwellTimerRef.current)
         dwellTimerRef.current = null
       }
+      if (autoAdvanceTimerRef.current != null) {
+        window.clearTimeout(autoAdvanceTimerRef.current)
+        autoAdvanceTimerRef.current = null
+      }
     },
     []
   )
 
+  const commitPendingPlacement = useCallback(() => {
+    const pending = pendingApplyRef.current
+    if (!pending) return
+    pendingApplyRef.current = null
+    const { equipe, gi, si } = pending
+    setGrupos((prev) => {
+      const next = prev.map((g) => ({ ...g, slots: [...g.slots] }))
+      next[gi].slots[si] = equipe
+      return next
+    })
+    setHistoricoSorteadoIds((prev) => (prev.includes(equipe.id) ? prev : [...prev, equipe.id]))
+    setHighlightDest(null)
+    setAnimating(false)
+    setExibindoResultado(false)
+    setSkipSpinNonce(0)
+  }, [])
+
   /** Após a animação da roleta, mantém o resultado visível (dwell) antes de aplicar no grupo. */
-  const applyRoletaPlacement = useCallback(() => {
-    if (!pendingApplyRef.current) return
-    if (dwellTimerRef.current != null) {
-      window.clearTimeout(dwellTimerRef.current)
-      dwellTimerRef.current = null
-    }
+  const applyRoletaPlacement = useCallback(
+    (opts = {}) => {
+      if (!pendingApplyRef.current) return
+      if (dwellTimerRef.current != null) {
+        window.clearTimeout(dwellTimerRef.current)
+        dwellTimerRef.current = null
+      }
 
-    const dwellMs = reducedMotion ? 1200 : 2400
+      const dwellMs =
+        typeof opts.dwellMs === 'number'
+          ? opts.dwellMs
+          : reducedMotion
+            ? Math.round(DWELL_MS_NORMAL / 2)
+            : DWELL_MS_NORMAL
 
-    dwellTimerRef.current = window.setTimeout(() => {
-      dwellTimerRef.current = null
-      const pending = pendingApplyRef.current
-      if (!pending) return
-      pendingApplyRef.current = null
-      const { equipe, gi, si } = pending
-      setGrupos((prev) => {
-        const next = prev.map((g) => ({ ...g, slots: [...g.slots] }))
-        next[gi].slots[si] = equipe
-        return next
-      })
-      setLastRoleta({ equipe, gi, si })
-      setHistoricoSorteadoIds((prev) => (prev.includes(equipe.id) ? prev : [...prev, equipe.id]))
-      setHighlightDest(null)
-      setAnimating(false)
-    }, dwellMs)
-  }, [reducedMotion])
+      setExibindoResultado(true)
+      dwellTimerRef.current = window.setTimeout(() => {
+        dwellTimerRef.current = null
+        commitPendingPlacement()
+      }, dwellMs)
+    },
+    [reducedMotion, commitPendingPlacement],
+  )
+
+  const handleRoletaAnimationComplete = useCallback(() => {
+    applyRoletaPlacement({})
+  }, [applyRoletaPlacement])
 
   function findSource(equipeId) {
     if (pool.some((e) => e.id === equipeId)) return { tipo: 'pool' }
@@ -520,6 +586,7 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
   }
 
   function handleDragEnd({ active, over }) {
+    if (sorteioAutomatico) pararSorteioAutomatico()
     if (!over) return
 
     const equipeId = parseInt(String(active.id).replace('equipe-', ''), 10)
@@ -540,7 +607,6 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
         return next
       })
       setPool((prev) => [...prev, draggingEquipe])
-      setLastRoleta(null)
       return
     }
 
@@ -569,7 +635,6 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
         return next
       })
     }
-    setLastRoleta(null)
   }
 
   function handleRemoveFromSlot(gi, si) {
@@ -581,7 +646,6 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
       return next
     })
     setPool((prev) => [...prev, equipe])
-    setLastRoleta(null)
   }
 
   function handleSalvar() {
@@ -589,15 +653,16 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
     onSalvar(payload)
   }
 
-  function handleSortearProximo() {
-    if (animating || pool.length === 0) return
-    const dest = destinoRodizio(grupos)
-    if (!dest) return
-    const equipe = pickRandomEquipe(pool)
-    if (!equipe) return
-
+  function iniciarSorteioRoleta(equipe, dest) {
+    setSkipSpinNonce(0)
     pendingApplyRef.current = { equipe, gi: dest.gi, si: dest.si }
-    setHighlightDest({ gi: dest.gi, si: dest.si, nomeGrupo: nomeGrupoLabel(dest.gi), slotOrd: dest.si + 1 })
+    setHighlightDest({
+      gi: dest.gi,
+      si: dest.si,
+      nomeGrupo: nomeGrupoLabel(dest.gi),
+      slotOrd: dest.si + 1,
+    })
+    setPool((prev) => prev.filter((e) => e.id !== equipe.id))
 
     const appendDecoys = 52
     const firstSpinDecoys = 78
@@ -617,25 +682,66 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
     } else {
       strip = buildRouletteStrip(pool, equipe, firstSpinDecoys)
     }
-    setPool((prev) => prev.filter((e) => e.id !== equipe.id))
     setRouletteStrip(strip)
     setAnimating(true)
   }
 
-  function handleDesfazerRoleta() {
-    if (!lastRoleta || animating) return
-    const { equipe, gi, si } = lastRoleta
-    setGrupos((prev) => {
-      const next = prev.map((g) => ({ ...g, slots: [...g.slots] }))
-      if (next[gi]?.slots[si]?.id !== equipe.id) return prev
-      next[gi].slots[si] = null
-      return next
-    })
-    setPool((prev) => [...prev, equipe])
-    setLastRoleta(null)
-    setRouletteStrip([])
-    setHistoricoSorteadoIds([])
-    reelY.set(0)
+  function handleSortearProximo() {
+    if (animating || pool.length === 0) return
+    const dest = destinoRodizio(grupos)
+    if (!dest) {
+      if (sorteioAutomatico) pararSorteioAutomatico()
+      return
+    }
+    const equipe = pickRandomEquipe(pool)
+    if (!equipe) {
+      if (sorteioAutomatico) pararSorteioAutomatico()
+      return
+    }
+    iniciarSorteioRoleta(equipe, dest)
+  }
+
+  const rodadaOciosa = !animating && !exibindoResultado && pendingApplyRef.current == null
+
+  useEffect(() => {
+    if (!sorteioAutomatico) return
+    if (!rodadaOciosa) return
+    if (pool.length === 0) {
+      pararSorteioAutomatico()
+      return
+    }
+
+    const delay = autoPausaEntreGirosRef.current ? AUTO_PAUSE_MS : 0
+    autoPausaEntreGirosRef.current = true
+
+    autoAdvanceTimerRef.current = window.setTimeout(() => {
+      autoAdvanceTimerRef.current = null
+      handleSortearProximo()
+    }, delay)
+
+    return () => {
+      if (autoAdvanceTimerRef.current != null) {
+        window.clearTimeout(autoAdvanceTimerRef.current)
+        autoAdvanceTimerRef.current = null
+      }
+    }
+  }, [sorteioAutomatico, rodadaOciosa, pool.length, pararSorteioAutomatico])
+
+  function handleIniciarSorteioCompleto() {
+    if (pool.length === 0 || animating || exibindoResultado) return
+    autoPausaEntreGirosRef.current = false
+    setSorteioAutomatico(true)
+  }
+
+  function handleSkipRoleta() {
+    if (!animating || !pendingApplyRef.current) return
+    if (rouletteStrip.length > 0) {
+      const target = stripScrollTargetY(reelWinnerIndex(rouletteStrip.length), itemHeight)
+      reelY.set(target)
+    }
+    setSkipSpinNonce((n) => n + 1)
+    setAnimating(false)
+    applyRoletaPlacement({ dwellMs: reducedMotion ? Math.round(DWELL_MS_SKIP / 2) : DWELL_MS_SKIP })
   }
 
   const poolFiltrado = useMemo(
@@ -736,27 +842,62 @@ export default function SorteioGruposAoVivo({ equipes, estrutura, onSalvar, salv
                 itemHeight={itemHeight}
                 reducedMotion={!!reducedMotion}
                 historicoSorteadoIds={historicoSorteadoIds}
-                onAnimationComplete={applyRoletaPlacement}
+                skipSpinNonce={skipSpinNonce}
+                onAnimationComplete={handleRoletaAnimationComplete}
               />
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<Play size={18} />}
-                  disabled={pool.length === 0 || animating}
-                  onClick={handleSortearProximo}
-                  style={{ backgroundColor: '#0f766e', borderColor: '#0f766e' }}
-                >
-                  Girar sorteio
-                </Button>
-                <Button
-                  size="large"
-                  icon={<Undo2 size={16} />}
-                  disabled={!lastRoleta || animating}
-                  onClick={handleDesfazerRoleta}
-                >
-                  Desfazer último sorteio
-                </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {sorteioAutomatico ? (
+                  <Tooltip title="Parar sorteio completo">
+                    <Button
+                      type="primary"
+                      danger
+                      size="large"
+                      icon={<Square size={18} />}
+                      aria-label="Parar sorteio completo"
+                      onClick={pararSorteioAutomatico}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="Sortear todos">
+                    <span className="inline-flex">
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<ListOrdered size={18} />}
+                        aria-label="Sortear todos"
+                        disabled={pool.length === 0 || animating || exibindoResultado}
+                        onClick={handleIniciarSorteioCompleto}
+                        style={{ backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' }}
+                      />
+                    </span>
+                  </Tooltip>
+                )}
+                <Tooltip title="Girar sorteio">
+                  <span className="inline-flex">
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<Play size={18} />}
+                      aria-label="Girar sorteio"
+                      disabled={
+                        pool.length === 0 || animating || exibindoResultado || sorteioAutomatico
+                      }
+                      onClick={handleSortearProximo}
+                      style={{ backgroundColor: '#0f766e', borderColor: '#0f766e' }}
+                    />
+                  </span>
+                </Tooltip>
+                <Tooltip title="Pular">
+                  <span className="inline-flex">
+                    <Button
+                      size="large"
+                      icon={<SkipForward size={18} />}
+                      aria-label="Pular"
+                      disabled={!animating}
+                      onClick={handleSkipRoleta}
+                    />
+                  </span>
+                </Tooltip>
               </div>
             </aside>
           )}

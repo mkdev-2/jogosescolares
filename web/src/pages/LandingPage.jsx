@@ -1,6 +1,7 @@
 import PublicHeader from '../components/landing/PublicHeader'
 import HeroSection from '../components/landing/HeroSection'
 import HowToParticipate from '../components/landing/HowToParticipate'
+import DestaquesRodadaSection from '../components/landing/DestaquesRodadaSection'
 import LocaisCarousel from '../components/landing/LocaisCarousel'
 import GallerySection from '../components/landing/GallerySection'
 import BoletinsOficiaisSection from '../components/landing/BoletinsOficiaisSection'
@@ -26,6 +27,8 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      <DestaquesRodadaSection />
 
       <LocaisCarousel />
 
