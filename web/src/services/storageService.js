@@ -1,7 +1,8 @@
 import { apiFetch, API_SERVICE_URL } from '../config/api'
+import { resolveMinioPublicUrl } from '../config/backendUrls'
 
 const BUCKET = 'jogosescolares'
-const STORAGE_PUBLIC_BASE = (import.meta.env.VITE_MINIO_URL || '').trim().replace(/\/$/, '')
+const STORAGE_PUBLIC_BASE = resolveMinioPublicUrl()
 
 function buildStorageFileUrl(relativePath) {
   const clean = String(relativePath || '').trim().replace(/^\/+/, '')
