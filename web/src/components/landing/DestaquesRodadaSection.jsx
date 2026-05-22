@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Loader2, Trophy, User, Target, X, Calendar } from 'lucide-react'
+import { Loader2, Trophy, User, Target, Calendar } from 'lucide-react'
 import ModalidadeIcon from '../catalogos/ModalidadeIcon'
 import { publicCampeonatosService } from '../../services/publicCampeonatosService'
 
@@ -44,29 +44,136 @@ function AvatarAtleta({ nome, fotoUrl, className = '', round = false }) {
   )
 }
 
-/** Card estilo dashboard claro com faixa superior verde escura (modelo referência) */
-function LightCard({ title, subtitle, icon: IconComponent, children, className = '' }) {
+/** Card de destaque: faixa escura (padrão) ou cabeçalho claro (atletas destaque). */
+function LightCard({
+  title,
+  subtitle,
+  icon: IconComponent,
+  children,
+  className = '',
+  bodyClassName = 'p-6',
+  headerVariant = 'dark',
+}) {
+  const shellClass =
+    `flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 ${className}`
+
+  if (headerVariant === 'soft') {
+    return (
+      <div className={shellClass}>
+        <div className="border-b border-slate-100 px-4 pb-3 pt-4">
+          <div className="flex items-start gap-2.5">
+            {IconComponent ? (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <IconComponent size={17} strokeWidth={2.25} />
+              </div>
+            ) : null}
+            <div className="min-w-0">
+              <h3 className="m-0 font-display text-sm font-black uppercase tracking-wide text-[#044f38] leading-tight">
+                {title}
+              </h3>
+              {subtitle ? (
+                <p className="m-0 mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className={`flex flex-col ${bodyClassName}`}>{children}</div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className={`flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow transition-all duration-200 ${className}`}
-    >
-      {/* Faixa superior verde escura */}
-      <div className="bg-[#044f38] px-6 py-4 flex flex-col gap-1">
+    <div className={shellClass}>
+      <div className="flex flex-col gap-1 bg-[#044f38] px-5 py-3.5">
         <div className="flex items-center gap-2">
-          {IconComponent && <IconComponent className="text-white shrink-0" size={16} strokeWidth={2.5} />}
-          <h3 className="m-0 font-display text-sm font-black uppercase tracking-wide text-white leading-none">
+          {IconComponent ? <IconComponent className="shrink-0 text-white" size={16} strokeWidth={2.5} /> : null}
+          <h3 className="m-0 font-display text-sm font-black uppercase tracking-wide leading-none text-white">
             {title}
           </h3>
         </div>
         {subtitle ? (
-          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-200/80 m-0 leading-none">
+          <p className="m-0 text-[10px] font-bold uppercase tracking-wider leading-none text-emerald-200/80">
             {subtitle}
           </p>
         ) : null}
       </div>
-      {/* Corpo do card */}
-      <div className="p-6 flex flex-1 flex-col">{children}</div>
+      <div className={`flex flex-col ${bodyClassName}`}>{children}</div>
     </div>
+  )
+}
+
+function PontuacaoDestaque({ total, labelUnidade, compact = false }) {
+  const label = total === 1 ? labelUnidade.replace(/s$/, '') : labelUnidade
+  return (
+    <div className="shrink-0 text-right leading-none">
+      <span
+        className={`block font-black tabular-nums text-[#044f38] ${compact ? 'text-base' : 'text-xl'}`}
+      >
+        {total}
+      </span>
+      <span className="mt-0.5 block text-[10px] font-medium text-slate-400">{label}</span>
+    </div>
+  )
+}
+
+function AtletaDestaqueRow({ atleta, labelUnidade }) {
+  const destaque = atleta.posicao === 1
+  return (
+    <li
+      className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 ${
+        destaque ? 'bg-emerald-50 ring-1 ring-emerald-100/80' : 'border border-slate-200/90 bg-white'
+      }`}
+    >
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black shadow-sm ${badgePosicaoClass(atleta.posicao)}`}
+      >
+        {atleta.posicao}
+      </span>
+      <AvatarAtleta
+        nome={atleta.estudante_nome}
+        fotoUrl={atleta.estudante_foto_url}
+        className="h-9 w-9 shrink-0 shadow-sm"
+        round
+      />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-sm font-bold leading-tight text-[#044f38] line-clamp-1">
+          {atleta.estudante_nome}
+        </p>
+        <p className="m-0 mt-0.5 text-[11px] leading-snug text-slate-500 line-clamp-2">
+          {atleta.escola_nome}
+        </p>
+      </div>
+      <PontuacaoDestaque total={atleta.total} labelUnidade={labelUnidade} />
+    </li>
+  )
+}
+
+function RankingPontuadorRow({ atleta, labelUnidade, compact = false }) {
+  const podium = atleta.posicao <= 3
+  return (
+    <li
+      className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 ${
+        compact ? 'py-1.5' : 'py-2'
+      } ${
+        podium ? 'bg-emerald-50/70 ring-1 ring-emerald-100/60' : 'border border-slate-100 bg-white'
+      }`}
+    >
+      <span
+        className={`flex shrink-0 items-center justify-center rounded-full font-black shadow-sm ${badgePosicaoClass(atleta.posicao)} ${
+          compact ? 'h-6 w-6 text-[9px]' : 'h-7 w-7 text-[10px]'
+        }`}
+      >
+        {atleta.posicao}
+      </span>
+      <span
+        className={`min-w-0 flex-1 truncate font-bold text-[#044f38] ${compact ? 'text-xs' : 'text-sm'}`}
+      >
+        {atleta.estudante_nome}
+      </span>
+      <PontuacaoDestaque total={atleta.total} labelUnidade={labelUnidade} compact={compact} />
+    </li>
   )
 }
 
@@ -89,6 +196,59 @@ const selectLight =
 
 const labelLight = 'mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500'
 
+function badgePosicaoClass(posicao) {
+  if (posicao === 1) return 'bg-amber-400 text-white'
+  if (posicao === 2) return 'bg-slate-300 text-slate-700'
+  if (posicao === 3) return 'bg-amber-700/80 text-white'
+  return 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/50'
+}
+
+/** Ordem das abas de modalidade na landing (destaques). */
+function esporteTabSortIndex(nome) {
+  const norm = String(nome || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+  if (norm.includes('futsal')) return 0
+  if (norm.includes('beach') || norm.includes('beachsoccer')) return 1
+  if (norm.includes('praia') && norm.includes('volei')) return 3
+  if (norm.includes('voleibol') || norm === 'volei') return 2
+  if (norm.includes('basquete')) return 4
+  return 99
+}
+
+/** Campeonato com ao menos um destaque renderizável na landing. */
+function campanhaTemDestaques(item) {
+  if (!item) return false
+  const temJogo = Boolean(item.jogo_destaque)
+  const temPont =
+    Boolean(item.mostrar_pontuadores_individuais) && (item.top_pontuadores?.length || 0) > 0
+  const temDefesa = Boolean(item.equipe_defesa)
+  return temJogo || temPont || temDefesa
+}
+
+function ordenarEsportesLista(esportes) {
+  return [...esportes].sort(
+    (a, b) => esporteTabSortIndex(a.nome) - esporteTabSortIndex(b.nome),
+  )
+}
+
+/** Primeira modalidade (ordem da landing) que já retornou destaques na API. */
+function primeiroEsporteComDestaques(esportes, destaques) {
+  for (const esp of ordenarEsportesLista(esportes)) {
+    const id = String(esp.id)
+    if (destaques.some((it) => String(it.esporte_id) === id)) return id
+  }
+  return esportes.length ? String(esportes[0].id) : ''
+}
+
+function primeiroCampanhaComDestaques(camps) {
+  const comDados = camps.find(campanhaTemDestaques)
+  const pick = comDados || camps[0]
+  return pick ? String(pick.campeonato_id) : ''
+}
+
 export default function DestaquesRodadaSection() {
   const [items, setItems] = useState([])
   const [allSports, setAllSports] = useState([])
@@ -96,8 +256,6 @@ export default function DestaquesRodadaSection() {
   const [error, setError] = useState(null)
   const [esporteId, setEsporteId] = useState('')
   const [activeCampId, setActiveCampId] = useState('')
-  const [modalData, setModalData] = useState(null)
-
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
@@ -151,8 +309,17 @@ export default function DestaquesRodadaSection() {
           }
         })
 
+        const sportsArr = Object.values(agrupados)
+        const esporteInicial = primeiroEsporteComDestaques(sportsArr, filteredList)
+        const campsDoEsporte = filteredList.filter(
+          (it) => String(it.esporte_id) === esporteInicial,
+        )
+        const campInicial = primeiroCampanhaComDestaques(campsDoEsporte)
+
         setItems(filteredList)
-        setAllSports(Object.values(agrupados))
+        setAllSports(sportsArr)
+        setEsporteId(esporteInicial)
+        setActiveCampId(campInicial)
       })
       .catch((e) => {
         setError(e?.message || 'Erro ao carregar destaques')
@@ -173,7 +340,12 @@ export default function DestaquesRodadaSection() {
         label: it.nome,
         icone: it.icone || 'Zap',
       }))
-      .sort((a, b) => String(a.label).localeCompare(String(b.label), 'pt-BR'))
+      .sort((a, b) => {
+        const oa = esporteTabSortIndex(a.label)
+        const ob = esporteTabSortIndex(b.label)
+        if (oa !== ob) return oa - ob
+        return String(a.label).localeCompare(String(b.label), 'pt-BR')
+      })
   }, [allSports])
 
   const itemsPorEsporte = useMemo(() => {
@@ -183,22 +355,33 @@ export default function DestaquesRodadaSection() {
 
   useEffect(() => {
     if (esportesTabs.length === 0) return
-    if (!esporteId || !esportesTabs.some((t) => t.value === esporteId)) {
-      setEsporteId(esportesTabs[0]?.value || '')
-    }
-  }, [esportesTabs, esporteId])
 
-  // Resetar activeCampId quando o esporteId muda
+    const tabValida = esporteId && esportesTabs.some((t) => t.value === esporteId)
+    const temDestaquesNaTab = tabValida && items.some((it) => String(it.esporte_id) === esporteId)
+
+    if (tabValida && temDestaquesNaTab) return
+
+    const tabComDados = esportesTabs.find((t) =>
+      items.some((it) => String(it.esporte_id) === t.value),
+    )
+    const next = tabComDados?.value || esportesTabs[0]?.value || ''
+    if (next && next !== esporteId) setEsporteId(next)
+  }, [esportesTabs, esporteId, items])
+
   useEffect(() => {
-    if (itemsPorEsporte.length > 0) {
-      // Se o activeCampId atual não está na lista do esporte selecionado, reseta pro primeiro
-      if (!itemsPorEsporte.find(it => String(it.campeonato_id) === activeCampId)) {
-        setActiveCampId(String(itemsPorEsporte[0].campeonato_id))
-      }
-    } else {
-      setActiveCampId('')
+    if (itemsPorEsporte.length === 0) {
+      if (activeCampId) setActiveCampId('')
+      return
     }
-  }, [itemsPorEsporte, esporteId])
+
+    const campValido = itemsPorEsporte.find(
+      (it) => String(it.campeonato_id) === activeCampId,
+    )
+    if (campValido && campanhaTemDestaques(campValido)) return
+
+    const next = primeiroCampanhaComDestaques(itemsPorEsporte)
+    if (next !== activeCampId) setActiveCampId(next)
+  }, [itemsPorEsporte, activeCampId])
 
   const atualizadoEm = useMemo(
     () =>
@@ -240,71 +423,71 @@ export default function DestaquesRodadaSection() {
   return (
     <section className="border-y border-slate-200 bg-gradient-to-b from-white via-slate-50/80 to-slate-50">
       <div className="container-portal px-4 py-6 sm:px-6 md:py-8">
-        <div className="mb-8 flex flex-col items-center text-center md:mb-10">
-          <div className="mb-2 flex items-center justify-center gap-2">
-            <div className="rounded-lg bg-emerald-100 p-1.5 text-emerald-700">
-              <Trophy size={18} strokeWidth={2.25} />
+        <div className="mb-6 flex flex-col items-center gap-5 text-center md:mb-8 md:gap-6">
+          <div>
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <div className="rounded-lg bg-emerald-100 p-1.5 text-emerald-700">
+                <Trophy size={18} strokeWidth={2.25} />
+              </div>
+              <span className="text-xs font-black uppercase tracking-widest text-emerald-700">
+                Os melhores
+              </span>
             </div>
-            <span className="text-xs font-black uppercase tracking-widest text-emerald-700">
-              Os melhores
-            </span>
+            <h2 className="m-0 font-display text-2xl font-black uppercase tracking-tight text-[#042f2e] md:text-3xl">
+              Destaques do <span className="text-emerald-600">campeonato</span>
+            </h2>
           </div>
-          <h2 className="m-0 font-display text-2xl font-black uppercase tracking-tight text-[#042f2e] md:text-3xl">
-            Destaques do <span className="text-emerald-600">campeonato</span>
-          </h2>
+
+          <div className="flex w-full max-w-4xl flex-col items-center gap-2.5">
+            <div className="flex w-full flex-col items-center gap-1.5">
+    
+              <div className="flex w-full flex-row flex-wrap justify-center gap-2.5 pb-1">
+                {esportesTabs.map((tab) => {
+                  const active = tab.value === esporteId
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setEsporteId(tab.value)}
+                      className={`inline-flex shrink-0 items-center justify-center gap-3 rounded-xl border px-5 py-3.5 text-xs font-bold uppercase tracking-wide transition-all duration-200 ${active
+                        ? 'border-transparent bg-[#044f38] text-white shadow-sm'
+                        : 'border-slate-200/80 bg-white text-slate-800 hover:bg-slate-50'
+                        }`}
+                    >
+                      <ModalidadeIcon icone={tab.icone} size={18} className={active ? 'text-white' : 'text-[#044f38]'} />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {itemsPorEsporte.length > 1 && (
+              <div className="flex flex-wrap justify-center gap-2 rounded-2xl bg-slate-100/50 p-1">
+                {itemsPorEsporte.map((camp) => {
+                  const active = String(camp.campeonato_id) === activeCampId
+                  return (
+                    <button
+                      key={camp.campeonato_id}
+                      type="button"
+                      onClick={() => setActiveCampId(String(camp.campeonato_id))}
+                      className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition-all duration-200 ${active
+                        ? 'border border-emerald-200/60 bg-emerald-50 text-emerald-800 shadow-sm ring-1 ring-emerald-100/30'
+                        : 'border border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                      {camp.naipe_nome} — {camp.categoria_nome}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-6 md:gap-8">
-          {/* Abas de Modalidades no topo (horizontal) */}
-          <div className="w-full flex flex-col gap-2.5">
-            <p className="m-0 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
-              Modalidades
-            </p>
-            <div className="flex flex-row overflow-x-auto gap-2.5 pb-2.5 hide-scrollbar">
-              {esportesTabs.map((tab) => {
-                const active = tab.value === esporteId
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    onClick={() => setEsporteId(tab.value)}
-                    className={`inline-flex shrink-0 items-center justify-center gap-3 rounded-xl border px-5 py-3.5 text-xs font-bold uppercase tracking-wide transition-all duration-200 ${active
-                      ? 'border-transparent bg-[#044f38] text-white shadow-sm'
-                      : 'border-slate-200/80 bg-white text-slate-800 hover:bg-slate-50'
-                      }`}
-                  >
-                    <ModalidadeIcon icone={tab.icone} size={18} className={active ? 'text-white' : 'text-[#044f38]'} />
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Cards de Destaque em largura total */}
-          <div className="w-full min-w-0">
+        <div className="w-full min-w-0">
             {itemsPorEsporte.length > 0 ? (
-              <div className="flex flex-col gap-6">
-                {/* Abas Internas: Categoria / Naipe */}
-                {itemsPorEsporte.length > 1 && (
-                  <div className="flex flex-wrap gap-2 mb-2 p-1 bg-slate-100/50 rounded-2xl w-fit">
-                    {itemsPorEsporte.map((camp) => {
-                      const active = String(camp.campeonato_id) === activeCampId
-                      return (
-                        <button
-                          key={camp.campeonato_id}
-                          onClick={() => setActiveCampId(String(camp.campeonato_id))}
-                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${active
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 shadow-sm ring-1 ring-emerald-100/30'
-                            : 'text-slate-400 hover:text-slate-600 border border-transparent'
-                            }`}
-                        >
-                          {camp.naipe_nome} — {camp.categoria_nome}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+              <div className="flex flex-col">
 
                 {itemsPorEsporte.filter(it => String(it.campeonato_id) === activeCampId).map((camp) => {
                   const unidade = camp.unidade_placar || ''
@@ -318,129 +501,71 @@ export default function DestaquesRodadaSection() {
                           : 'gols'
 
                   const top = camp.top_pontuadores || []
-                  const primeiro = top[0]
+                  const topTres = top.slice(0, 3)
+                  const topDez = top.slice(0, 10)
                   const mostrarInd = Boolean(camp.mostrar_pontuadores_individuais)
                   const jogo = camp.jogo_destaque
                   const def = camp.equipe_defesa
 
                   return (
                     <div key={camp.campeonato_id} className="flex flex-col gap-6">
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-stretch">
-                        {/* Coluna Esquerda: Melhores Pontuadores (Top 10 Destaques) - Ocupa 2/4 (Metade da tela) */}
-                        <div className="lg:col-span-2">
-                          {mostrarInd && top.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
+                        {/* 1º: Atletas destaque (layout referência) */}
+                        <div className="lg:col-span-1">
+                          {mostrarInd && topTres.length > 0 ? (
                             <LightCard
-                              title="Melhores Pontuadores"
-                              subtitle={String(camp.naipe_nome).toUpperCase() === 'FEMININO' ? 'TOP 10 ATLETAS' : 'TOP 10 ATLETAS'}
-                              icon={Trophy}
-                              className="h-full"
+                              title="Atletas destaque"
+                              subtitle="Top 3 atletas"
+                              icon={User}
+                              headerVariant="soft"
+                              bodyClassName="px-3.5 py-3"
                             >
-                              <div className="flex flex-col justify-between h-full flex-1">
-                                <div className="mt-2">
-                                  <ul className="m-0 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 p-0 list-none">
-                                    {top.slice(0, 6).map((p) => {
-                                      const positionBg =
-                                        p.posicao === 1
-                                          ? 'bg-amber-400'
-                                          : p.posicao === 2
-                                            ? 'bg-slate-300'
-                                            : p.posicao === 3
-                                              ? 'bg-amber-700/70'
-                                              : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/50'
-                                      const positionText = p.posicao > 3 ? 'text-slate-500' : 'text-white'
-
-                                      return (
-                                        <li
-                                          key={p.estudante_id}
-                                          className="flex items-center justify-between py-2 border-b border-slate-100/70 last:border-0 sm:[&:nth-last-child(-n+2)]:border-0"
-                                        >
-                                          <div className="flex items-center min-w-0 flex-1">
-                                            <span
-                                              className={`flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full text-[9px] font-black shadow-sm ${positionBg} ${positionText}`}
-                                              style={{ width: '22px', height: '22px' }}
-                                            >
-                                              {p.posicao}
-                                            </span>
-                                            <span className="ml-3 truncate text-sm font-bold text-slate-800">
-                                              {p.estudante_nome}
-                                            </span>
-                                          </div>
-                                          <span className="text-xs font-bold text-slate-500 shrink-0 ml-2">
-                                            <strong className="text-[#044f38] text-sm font-black mr-0.5">{p.total}</strong> {p.total === 1 ? labelUnidade.replace(/s$/, '') : labelUnidade}
-                                          </span>
-                                        </li>
-                                      )
-                                    })}
-                                  </ul>
-                                </div>
-                                {top.length > 6 && (
-                                  <div className="mt-auto pt-4 flex justify-center border-t border-slate-100/70">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setModalData({
-                                          campeonato_nome: camp.campeonato_nome,
-                                          rodada: camp.rodada_referencia,
-                                          top,
-                                          labelUnidade,
-                                        })
-                                      }
-                                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50 active:scale-95 shadow-sm"
-                                    >
-                                      Ver ranking completo
-                                      <ChevronRight size={14} strokeWidth={2.5} />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <ul className="m-0 flex flex-col gap-1.5 p-0 list-none">
+                                {topTres.map((p) => (
+                                  <AtletaDestaqueRow
+                                    key={p.estudante_id}
+                                    atleta={p}
+                                    labelUnidade={labelUnidade}
+                                  />
+                                ))}
+                              </ul>
                             </LightCard>
                           ) : (
                             <PlaceholderLight
-                              title="Artilharia da rodada"
-                              subtitle="Top 10"
-                              message="Ranking individual visível quando houver registro de atletas na rodada."
-                              icon={Trophy}
+                              title="Atletas destaque"
+                              subtitle="Top 3 atletas"
+                              message="Visível com registros de atletas."
+                              icon={User}
                             />
                           )}
                         </div>
 
-                        {/* Coluna Central: Atleta Destaque - Ocupa 1/4 */}
-                        <div className="lg:col-span-1">
-                          {mostrarInd && primeiro ? (
+                        {/* 2º: Melhores pontuadores — linhas no mesmo padrão visual */}
+                        <div className="lg:col-span-2">
+                          {mostrarInd && topDez.length > 0 ? (
                             <LightCard
-                              title="Atleta destaque"
-                              subtitle="Melhor desempenho"
-                              icon={User}
-                              className="h-full"
+                              title="Melhores Pontuadores"
+                              subtitle="Top 10 atletas"
+                              icon={Trophy}
+                              bodyClassName="px-3.5 py-3"
                             >
-                              <div className="flex flex-col items-center justify-center h-full flex-1 py-2 text-center">
-                                <AvatarAtleta
-                                  nome={primeiro.estudante_nome}
-                                  fotoUrl={primeiro.estudante_foto_url}
-                                  className="h-12 w-12 rounded-full border-2 border-emerald-50 ring-2 ring-emerald-100/30 shadow-sm"
-                                  round
-                                />
-                                <h4 className="m-0 mt-2 text-sm font-black text-slate-800 uppercase tracking-wide leading-tight line-clamp-1 max-w-[180px]">
-                                  {primeiro.estudante_nome}
-                                </h4>
-                                <p className="m-0 mt-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider line-clamp-1 max-w-[180px]">
-                                  {primeiro.escola_nome}
-                                </p>
-
-                                <div className="mt-3.5 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100/50 rounded-full px-3 py-1 shadow-sm">
-                                  <span className="text-xs font-semibold text-slate-500">Marcou</span>
-                                  <span className="text-xs font-black text-[#044f38]">
-                                    {primeiro.total} {primeiro.total === 1 ? labelUnidade.replace(/s$/, '') : labelUnidade}
-                                  </span>
-                                </div>
-                              </div>
+                              <ol className="m-0 grid grid-cols-2 gap-x-2 gap-y-1 p-0 list-none">
+                                {topDez.map((p) => (
+                                  <RankingPontuadorRow
+                                    key={p.estudante_id}
+                                    atleta={p}
+                                    labelUnidade={labelUnidade}
+                                    compact
+                                  />
+                                ))}
+                              </ol>
                             </LightCard>
                           ) : (
                             <PlaceholderLight
-                              title="Atleta destaque"
-                              subtitle="Melhor desempenho"
-                              message="Visível com registros de atletas."
-                              icon={User}
+                              title="Melhores pontuadores"
+                              subtitle="Top 10"
+                              message="Ranking individual visível quando houver registro de atletas na rodada."
+                              icon={Trophy}
                             />
                           )}
                         </div>
@@ -452,30 +577,26 @@ export default function DestaquesRodadaSection() {
                               title="Jogo da rodada"
                               subtitle={`MAIOR SOMA DE ${String(labelUnidade).toUpperCase()}`}
                               icon={Target}
-                              className="h-full"
+                              bodyClassName="px-3.5 py-3"
                             >
-                              <div className="flex flex-col justify-between h-full flex-1 py-1">
-                                <div className="flex w-full items-center justify-center py-2 px-1">
-                                  <div className="flex items-center justify-center font-display text-4xl font-black tracking-tight tabular-nums text-emerald-950 bg-slate-50/70 px-5 py-2 rounded-2xl border border-slate-100/60 shadow-sm">
+                              <div className="flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/40 px-3 py-3">
+                                <div className="flex items-center justify-center py-1">
+                                  <div className="flex items-center justify-center rounded-2xl border border-slate-200/80 bg-white px-5 py-3 font-display text-3xl font-black tabular-nums tracking-tight text-[#044f38] shadow-sm">
                                     {jogo.placar_mandante}
-                                    <span className="text-xl text-emerald-800/30 font-black mx-3">×</span>
+                                    <span className="mx-2.5 text-lg font-black text-emerald-800/25">×</span>
                                     {jogo.placar_visitante}
                                   </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3 mt-4">
-                                  <div className="text-left flex flex-col min-w-0">
-                                    <span className="text-xs font-black text-slate-700 line-clamp-3 leading-snug">
-                                      {jogo.mandante_nome}
-                                    </span>
-                                  </div>
-                                  <div className="text-right flex flex-col items-end min-w-0">
-                                    <span className="text-xs font-black text-slate-700 line-clamp-3 leading-snug">
-                                      {jogo.visitante_nome}
-                                    </span>
-                                  </div>
+                                <div className="grid grid-cols-2 gap-3 px-0.5">
+                                  <span className="text-left text-xs font-bold leading-snug text-[#044f38] line-clamp-3">
+                                    {jogo.mandante_nome}
+                                  </span>
+                                  <span className="text-right text-xs font-bold leading-snug text-[#044f38] line-clamp-3">
+                                    {jogo.visitante_nome}
+                                  </span>
                                 </div>
-                                <div className="mt-4 pt-3.5 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1 leading-none">
-                                  <Calendar size={12} className="text-slate-400 shrink-0" strokeWidth={2.5} />
+                                <div className="flex items-center gap-1 border-t border-slate-200/80 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  <Calendar size={12} className="shrink-0 text-slate-400" strokeWidth={2.5} />
                                   Rodada {camp.rodada_referencia}
                                 </div>
                               </div>
@@ -503,94 +624,8 @@ export default function DestaquesRodadaSection() {
               </div>
             )}
           </div>
-        </div>
       </div>
 
-      {/* Modal de Ranking Completo */}
-      {modalData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300">
-          {/* Backdrop que fecha ao clicar fora */}
-          <div
-            className="absolute inset-0 cursor-default"
-            onClick={() => setModalData(null)}
-          />
-
-          {/* Conteúdo do Modal */}
-          <div className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-100 p-6 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95 max-h-[85vh] flex flex-col">
-
-            {/* Botão de Fechar */}
-            <button
-              type="button"
-              onClick={() => setModalData(null)}
-              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-              aria-label="Fechar"
-            >
-              <X size={18} strokeWidth={2.5} />
-            </button>
-
-            {/* Cabeçalho do Modal */}
-            <div className="mb-5 pr-8">
-              <div className="flex items-center gap-2 text-emerald-700 mb-1">
-                <Trophy size={18} strokeWidth={2.5} />
-                <span className="text-[10px] font-black uppercase tracking-wider">Artilharia da Rodada</span>
-              </div>
-              <h3 className="m-0 text-lg font-black text-slate-800 leading-tight">
-                {modalData.campeonato_nome}
-              </h3>
-              <p className="m-0 text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-wider">
-                Rodada {modalData.rodada}
-              </p>
-            </div>
-
-            {/* Lista com Rolagem caso ultrapasse a altura */}
-            <div className="overflow-y-auto pr-1 flex-1 hide-scrollbar">
-              <ul className="m-0 p-0 list-none flex flex-col gap-2.5">
-                {modalData.top.map((p) => {
-                  const positionBg =
-                    p.posicao === 1
-                      ? 'bg-amber-400'
-                      : p.posicao === 2
-                        ? 'bg-slate-300'
-                        : p.posicao === 3
-                          ? 'bg-amber-700/70'
-                          : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/50'
-                  const positionText = p.posicao > 3 ? 'text-slate-500' : 'text-white'
-
-                  return (
-                    <li
-                      key={p.estudante_id}
-                      className="flex items-center justify-between py-2.5 px-3 rounded-2xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50/70 transition-all duration-150"
-                    >
-                      <div className="flex items-center min-w-0 flex-1">
-                        <span
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black shadow-sm ${positionBg} ${positionText}`}
-                          style={{ width: '24px', height: '24px' }}
-                        >
-                          {p.posicao}
-                        </span>
-
-                        <div className="ml-3.5 min-w-0 flex flex-col">
-                          <span className="truncate text-xs font-black text-slate-800 leading-snug">
-                            {p.estudante_nome}
-                          </span>
-                          <span className="truncate text-[10px] font-semibold text-slate-400 mt-0.5 leading-none">
-                            {p.escola_nome}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className="text-xs font-black text-emerald-700 shrink-0 ml-3 bg-emerald-50 border border-emerald-100/50 px-3 py-1 rounded-full">
-                        {p.total} {p.total === 1 ? modalData.labelUnidade.replace(/s$/, '') : modalData.labelUnidade}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-
-          </div>
-        </div>
-      )}
     </section>
   )
 }

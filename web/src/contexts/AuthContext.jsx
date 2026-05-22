@@ -21,27 +21,31 @@ export function AuthProvider({ children }) {
     const token = getAccessToken()
     if (!token) return null
 
-    const res = await apiFetch('/auth/me')
-    if (!res.ok) return null
-
-    const data = await res.json()
-    return data
+    try {
+      const res = await apiFetch('/auth/me')
+      if (!res.ok) {
+        if (res.status === 401) clearTokens()
+        return null
+      }
+      return await res.json()
+    } catch {
+      // API indisponível (proxy/backend fora do ar) — não propagar TypeError: Failed to fetch
+      return null
+    }
   }, [])
 
   useEffect(() => {
     let cancelled = false
 
     async function init() {
-      const token = getAccessToken()
-      if (!token) {
-        if (!cancelled) setLoading(false)
-        return
-      }
+      try {
+        const token = getAccessToken()
+        if (!token) return
 
-      const data = await fetchMe()
-      if (!cancelled) {
-        setUser(data || null)
-        setLoading(false)
+        const data = await fetchMe()
+        if (!cancelled) setUser(data || null)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -175,9 +179,13 @@ export function AuthProvider({ children }) {
   }
 
   const refreshUser = useCallback(async () => {
-    const data = await fetchMe()
-    if (data) setUser(data)
-    return data
+    try {
+      const data = await fetchMe()
+      if (data) setUser(data)
+      return data
+    } catch {
+      return null
+    }
   }, [fetchMe])
 
   return (
