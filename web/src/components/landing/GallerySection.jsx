@@ -86,6 +86,7 @@ export default function GallerySection() {
         src={fotoAberta}
         alt="Jogos Escolares"
         className="max-w-full max-h-[90vh] rounded-lg shadow-2xl"
+        referrerPolicy="no-referrer"
         onClick={(e) => e.stopPropagation()}
       />
     </div>
@@ -148,6 +149,7 @@ export default function GallerySection() {
                     src={src}
                     alt={`Foto ${i + 1}`}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-[2px]">
                      <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white scale-50 group-hover:scale-100 transition-transform duration-500 ring-2 ring-white/50">

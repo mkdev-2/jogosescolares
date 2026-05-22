@@ -155,6 +155,7 @@ const InstagramWidget = () => {
                       src={profile.profile_picture_url}
                       alt={`Foto de perfil de ${profile.username}`}
                       className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
                         e.target.style.display = 'none';
                         e.target.nextElementSibling?.classList.remove('hidden');
@@ -299,6 +300,7 @@ const InstagramWidget = () => {
                         src={post.thumbnail_url || post.media_url}
                         alt={post.caption || 'Post do Instagram'}
                         className="instagram-post-image"
+                        referrerPolicy="no-referrer"
                       />
 
                       {/* Overlay com legenda */}

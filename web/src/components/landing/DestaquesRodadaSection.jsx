@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2, Trophy, User, Target, Calendar } from 'lucide-react'
 import ModalidadeIcon from '../catalogos/ModalidadeIcon'
+import StorageImage from '../StorageImage'
 import { publicCampeonatosService } from '../../services/publicCampeonatosService'
 
 function initials(name) {
@@ -26,11 +27,11 @@ function AvatarAtleta({ nome, fotoUrl, className = '', round = false }) {
   const base = round ? 'rounded-full' : 'rounded-xl'
   if (fotoUrl) {
     return (
-      <img
-        src={fotoUrl}
+      <StorageImage
+        path={fotoUrl}
         alt=""
         className={`object-cover bg-slate-100 ${base} ${className}`}
-        loading="lazy"
+        loadingClassName={`animate-pulse bg-slate-100 ${base} ${className}`}
       />
     )
   }
@@ -44,7 +45,7 @@ function AvatarAtleta({ nome, fotoUrl, className = '', round = false }) {
   )
 }
 
-/** Card de destaque: faixa escura (padrão) ou cabeçalho claro (atletas destaque). */
+/** Card de destaque com faixa escura no cabeçalho. */
 function LightCard({
   title,
   subtitle,
@@ -52,37 +53,9 @@ function LightCard({
   children,
   className = '',
   bodyClassName = 'p-6',
-  headerVariant = 'dark',
 }) {
   const shellClass =
     `flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 ${className}`
-
-  if (headerVariant === 'soft') {
-    return (
-      <div className={shellClass}>
-        <div className="border-b border-slate-100 px-4 pb-3 pt-4">
-          <div className="flex items-start gap-2.5">
-            {IconComponent ? (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <IconComponent size={17} strokeWidth={2.25} />
-              </div>
-            ) : null}
-            <div className="min-w-0">
-              <h3 className="m-0 font-display text-sm font-black uppercase tracking-wide text-[#044f38] leading-tight">
-                {title}
-              </h3>
-              {subtitle ? (
-                <p className="m-0 mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none">
-                  {subtitle}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        <div className={`flex flex-col ${bodyClassName}`}>{children}</div>
-      </div>
-    )
-  }
 
   return (
     <div className={shellClass}>
@@ -177,6 +150,32 @@ function RankingPontuadorRow({ atleta, labelUnidade, compact = false }) {
   )
 }
 
+function ModalidadeSemDestaquesFallback({ nome, icone }) {
+  return (
+    <div
+      role="status"
+      className="flex min-h-[280px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white/80 p-8 text-center shadow-sm"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+        <ModalidadeIcon icone={icone || 'Zap'} size={28} />
+      </div>
+      <p className="m-0 text-base font-black uppercase tracking-tight text-[#044f38]">
+        {nome ? `Sem destaques em ${nome}` : 'Sem destaques nesta modalidade'}
+      </p>
+      <p className="m-0 mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+        Ainda não há partidas concluídas na fase de grupos com registros publicados para esta
+        modalidade.
+      </p>
+      <Link
+        to="/resultados"
+        className="mt-6 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-emerald-800 transition hover:bg-emerald-100"
+      >
+        Ver resultados
+      </Link>
+    </div>
+  )
+}
+
 function PlaceholderLight({ title, subtitle, message, icon }) {
   return (
     <LightCard title={title} subtitle={subtitle} icon={icon}>
@@ -228,24 +227,61 @@ function campanhaTemDestaques(item) {
   return temJogo || temPont || temDefesa
 }
 
+/** Quanto do bloco (3 cards) está preenchido — usado para abrir a categoria mais completa. */
+function destaquesPreenchimentoScore(item) {
+  if (!item) return 0
+  let score = 0
+  const top = item.top_pontuadores || []
+  const mostrarInd = Boolean(item.mostrar_pontuadores_individuais)
+
+  if (item.jogo_destaque) score += 1
+  if (mostrarInd && top.length > 0) {
+    score += Math.min(top.length, 3)
+    score += Math.min(top.length, 10)
+  }
+  return score
+}
+
+function melhorItemDestaques(items) {
+  if (!items?.length) return null
+  let best = null
+  let bestScore = -1
+  for (const item of items) {
+    const score = destaquesPreenchimentoScore(item)
+    if (score > bestScore) {
+      bestScore = score
+      best = item
+    }
+  }
+  if (bestScore > 0) return best
+  return items.find(campanhaTemDestaques) || items[0]
+}
+
 function ordenarEsportesLista(esportes) {
   return [...esportes].sort(
     (a, b) => esporteTabSortIndex(a.nome) - esporteTabSortIndex(b.nome),
   )
 }
 
-/** Primeira modalidade (ordem da landing) que já retornou destaques na API. */
-function primeiroEsporteComDestaques(esportes, destaques) {
+/** Modalidade cuja melhor categoria tem mais campos do bloco preenchidos. */
+function melhorEsporteComDestaques(esportes, destaques) {
+  let bestSportId = ''
+  let bestScore = -1
   for (const esp of ordenarEsportesLista(esportes)) {
-    const id = String(esp.id)
-    if (destaques.some((it) => String(it.esporte_id) === id)) return id
+    const camps = destaques.filter((it) => String(it.esporte_id) === String(esp.id))
+    const item = melhorItemDestaques(camps)
+    const score = item ? destaquesPreenchimentoScore(item) : 0
+    if (score > bestScore) {
+      bestScore = score
+      bestSportId = String(esp.id)
+    }
   }
+  if (bestSportId) return bestSportId
   return esportes.length ? String(esportes[0].id) : ''
 }
 
-function primeiroCampanhaComDestaques(camps) {
-  const comDados = camps.find(campanhaTemDestaques)
-  const pick = comDados || camps[0]
+function melhorCampanhaComDestaques(camps) {
+  const pick = melhorItemDestaques(camps)
   return pick ? String(pick.campeonato_id) : ''
 }
 
@@ -310,11 +346,16 @@ export default function DestaquesRodadaSection() {
         })
 
         const sportsArr = Object.values(agrupados)
-        const esporteInicial = primeiroEsporteComDestaques(sportsArr, filteredList)
+        const melhorGlobal = melhorItemDestaques(filteredList)
+        const esporteInicial = melhorGlobal
+          ? String(melhorGlobal.esporte_id)
+          : melhorEsporteComDestaques(sportsArr, filteredList)
         const campsDoEsporte = filteredList.filter(
           (it) => String(it.esporte_id) === esporteInicial,
         )
-        const campInicial = primeiroCampanhaComDestaques(campsDoEsporte)
+        const campInicial = melhorGlobal
+          ? String(melhorGlobal.campeonato_id)
+          : melhorCampanhaComDestaques(campsDoEsporte)
 
         setItems(filteredList)
         setAllSports(sportsArr)
@@ -353,20 +394,23 @@ export default function DestaquesRodadaSection() {
     return items.filter((it) => String(it.esporte_id) === esporteId)
   }, [items, esporteId])
 
+  const esporteAtivoTab = useMemo(
+    () => esportesTabs.find((t) => t.value === esporteId) || null,
+    [esportesTabs, esporteId],
+  )
+
+  const modalidadeSemRegistros = Boolean(esporteAtivoTab) && itemsPorEsporte.length === 0
+
+  /** Só corrige aba inválida (ex.: após load); não troca modalidade vazia escolhida pelo usuário. */
   useEffect(() => {
     if (esportesTabs.length === 0) return
 
     const tabValida = esporteId && esportesTabs.some((t) => t.value === esporteId)
-    const temDestaquesNaTab = tabValida && items.some((it) => String(it.esporte_id) === esporteId)
+    if (tabValida) return
 
-    if (tabValida && temDestaquesNaTab) return
-
-    const tabComDados = esportesTabs.find((t) =>
-      items.some((it) => String(it.esporte_id) === t.value),
-    )
-    const next = tabComDados?.value || esportesTabs[0]?.value || ''
+    const next = melhorEsporteComDestaques(allSports, items)
     if (next && next !== esporteId) setEsporteId(next)
-  }, [esportesTabs, esporteId, items])
+  }, [esportesTabs, esporteId, items, allSports])
 
   useEffect(() => {
     if (itemsPorEsporte.length === 0) {
@@ -379,7 +423,7 @@ export default function DestaquesRodadaSection() {
     )
     if (campValido && campanhaTemDestaques(campValido)) return
 
-    const next = primeiroCampanhaComDestaques(itemsPorEsporte)
+    const next = melhorCampanhaComDestaques(itemsPorEsporte)
     if (next !== activeCampId) setActiveCampId(next)
   }, [itemsPorEsporte, activeCampId])
 
@@ -486,7 +530,12 @@ export default function DestaquesRodadaSection() {
         </div>
 
         <div className="w-full min-w-0">
-            {itemsPorEsporte.length > 0 ? (
+            {modalidadeSemRegistros ? (
+              <ModalidadeSemDestaquesFallback
+                nome={esporteAtivoTab?.label}
+                icone={esporteAtivoTab?.icone}
+              />
+            ) : itemsPorEsporte.length > 0 ? (
               <div className="flex flex-col">
 
                 {itemsPorEsporte.filter(it => String(it.campeonato_id) === activeCampId).map((camp) => {
@@ -517,7 +566,6 @@ export default function DestaquesRodadaSection() {
                               title="Atletas destaque"
                               subtitle="Top 3 atletas"
                               icon={User}
-                              headerVariant="soft"
                               bodyClassName="px-3.5 py-3"
                             >
                               <ul className="m-0 flex flex-col gap-1.5 p-0 list-none">
@@ -616,12 +664,10 @@ export default function DestaquesRodadaSection() {
                 })}
               </div>
             ) : (
-              <div className="flex h-full min-h-[300px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center mt-2">
-                <p className="m-0 text-sm font-bold text-slate-600">Nenhum destaque disponível para esta modalidade no momento.</p>
-                <p className="m-0 mt-2 text-xs text-slate-500 max-w-sm">
-                  Os resultados dos destaques aparecerão aqui assim que houverem partidas concluídas na fase de grupos para este esporte.
-                </p>
-              </div>
+              <ModalidadeSemDestaquesFallback
+                nome={esporteAtivoTab?.label}
+                icone={esporteAtivoTab?.icone}
+              />
             )}
           </div>
       </div>

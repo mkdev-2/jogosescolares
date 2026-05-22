@@ -12,6 +12,7 @@ export default function HeroSection() {
           alt="Banner principal dos Jogos Escolares"
           className="block h-full w-full object-cover object-center"
           loading="eager"
+          referrerPolicy="no-referrer"
         />
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10"

@@ -28,6 +28,7 @@ export default function FooterInstitucional() {
                   src="/Jels-2026-vertical.png"
                   alt="JELS"
                   className="h-20 sm:h-24 w-auto brightness-0 invert"
+                  referrerPolicy="no-referrer"
                 />
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
@@ -35,6 +36,7 @@ export default function FooterInstitucional() {
                   src="/logo-semcej.png"
                   alt="Prefeitura"
                   className="h-20 sm:h-24 w-auto brightness-0 invert"
+                  referrerPolicy="no-referrer"
                 />
               </div>
             </div>
@@ -79,6 +81,7 @@ export default function FooterInstitucional() {
                 src="/prefeito.jpeg"
                 alt="Fred Campos"
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-white/20 shadow-xl"
+                referrerPolicy="no-referrer"
               />
               <div className="md:text-right">
                 <h3 className="font-black text-base sm:text-lg text-white m-0 uppercase tracking-tight">

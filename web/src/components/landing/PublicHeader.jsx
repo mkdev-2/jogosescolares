@@ -77,6 +77,7 @@ export default function PublicHeader() {
                 src="/Jels-2026-horizontal.png"
                 alt="JELS - Jogos Escolares Luminenses"
                 className="h-10 sm:h-16 md:h-18 w-auto max-w-[180px] sm:max-w-[280px] md:max-w-[340px] object-contain object-left md:scale-110 origin-left transition-transform duration-300 md:group-hover:scale-115"
+                referrerPolicy="no-referrer"
               />
             </Link>
 
