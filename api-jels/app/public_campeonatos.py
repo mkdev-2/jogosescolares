@@ -14,6 +14,7 @@ from psycopg.errors import UndefinedTable
 from app.database import get_db
 from app.edicao_context import resolve_edicao_id
 from app.schemas import (
+    ArtilheiroOutput,
     DestaqueEquipeDefesaLanding,
     DestaqueJogoLanding,
     DestaquePontuadorLanding,
@@ -906,6 +907,7 @@ async def get_campeonato_publico(
             "permite_empate": config.get("permite_empate"),
             "wxo_placar_pro": config.get("wxo_placar_pro"),
             "wxo_placar_contra": config.get("wxo_placar_contra"),
+            "registra_artilheiro": bool(config.get("registra_artilheiro")),
         }
 
     return {
@@ -961,3 +963,59 @@ async def get_classificacao_grupo_publico(
 
     config = await get_config_pontuacao(conn, campeonato_id)
     return await calcular_classificacao_grupo(conn, grupo_id, config)
+
+
+@router.get("/{campeonato_id}/partidas/{partida_id}/artilheiros", response_model=list[ArtilheiroOutput])
+async def get_artilheiros_partida_publico(
+    campeonato_id: int,
+    partida_id: int,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+):
+    """Artilheiros de uma partida (público, para a página de Resultados)."""
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT cp.id
+            FROM campeonato_partidas cp
+            JOIN campeonatos c ON c.id = cp.campeonato_id
+            WHERE cp.id = %s AND cp.campeonato_id = %s
+              AND c.edicao_id = %s AND c.status = ANY(%s)
+            """,
+            (partida_id, campeonato_id, resolved_edicao_id, list(_STATUSES_VISIVEIS)),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+
+        try:
+            await cur.execute(
+                """
+                SELECT pa.estudante_id, ea.nome AS estudante_nome,
+                       pa.equipe_id, esc.nome_escola AS escola_nome,
+                       pa.quantidade, pa.is_gol_contra
+                FROM partida_artilheiros pa
+                JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
+                JOIN equipes eq ON eq.id = pa.equipe_id
+                JOIN escolas esc ON esc.id = eq.escola_id
+                WHERE pa.partida_id = %s
+                ORDER BY pa.equipe_id, pa.is_gol_contra, ea.nome
+                """,
+                (partida_id,),
+            )
+            rows = await cur.fetchall()
+        except UndefinedTable:
+            rows = []
+
+    return [
+        ArtilheiroOutput(
+            estudante_id=r["estudante_id"],
+            estudante_nome=r["estudante_nome"],
+            equipe_id=r["equipe_id"],
+            escola_nome=r["escola_nome"],
+            quantidade=r["quantidade"],
+            is_gol_contra=bool(r.get("is_gol_contra")),
+        )
+        for r in rows
+    ]

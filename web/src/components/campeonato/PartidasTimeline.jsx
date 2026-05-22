@@ -1,5 +1,6 @@
 import { ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { FASE_LABEL } from './TournamentBracket'
+import PartidaArtilheirosCollapse from './PartidaArtilheirosCollapse'
 
 function formatHorario(iso) {
   if (iso == null || String(iso).trim() === '') return null
@@ -12,7 +13,7 @@ function formatHorario(iso) {
   return `${diaSemanaCapitalizado}, ${data}, ${hora}`
 }
 
-function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, maxSets }) {
+function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, maxSets, campeonatoId, registraArtilheiro }) {
   const hasResult = !!partida.resultado_tipo
   const isKnockout = partida.fase !== 'GRUPOS'
   const mandanteWon = hasResult && partida.vencedor_equipe_id === partida.mandante_equipe_id
@@ -46,8 +47,9 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, max
         </span>
       )}
 
+      <div className="flex flex-col flex-1 min-w-0 gap-1">
       {/* grid 3col × 2row: linha 1 = equipes+placar, linha 2 = data+sets+local */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-x-2 gap-y-1 flex-1 min-w-0">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-x-2 gap-y-1">
         {/* Linha 1 — equipes e placar geral */}
         <span className={`text-xs truncate text-right leading-tight mt-px ${mandanteIndefinido ? 'italic text-slate-400' : mandanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
           {mandanteNome}
@@ -117,6 +119,13 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, max
         )}
       </div>
 
+      <PartidaArtilheirosCollapse
+        campeonatoId={campeonatoId}
+        partida={partida}
+        registraArtilheiro={registraArtilheiro}
+      />
+      </div>
+
       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 mt-0.5 ${
         hasResult ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
       }`}>
@@ -142,7 +151,7 @@ const KNOCKOUT_PHASES_ORDER = [
   'OITAVAS', 'QUARTAS', 'SEMI', 'FINAL', 'TERCEIRO',
 ]
 
-export default function PartidasTimeline({ partidas, grupos, highlightPartidaId }) {
+export default function PartidasTimeline({ partidas, grupos, highlightPartidaId, campeonatoId, registraArtilheiro }) {
   const jogos = partidas.filter((p) => !p.is_bye)
 
   const grupoMap = Object.fromEntries((grupos || []).map((g) => [g.id, g.nome]))
@@ -196,6 +205,8 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
                     grupoNome={grupoMap[p.grupo_id]}
                     highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
                     maxSets={maxSets}
+                    campeonatoId={campeonatoId}
+                    registraArtilheiro={registraArtilheiro}
                   />
                 ))}
               </div>
@@ -222,6 +233,8 @@ export default function PartidasTimeline({ partidas, grupos, highlightPartidaId 
                     highlighted={highlightPartidaId != null && Number(highlightPartidaId) === Number(p.id)}
                     knockoutTeamsLocked={knockoutTeamsLocked}
                     maxSets={maxSets}
+                    campeonatoId={campeonatoId}
+                    registraArtilheiro={registraArtilheiro}
                   />
                 ))}
               </div>

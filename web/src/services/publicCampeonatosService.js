@@ -58,6 +58,13 @@ export const publicCampeonatosService = {
     return Array.isArray(data) ? data : []
   },
 
+  async getArtilheirosPartida(campeonatoId, partidaId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${edicaoId}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/artilheiros${qs}`)
+    const data = await handleResponse(res, 'Erro ao carregar artilheiros da partida')
+    return Array.isArray(data) ? data : []
+  },
+
   /** Destaques da rodada (landing): pacotes por campeonato com jogo, defesa e pontuadores quando aplicável. */
   async getDestaquesLanding(edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${edicaoId}` : ''

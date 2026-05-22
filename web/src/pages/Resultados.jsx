@@ -728,6 +728,8 @@ export default function Resultados() {
                             partidas={campDetail.estrutura.partidas}
                             grupos={campDetail.estrutura.grupos}
                             highlightPartidaId={highlightPartidaId}
+                            campeonatoId={campDetail.id}
+                            registraArtilheiro={!!campDetail.config?.registra_artilheiro}
                           />
                         </div>
                       )}
