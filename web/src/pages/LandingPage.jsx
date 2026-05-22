@@ -1,6 +1,7 @@
 import PublicHeader from '../components/landing/PublicHeader'
 import HeroSection from '../components/landing/HeroSection'
 import HowToParticipate from '../components/landing/HowToParticipate'
+import { Loader2 } from 'lucide-react'
 import { useAdesaoEscolasAberta } from '../hooks/useAdesaoEscolasAberta'
 import DestaquesRodadaSection from '../components/landing/DestaquesRodadaSection'
 import LocaisCarousel from '../components/landing/LocaisCarousel'
@@ -10,7 +11,7 @@ import FooterInstitucional from '../components/landing/FooterInstitucional'
 import InstagramWidget from '../components/landing/InstagramWidget'
 
 export default function LandingPage() {
-  const { adesaoAberta } = useAdesaoEscolasAberta()
+  const { adesaoAberta, loading: loadingAdesao } = useAdesaoEscolasAberta()
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -24,7 +25,12 @@ export default function LandingPage() {
             <div className="absolute -left-20 top-0 w-64 h-64 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -right-20 bottom-0 w-64 h-64 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none" />
 
-            {adesaoAberta ? (
+            {loadingAdesao ? (
+              <div className="relative z-10 flex items-center justify-center gap-2 py-6 text-emerald-800/70">
+                <Loader2 className="animate-spin" size={22} />
+                <span className="text-xs font-bold uppercase tracking-wider">Carregando…</span>
+              </div>
+            ) : adesaoAberta ? (
               <div className="relative z-10">
                 <HowToParticipate />
               </div>

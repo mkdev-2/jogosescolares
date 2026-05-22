@@ -1,4 +1,4 @@
-import { ArrowRight, Trophy, CalendarDays } from "lucide-react";
+import { ArrowRight, CalendarDays, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAdesaoEscolasAberta } from "../../hooks/useAdesaoEscolasAberta";
 
@@ -43,29 +43,25 @@ function HeroCtaAgenda({ to, children }) {
   );
 }
 
-function HeroAtalhoCard({ to, icon: Icon, title, description }) {
+function HeroContentSkeleton() {
   return (
-    <Link
-      to={to}
-      className="group flex w-full items-center gap-4 rounded-2xl border border-teal-500/40 bg-teal-800/70 px-5 py-4 shadow-xl backdrop-blur-md transition duration-200 hover:scale-[1.02] hover:border-teal-400/55 hover:bg-teal-700/80 hover:shadow-2xl active:scale-[0.99] no-underline sm:w-64"
-    >
-      <div className="shrink-0 rounded-xl border border-teal-400/40 bg-teal-400/25 p-2.5">
-        <Icon size={20} className="text-teal-300" />
+    <div className="max-w-2xl text-left" aria-busy="true" aria-label="Carregando destaques do banner">
+      <div className="mb-4 h-7 w-56 animate-pulse rounded-full bg-white/20 sm:h-8 sm:w-64" />
+      <div className="mb-4 space-y-3 sm:mb-5 md:mb-6">
+        <div className="h-9 w-full max-w-md animate-pulse rounded-lg bg-white/15 sm:h-10 md:h-12" />
+        <div className="h-9 w-[80%] max-w-sm animate-pulse rounded-lg bg-white/10 sm:h-10" />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="m-0 text-sm font-bold leading-tight text-white">{title}</p>
-        <p className="m-0 mt-0.5 text-xs leading-snug text-teal-200/75">{description}</p>
+      <div className="mb-6 h-16 w-full max-w-xl animate-pulse rounded-lg bg-white/10 sm:mb-8 md:mb-10" />
+      <div className="flex items-center gap-3">
+        <Loader2 className="animate-spin text-emerald-300" size={28} />
+        <span className="text-sm font-medium text-white/80">Carregando…</span>
       </div>
-      <ArrowRight
-        size={15}
-        className="shrink-0 text-teal-300/50 transition duration-200 group-hover:translate-x-0.5 group-hover:text-teal-200"
-      />
-    </Link>
+    </div>
   );
 }
 
 export default function HeroSection() {
-  const { adesaoAberta } = useAdesaoEscolasAberta();
+  const { adesaoAberta, loading } = useAdesaoEscolasAberta();
 
   return (
     <section className="relative min-h-0 flex-1 w-full overflow-hidden bg-slate-100">
@@ -85,6 +81,9 @@ export default function HeroSection() {
 
       <div className="absolute inset-0 z-20 flex items-center">
         <div className="container-portal w-full px-4 py-8 sm:px-6 sm:py-10 md:px-8 md:py-12">
+          {loading ? (
+            <HeroContentSkeleton />
+          ) : (
           <div className="max-w-2xl text-left">
               <div
                 className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/80 px-3 py-1.5 text-[10px] font-medium uppercase tracking-widest text-primary-foreground backdrop-blur-sm animate-fade-in-up sm:mb-5 sm:px-4 sm:py-2 sm:text-xs md:mb-6 md:px-5"
@@ -134,50 +133,9 @@ export default function HeroSection() {
                 )}
               </div>
 
-              {adesaoAberta ? (
-                <div
-                  className="mt-5 flex gap-2 animate-fade-in-up lg:hidden"
-                  style={{ animationDelay: "0.45s" }}
-                >
-                  <Link
-                    to="/resultados"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm transition duration-200 hover:bg-white/25 active:scale-95"
-                  >
-                    <Trophy size={13} />
-                    Resultados
-                  </Link>
-                  <Link
-                    to="/agenda"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm transition duration-200 hover:bg-white/25 active:scale-95"
-                  >
-                    <CalendarDays size={13} />
-                    Agenda
-                  </Link>
-                </div>
-              ) : null}
-
           </div>
+          )}
         </div>
-
-        {adesaoAberta ? (
-          <div
-            className="absolute top-6 right-6 hidden animate-fade-in-up flex-col gap-3 lg:flex"
-            style={{ animationDelay: "0.45s" }}
-          >
-            <HeroAtalhoCard
-              to="/resultados"
-              icon={Trophy}
-              title="Resultados"
-              description="Placares e classificações"
-            />
-            <HeroAtalhoCard
-              to="/agenda"
-              icon={CalendarDays}
-              title="Agenda"
-              description="Horários e locais das partidas"
-            />
-          </div>
-        ) : null}
 
       </div>
     </section>

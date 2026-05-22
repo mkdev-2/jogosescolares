@@ -10,7 +10,7 @@ export default function PublicHeader() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { adesaoAberta } = useAdesaoEscolasAberta()
+  const { adesaoAberta, loading: loadingAdesao } = useAdesaoEscolasAberta()
 
   const handleLogout = () => {
     logout()
@@ -22,7 +22,7 @@ export default function PublicHeader() {
     { path: '/agenda', label: 'Agenda' },
     { path: '/resultados', label: 'Resultados' },
     { path: '/boletins', label: 'Boletins' },
-    ...(adesaoAberta
+    ...(!loadingAdesao && adesaoAberta
       ? [{ path: '/cadastro', label: 'Cadastro de Escola', external: true }]
       : []),
   ]
