@@ -378,7 +378,7 @@ async def get_current_user(
             await cur.execute(
                 """
                 SELECT u.id, u.cpf, u.email, u.nome, u.role, %s::int AS escola_id,
-                       u.status, u.created_at, u.foto_url,
+                       u.status, u.created_at, u.foto_url, u.bypass_prazo_cadastro_alunos,
                        e.inep AS escola_inep, e.nome_escola AS escola_nome
                 FROM users u
                 LEFT JOIN escolas e ON e.id = %s
@@ -390,7 +390,7 @@ async def get_current_user(
             await cur.execute(
                 """
                 SELECT u.id, u.cpf, u.email, u.nome, u.role, u.escola_id,
-                       u.status, u.created_at, u.foto_url,
+                       u.status, u.created_at, u.foto_url, u.bypass_prazo_cadastro_alunos,
                        e.inep AS escola_inep, e.nome_escola AS escola_nome
                 FROM users u
                 LEFT JOIN escolas e ON u.escola_id = e.id
@@ -516,6 +516,7 @@ async def get_me(
         foto_url=current_user.get("foto_url"),
         can_create_users=can_create,
         allowed_roles_for_create=allowed,
+        bypass_prazo_cadastro_alunos=current_user.get("bypass_prazo_cadastro_alunos", False),
         max_users_per_escola=MAX_USERS_PER_ESCOLA,
         escolas=escolas,
     )

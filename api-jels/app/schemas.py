@@ -247,6 +247,7 @@ class UserMeResponse(BaseModel):
     foto_url: Union[str, None] = None
     can_create_users: bool = False
     allowed_roles_for_create: list[str] = Field(default_factory=list)
+    bypass_prazo_cadastro_alunos: bool = False
     max_users_per_escola: int = 3
     # Para coordenadores multi-escola: lista de todas as escolas vinculadas
     escolas: Optional[list[EscolaSimples]] = None

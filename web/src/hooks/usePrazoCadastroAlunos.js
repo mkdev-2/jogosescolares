@@ -15,9 +15,10 @@ export default function usePrazoCadastroAlunos() {
   const [loading, setLoading] = useState(true)
 
   const isAdmin = user && ADMIN_ROLES.includes(user.role)
+  const hasBypass = user?.bypass_prazo_cadastro_alunos === true
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin || hasBypass) {
       setBloqueado(false)
       setDataLimite(null)
       setLoading(false)
@@ -51,7 +52,7 @@ export default function usePrazoCadastroAlunos() {
         setDataLimite(null)
       })
       .finally(() => setLoading(false))
-  }, [isAdmin])
+  }, [isAdmin, hasBypass])
 
   return { bloqueado, dataLimite, loading }
 }

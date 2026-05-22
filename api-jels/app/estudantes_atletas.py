@@ -393,7 +393,7 @@ async def create_estudante_atleta(
 ):
     """Cria estudante-atleta na escola do usuário logado. escola_id é herdado do token."""
     # Verificar data limite para diretor/coordenador cadastrar alunos
-    if not is_admin(current_user):
+    if not is_admin(current_user) and not current_user.get("bypass_prazo_cadastro_alunos"):
         async with conn.cursor() as cur:
             await cur.execute(
                 "SELECT valor FROM configuracoes WHERE chave = %s",
