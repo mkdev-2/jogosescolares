@@ -605,7 +605,7 @@ async def _destaques_one_campeonato(
                            ea.nome AS estudante_nome,
                            ea.foto_url,
                            esc.nome_escola AS escola_nome,
-                           SUM(pa.quantidade)::int AS total
+                           SUM(pa.quantidade) FILTER (WHERE NOT pa.is_gol_contra)::int AS total
                     FROM partida_artilheiros pa
                     JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
                     JOIN equipes eq ON eq.id = pa.equipe_id
@@ -616,6 +616,7 @@ async def _destaques_one_campeonato(
                       AND cp.fase = 'GRUPOS'
                       AND cp.resultado_tipo = ANY(%s)
                     GROUP BY ea.id, ea.nome, ea.foto_url, esc.nome_escola
+                    HAVING SUM(pa.quantidade) FILTER (WHERE NOT pa.is_gol_contra) > 0
                     ORDER BY total DESC, ea.nome
                     LIMIT 10
                     """,

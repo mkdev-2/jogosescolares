@@ -32,6 +32,7 @@ from app.schemas import (
     CampeonatoResponse,
     EquipeDaVarianteResponse,
     EquipeProvisioriaCreate,
+    ArtilheiroInput,
     ArtilheiroOutput,
     EsporteConfigPontuacaoResponse,
     EstruturaGruposPreviewResponse,
@@ -2568,6 +2569,23 @@ async def registrar_resultado_partida(
 # Artilheiros
 # ---------------------------------------------------------------------------
 
+def _gols_equipe_contabilizados(
+    artilheiros: list[ArtilheiroInput],
+    equipe_id: int,
+    adversario_id: int,
+) -> int:
+    """Gols que entram no placar da equipe: normais próprios + gols contra do adversário."""
+    normais = sum(
+        a.quantidade for a in artilheiros
+        if a.equipe_id == equipe_id and not a.is_gol_contra
+    )
+    contra_recebidos = sum(
+        a.quantidade for a in artilheiros
+        if a.equipe_id == adversario_id and a.is_gol_contra
+    )
+    return normais + contra_recebidos
+
+
 @router.get("/{campeonato_id}/partidas/{partida_id}/artilheiros", response_model=list[ArtilheiroOutput])
 async def get_artilheiros_partida(
     campeonato_id: int,
@@ -2581,13 +2599,13 @@ async def get_artilheiros_partida(
             """
             SELECT pa.estudante_id, ea.nome AS estudante_nome,
                    pa.equipe_id, esc.nome_escola AS escola_nome,
-                   pa.quantidade
+                   pa.quantidade, pa.is_gol_contra
             FROM partida_artilheiros pa
             JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
             JOIN equipes eq ON eq.id = pa.equipe_id
             JOIN escolas esc ON esc.id = eq.escola_id
             WHERE pa.partida_id = %s
-            ORDER BY pa.equipe_id, ea.nome
+            ORDER BY pa.equipe_id, pa.is_gol_contra, ea.nome
             """,
             (partida_id,),
         )
@@ -2599,6 +2617,7 @@ async def get_artilheiros_partida(
             equipe_id=r["equipe_id"],
             escola_nome=r["escola_nome"],
             quantidade=r["quantidade"],
+            is_gol_contra=bool(r.get("is_gol_contra")),
         )
         for r in rows
     ]
@@ -2675,9 +2694,19 @@ async def registrar_artilheiros_partida(
                     detail=f"Estudante {art.estudante_id} não está inscrito na equipe {art.equipe_id}.",
                 )
 
-    # Valida soma dos gols = placar de cada equipe
-    soma_mandante = sum(a.quantidade for a in data.artilheiros if a.equipe_id == mandante_id)
-    soma_visitante = sum(a.quantidade for a in data.artilheiros if a.equipe_id == visitante_id)
+    vistos: set[tuple[int, bool]] = set()
+    for art in data.artilheiros:
+        chave = (art.estudante_id, art.is_gol_contra)
+        if chave in vistos:
+            tipo = "gol contra" if art.is_gol_contra else "gol normal"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Estudante {art.estudante_id} já possui registro de {tipo} nesta partida.",
+            )
+        vistos.add(chave)
+
+    soma_mandante = _gols_equipe_contabilizados(data.artilheiros, mandante_id, visitante_id)
+    soma_visitante = _gols_equipe_contabilizados(data.artilheiros, visitante_id, mandante_id)
     if soma_mandante != placar_mandante:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -2695,10 +2724,10 @@ async def registrar_artilheiros_partida(
         for art in data.artilheiros:
             await cur.execute(
                 """
-                INSERT INTO partida_artilheiros (partida_id, equipe_id, estudante_id, quantidade)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO partida_artilheiros (partida_id, equipe_id, estudante_id, quantidade, is_gol_contra)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (partida_id, art.equipe_id, art.estudante_id, art.quantidade),
+                (partida_id, art.equipe_id, art.estudante_id, art.quantidade, art.is_gol_contra),
             )
         await conn.commit()
 
@@ -2707,13 +2736,13 @@ async def registrar_artilheiros_partida(
             """
             SELECT pa.estudante_id, ea.nome AS estudante_nome,
                    pa.equipe_id, esc.nome_escola AS escola_nome,
-                   pa.quantidade
+                   pa.quantidade, pa.is_gol_contra
             FROM partida_artilheiros pa
             JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
             JOIN equipes eq ON eq.id = pa.equipe_id
             JOIN escolas esc ON esc.id = eq.escola_id
             WHERE pa.partida_id = %s
-            ORDER BY pa.equipe_id, ea.nome
+            ORDER BY pa.equipe_id, pa.is_gol_contra, ea.nome
             """,
             (partida_id,),
         )
@@ -2726,6 +2755,7 @@ async def registrar_artilheiros_partida(
             equipe_id=r["equipe_id"],
             escola_nome=r["escola_nome"],
             quantidade=r["quantidade"],
+            is_gol_contra=bool(r.get("is_gol_contra")),
         )
         for r in rows
     ]
@@ -2875,8 +2905,10 @@ async def get_ranking_artilheiros(
             SELECT ea.id AS estudante_id,
                    ea.nome AS estudante_nome,
                    esc.nome_escola AS escola_nome,
-                   SUM(pa.quantidade) AS total_gols,
-                   RANK() OVER (ORDER BY SUM(pa.quantidade) DESC)::int AS posicao
+                   SUM(pa.quantidade) FILTER (WHERE NOT pa.is_gol_contra) AS total_gols,
+                   RANK() OVER (
+                     ORDER BY SUM(pa.quantidade) FILTER (WHERE NOT pa.is_gol_contra) DESC
+                   )::int AS posicao
             FROM partida_artilheiros pa
             JOIN estudantes_atletas ea ON ea.id = pa.estudante_id
             JOIN equipes eq ON eq.id = pa.equipe_id
@@ -2884,6 +2916,7 @@ async def get_ranking_artilheiros(
             JOIN campeonato_partidas cp ON cp.id = pa.partida_id
             WHERE cp.campeonato_id = %s
             GROUP BY ea.id, ea.nome, esc.nome_escola
+            HAVING SUM(pa.quantidade) FILTER (WHERE NOT pa.is_gol_contra) > 0
             ORDER BY total_gols DESC, ea.nome
             """,
             (campeonato_id,),

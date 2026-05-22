@@ -1107,6 +1107,7 @@ class ArtilheiroInput(BaseModel):
     estudante_id: int
     equipe_id: int
     quantidade: int = Field(1, ge=1)
+    is_gol_contra: bool = False
 
 
 class RegistrarArtilheirosInput(BaseModel):
@@ -1119,6 +1120,7 @@ class ArtilheiroOutput(BaseModel):
     equipe_id: int
     escola_nome: str
     quantidade: int
+    is_gol_contra: bool = False
 
 
 class RankingArtilheirosItem(BaseModel):

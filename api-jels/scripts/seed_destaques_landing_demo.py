@@ -220,8 +220,8 @@ async def _seed_um_campeonato(
                 await cur.execute("DELETE FROM partida_artilheiros WHERE partida_id = %s", (pid,))
                 await cur.execute(
                     """
-                    INSERT INTO partida_artilheiros (partida_id, equipe_id, estudante_id, quantidade)
-                    VALUES (%s, %s, %s, %s), (%s, %s, %s, %s)
+                    INSERT INTO partida_artilheiros (partida_id, equipe_id, estudante_id, quantidade, is_gol_contra)
+                    VALUES (%s, %s, %s, %s, FALSE), (%s, %s, %s, %s, FALSE)
                     """,
                     (pid, mid, est_m, pm, pid, vid, est_v, pv),
                 )
