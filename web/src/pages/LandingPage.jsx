@@ -1,6 +1,7 @@
 import PublicHeader from '../components/landing/PublicHeader'
 import HeroSection from '../components/landing/HeroSection'
 import HowToParticipate from '../components/landing/HowToParticipate'
+import { useAdesaoEscolasAberta } from '../hooks/useAdesaoEscolasAberta'
 import DestaquesRodadaSection from '../components/landing/DestaquesRodadaSection'
 import LocaisCarousel from '../components/landing/LocaisCarousel'
 import GallerySection from '../components/landing/GallerySection'
@@ -9,6 +10,8 @@ import FooterInstitucional from '../components/landing/FooterInstitucional'
 import InstagramWidget from '../components/landing/InstagramWidget'
 
 export default function LandingPage() {
+  const { adesaoAberta } = useAdesaoEscolasAberta()
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Seção Superior */}
@@ -21,9 +24,11 @@ export default function LandingPage() {
             <div className="absolute -left-20 top-0 w-64 h-64 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -right-20 bottom-0 w-64 h-64 bg-emerald-100/30 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10">
-              <HowToParticipate />
-            </div>
+            {adesaoAberta ? (
+              <div className="relative z-10">
+                <HowToParticipate />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, LogIn, User, LogOut, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useAdesaoEscolasAberta } from '../../hooks/useAdesaoEscolasAberta'
 import { handleAnchorClick } from '../../utils/smoothScroll'
 
 export default function PublicHeader() {
@@ -9,6 +10,7 @@ export default function PublicHeader() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { adesaoAberta } = useAdesaoEscolasAberta()
 
   const handleLogout = () => {
     logout()
@@ -19,7 +21,10 @@ export default function PublicHeader() {
     { path: '/', label: 'Início' },
     { path: '/agenda', label: 'Agenda' },
     { path: '/resultados', label: 'Resultados' },
-    { path: '/cadastro', label: 'Cadastro de Escola', external: true },
+    { path: '/boletins', label: 'Boletins' },
+    ...(adesaoAberta
+      ? [{ path: '/cadastro', label: 'Cadastro de Escola', external: true }]
+      : []),
   ]
 
   const isActive = (path) => location.pathname === path

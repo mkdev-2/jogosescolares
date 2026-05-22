@@ -5,6 +5,7 @@ import { ArrowLeft, School, Building2, User, Users, Trophy, AlertCircle, Downloa
 import PublicHeader from '../components/landing/PublicHeader'
 import { escolasService } from '../services/escolasService'
 import { configuracoesService } from '../services/configuracoesService'
+import { isCadastroEscolaEncerrado } from '../utils/cadastroEscolaPrazo'
 import { esporteVariantesService } from '../services/esporteVariantesService'
 import ModalidadeIcon from '../components/catalogos/ModalidadeIcon'
 import ModalidadesForm from '../components/catalogos/ModalidadesForm'
@@ -245,17 +246,8 @@ export default function CadastroEscola() {
     configuracoesService.getCadastroDataLimite()
       .then((valor) => {
         setDataLimite(valor || null)
-        if (valor) {
-          const limit = valor.trim().slice(0, 10)
-          if (limit) {
-            const [y, m, d] = limit.split('-').map(Number)
-            const deadline = new Date(y, m - 1, d)
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            if (today > deadline) {
-              setFormEncerrado(true)
-            }
-          }
+        if (isCadastroEscolaEncerrado(valor)) {
+          setFormEncerrado(true)
         }
       })
       .catch(() => {})
