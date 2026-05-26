@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Image as ImageIcon, UserCheck, Users, Trophy, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Calendar, Image as ImageIcon, UserCheck, Users, Trophy, UsersRound, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { DatePicker, Button, Tabs, Form, notification, Typography, Badge, Alert, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import { configuracoesService } from '../services/configuracoesService'
@@ -23,6 +23,7 @@ function Configuracoes({ embedded }) {
           cadastro_data_limite: data.cadastro_data_limite ? dayjs(data.cadastro_data_limite) : null,
           diretor_cadastro_alunos_data_limite: data.diretor_cadastro_alunos_data_limite ? dayjs(data.diretor_cadastro_alunos_data_limite) : null,
           diretor_editar_modalidades_data_limite: data.diretor_editar_modalidades_data_limite ? dayjs(data.diretor_editar_modalidades_data_limite) : null,
+          diretor_equipes_data_limite: data.diretor_equipes_data_limite ? dayjs(data.diretor_equipes_data_limite) : null,
         })
       }
     } catch (err) {
@@ -53,6 +54,7 @@ function Configuracoes({ embedded }) {
       cadastro_data_limite: values.cadastro_data_limite ? values.cadastro_data_limite.format('YYYY-MM-DD') : null,
       diretor_cadastro_alunos_data_limite: values.diretor_cadastro_alunos_data_limite ? values.diretor_cadastro_alunos_data_limite.format('YYYY-MM-DD') : null,
       diretor_editar_modalidades_data_limite: values.diretor_editar_modalidades_data_limite ? values.diretor_editar_modalidades_data_limite.format('YYYY-MM-DD') : null,
+      diretor_equipes_data_limite: values.diretor_equipes_data_limite ? values.diretor_equipes_data_limite.format('YYYY-MM-DD') : null,
     }
 
     try {
@@ -165,6 +167,13 @@ function Configuracoes({ embedded }) {
               'Seleção de Modalidades',
               Trophy,
               'Data limite para vincular ou desvincular modalidades esportivas à escola.'
+            )}
+
+            {renderDateField(
+              'diretor_equipes_data_limite',
+              'Montagem de Equipes',
+              UsersRound,
+              'Prazo final para diretores e coordenadores criarem ou alterarem equipes.'
             )}
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">

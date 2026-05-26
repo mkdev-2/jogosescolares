@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Alert } from 'antd'
 import useEquipes from '../hooks/useEquipes'
+import usePrazoEquipes from '../hooks/usePrazoEquipes'
 import useEstudantes from '../hooks/useEstudantes'
 import useProfessoresTecnicos from '../hooks/useProfessoresTecnicos'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
@@ -13,6 +15,7 @@ import { estudantesService } from '../services/estudantesService'
 
 export default function Equipes() {
   const { lista, loading, error, fetchLista } = useEquipes()
+  const { bloqueado: equipesBloqueado, dataLimite: prazoEquipes } = usePrazoEquipes()
   const { lista: estudantes } = useEstudantes()
   const { lista: professoresTecnicos } = useProfessoresTecnicos()
   const { variantes } = useEsporteVariantes()
@@ -111,12 +114,29 @@ export default function Equipes() {
         </p>
       </header>
 
+      {!equipesBloqueado && prazoEquipes && (
+        <Alert
+          type="info"
+          message="Prazo para montagem de equipes"
+          description={`Equipes podem ser criadas ou alteradas até ${new Date(prazoEquipes + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}.`}
+          showIcon
+        />
+      )}
+      {equipesBloqueado && (
+        <Alert
+          type="warning"
+          message="Prazo encerrado"
+          description="O prazo para criar ou editar equipes foi encerrado."
+          showIcon
+        />
+      )}
+
       <div className="flex-1">
         <EquipesList
           lista={lista}
           loading={loading}
           error={error}
-          onNewEquipe={handleNewEquipe}
+          onNewEquipe={equipesBloqueado ? undefined : handleNewEquipe}
           onFichaColetiva={handleFichaColetiva}
           onFichaIndividual={handleFichaIndividual}
         />

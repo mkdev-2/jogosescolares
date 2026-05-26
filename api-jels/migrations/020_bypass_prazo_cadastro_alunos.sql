@@ -1,1 +1,1 @@
-ALTER TABLE users ADD COLUMN bypass_prazo_cadastro_alunos BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bypass_prazo_cadastro_alunos BOOLEAN NOT NULL DEFAULT FALSE;

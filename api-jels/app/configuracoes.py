@@ -22,6 +22,7 @@ CHAVES_CONHECIDAS = {
     "cadastro_data_limite",
     "diretor_cadastro_alunos_data_limite",
     "diretor_editar_modalidades_data_limite",
+    "diretor_equipes_data_limite",
     "logo_secretaria",
     "logo_jels",
     "bg_credencial",
@@ -67,8 +68,12 @@ async def get_configuracoes_app(
     conn: psycopg.AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Retorna configurações para o app (usuário logado): prazos para diretor cadastrar alunos e editar modalidades."""
-    chaves = ("diretor_cadastro_alunos_data_limite", "diretor_editar_modalidades_data_limite")
+    """Retorna configurações para o app (usuário logado): prazos para diretor/coordenador."""
+    chaves = (
+        "diretor_cadastro_alunos_data_limite",
+        "diretor_editar_modalidades_data_limite",
+        "diretor_equipes_data_limite",
+    )
     result = {k: None for k in chaves}
     async with conn.cursor() as cur:
         await cur.execute(

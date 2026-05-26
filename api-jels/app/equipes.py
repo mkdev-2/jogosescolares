@@ -19,6 +19,12 @@ from app.schemas import (
 from app.auth import get_current_user, get_current_user_with_escola, is_admin
 from app.database import get_db, log_audit
 from app.edicao_context import get_escola_modalidades_adesao, resolve_edicao_id
+from app.prazos import assert_prazo_nao_encerrado
+
+CHAVE_PRAZO_EQUIPES = "diretor_equipes_data_limite"
+MSG_PRAZO_EQUIPES_ENCERRADO = (
+    "O prazo para criar ou editar equipes foi encerrado. Entre em contato com a administração."
+)
 
 router = APIRouter(prefix="/equipes", tags=["equipes"])
 logger = logging.getLogger(__name__)
@@ -296,6 +302,9 @@ async def create_equipe(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Cria equipe na escola do usuário. Valida professor e estudantes. Idade/naipe validados pelo banco."""
+    if not is_admin(current_user):
+        await assert_prazo_nao_encerrado(conn, CHAVE_PRAZO_EQUIPES, MSG_PRAZO_EQUIPES_ENCERRADO)
+
     escola_id = current_user["escola_id"]
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 
@@ -520,6 +529,9 @@ async def update_equipe(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Atualiza equipe. Apenas da mesma escola."""
+    if not is_admin(current_user):
+        await assert_prazo_nao_encerrado(conn, CHAVE_PRAZO_EQUIPES, MSG_PRAZO_EQUIPES_ENCERRADO)
+
     escola_id = current_user["escola_id"]
     resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
 

@@ -9,6 +9,7 @@ import useEquipes from '../hooks/useEquipes'
 import useEscolas from '../hooks/useEscolas'
 import useEsporteVariantes from '../hooks/useEsporteVariantes'
 import usePrazoCadastroAlunos from '../hooks/usePrazoCadastroAlunos'
+import usePrazoEquipes from '../hooks/usePrazoEquipes'
 import EstudantesList from '../components/catalogos/EstudantesList'
 import ProfessoresTecnicosList from '../components/catalogos/ProfessoresTecnicosList'
 import EquipesList from '../components/catalogos/EquipesList'
@@ -76,6 +77,7 @@ export default function Gestao() {
   const temEscola = !!user?.escola_id
   const { variantes } = useEsporteVariantes(null, { minhaEscola: temEscola })
   const { bloqueado: cadastroAlunosBloqueado, dataLimite: prazoCadastroAlunos } = usePrazoCadastroAlunos()
+  const { bloqueado: equipesBloqueado, dataLimite: prazoEquipes } = usePrazoEquipes()
 
 
 
@@ -197,12 +199,30 @@ export default function Gestao() {
           )}
           {activeTab === 'equipes' && (
             <>
+              {!equipesBloqueado && prazoEquipes && (
+                <Alert
+                  type="info"
+                  message="Prazo para montagem de equipes"
+                  description={`Equipes podem ser criadas ou alteradas até ${new Date(prazoEquipes + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Após essa data, não será possível incluir ou editar equipes.`}
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+              {equipesBloqueado && (
+                <Alert
+                  type="warning"
+                  message="Prazo encerrado"
+                  description="O prazo para criar ou editar equipes foi encerrado. Não é possível incluir novas equipes nem alterar as existentes."
+                  showIcon
+                  className="mb-4"
+                />
+              )}
               <EquipesList
                 lista={listaEquipes}
                 loading={loadingEquipes}
                 error={errorEquipes}
-                onNewEquipe={canCreateEntities ? () => { setEquipeParaEditar(null); setModalEquipeOpen(true) } : undefined}
-                onEditEquipe={!isAdmin ? (item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) } : undefined}
+                onNewEquipe={canCreateEntities && !equipesBloqueado ? () => { setEquipeParaEditar(null); setModalEquipeOpen(true) } : undefined}
+                onEditEquipe={!isAdmin && !equipesBloqueado ? (item) => { setEquipeParaEditar(item); setModalEquipeOpen(true) } : undefined}
                 onDeleteEquipe={!isAdmin ? async (item) => { try { await deleteEquipe(item.id) } catch (e) { alert(e.message) } } : undefined}
                 onViewEquipe={(item) => setEquipeParaVer(item)}
                 showInstituicao={isAdmin}

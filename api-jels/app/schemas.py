@@ -451,6 +451,7 @@ class ConfiguracoesUpdate(BaseModel):
     cadastro_data_limite: Optional[str] = Field(None, description="Data limite para envio do formulário de cadastro (YYYY-MM-DD) ou null para sem limite")
     diretor_cadastro_alunos_data_limite: Optional[str] = Field(None, description="Data limite para diretor/coordenador cadastrar alunos (YYYY-MM-DD) ou null para sem limite")
     diretor_editar_modalidades_data_limite: Optional[str] = Field(None, description="Data limite para diretor editar modalidades da escola (YYYY-MM-DD) ou null para sem limite")
+    diretor_equipes_data_limite: Optional[str] = Field(None, description="Data limite para diretor/coordenador criar e editar equipes (YYYY-MM-DD) ou null para sem limite")
     banners_hero: Optional[str] = Field(None, description="Strings de paths dos banners separados por vírgula")
     footer_descricao: Optional[str] = None
     social_facebook: Optional[str] = None
