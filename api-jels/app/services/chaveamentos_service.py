@@ -218,6 +218,7 @@ async def _gerar_bracket(
     participantes_diretos: list[int],
     vagas_bracket: int,
     vagas_wildcard: int,
+    fonte_por_slot: dict[int, tuple[int, int]] | None = None,
 ) -> None:
     """
     Insere as partidas do chaveamento eliminatório.
@@ -225,6 +226,9 @@ async def _gerar_bracket(
     participantes_diretos – equipe_ids dos classificados diretos (seeds 1..N).
     vagas_wildcard        – slots WILDCARD_X ainda sem equipe.
     vagas_bracket         – tamanho total do bracket (deve ser potência de 2).
+    fonte_por_slot        – mapeamento slot_idx → (grupo_id, seed_no_grupo) para
+                            rastrear a origem de cada slot direto. Slots wildcard
+                            e campeonatos sem grupos deixam as colunas como NULL.
     """
     fase_inicial = _fase_por_tamanho_chave(vagas_bracket)
     total_rodadas = int(log2(vagas_bracket))
@@ -248,6 +252,9 @@ async def _gerar_bracket(
         if is_bye:
             vencedor = mandante if visitante is None else visitante
 
+        m_fonte = fonte_por_slot.get(slot_a_idx) if fonte_por_slot and not m_is_wc else None
+        v_fonte = fonte_por_slot.get(slot_b_idx) if fonte_por_slot and not v_is_wc else None
+
         await cur.execute(
             """
             INSERT INTO campeonato_partidas (
@@ -255,9 +262,11 @@ async def _gerar_bracket(
                 mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
                 is_bye, is_wildcard_pending,
                 mandante_is_wildcard, visitante_is_wildcard,
-                origem_slot_a, origem_slot_b
+                origem_slot_a, origem_slot_b,
+                mandante_fonte_grupo_id, mandante_fonte_seed,
+                visitante_fonte_grupo_id, visitante_fonte_seed
             )
-            VALUES (%s, %s, 1, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, 1, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 campeonato_id,
@@ -271,6 +280,10 @@ async def _gerar_bracket(
                 v_is_wc,
                 f"SEED_{slot_a_idx + 1}",
                 f"SEED_{slot_b_idx + 1}",
+                m_fonte[0] if m_fonte else None,
+                m_fonte[1] if m_fonte else None,
+                v_fonte[0] if v_fonte else None,
+                v_fonte[1] if v_fonte else None,
             ),
         )
 
@@ -442,6 +455,10 @@ async def gerar_estrutura_campeonato(
 
                 # Top 2 seeds como placeholder do bracket; substituídos após o grupo fechar
                 participantes_diretos = equipe_ids[:2]
+                fonte_por_slot: dict[int, tuple[int, int]] = {
+                    0: (grupo_id, 1),
+                    1: (grupo_id, 2),
+                }
 
             # --- N = 2: chave direta, sem grupos ---
             elif total_equipes == 2:
@@ -449,6 +466,7 @@ async def gerar_estrutura_campeonato(
                 vagas_bracket = total_equipes
                 vagas_wildcard = 0
                 participantes_diretos = equipe_ids
+                fonte_por_slot = {}
 
             # --- N ≥ 6: algoritmo de distribuição ---
             else:
@@ -466,6 +484,8 @@ async def gerar_estrutura_campeonato(
                     )
 
                 grupos_distribuidos = _snake_distribuicao_com_tamanho(equipe_ids, tamanhos)
+                fonte_por_slot = {}
+                slot_offset = 0
 
                 for idx, equipes_grupo in enumerate(grupos_distribuidos):
                     classif_diretos = classificados_por_grupo[idx]
@@ -496,11 +516,15 @@ async def gerar_estrutura_campeonato(
                                 (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
                             )
 
+                    for i in range(classif_diretos):
+                        fonte_por_slot[slot_offset + i] = (grupo_id, i + 1)
+                    slot_offset += classif_diretos
+
                     # Seeds iniciais como placeholder no bracket
                     participantes_diretos.extend(equipes_grupo[:classif_diretos])
 
             # Gera bracket eliminatório
-            await _gerar_bracket(cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard)
+            await _gerar_bracket(cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard, fonte_por_slot)
 
             status_novo = "FINALIZADO" if total_equipes == 1 else "GERADO"
             await cur.execute(
@@ -567,6 +591,8 @@ async def gerar_partidas_para_grupos_existentes(
 
         total_equipes = 0
         participantes_diretos: list[int] = []
+        fonte_por_slot: dict[int, tuple[int, int]] = {}
+        slot_offset = 0
 
         for grupo_row in grupos_rows:
             grupo_id = int(grupo_row["id"])
@@ -589,9 +615,13 @@ async def gerar_partidas_para_grupos_existentes(
                         (campeonato_id, rodada_idx, grupo_id, mandante_id, visitante_id),
                     )
 
+            for i in range(classif_diretos):
+                fonte_por_slot[slot_offset + i] = (grupo_id, i + 1)
+            slot_offset += classif_diretos
+
             participantes_diretos.extend(equipes_grupo[:classif_diretos])
 
-        await _gerar_bracket(cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard)
+        await _gerar_bracket(cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard, fonte_por_slot)
 
         await cur.execute(
             """

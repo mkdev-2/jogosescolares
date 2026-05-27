@@ -86,10 +86,13 @@ UPDATE campeonato_partidas SET mandante_equipe_id = 836, updated_at = NOW() WHER
 --   Jogo 184 (SEED_4 vs SEED_5): 1040 vs 730  ✅ já correto
 
 UPDATE campeonato_partidas SET visitante_equipe_id = 838, updated_at = NOW() WHERE id = 181;
+-- ^ JÁ EXECUTADO em 2026-05-27 — mantido aqui apenas para documentação.
 
 UPDATE campeonato_partidas SET visitante_equipe_id = 786, updated_at = NOW() WHERE id = 182;
+-- ^ JÁ EXECUTADO em 2026-05-27 — mantido aqui apenas para documentação.
 
 UPDATE campeonato_partidas SET visitante_equipe_id = 980, updated_at = NOW() WHERE id = 183;
+-- ^ JÁ EXECUTADO em 2026-05-27 — mantido aqui apenas para documentação.
 
 
 -- =============================================================================
@@ -119,3 +122,4 @@ UPDATE campeonato_partidas SET visitante_equipe_id = 980, updated_at = NOW() WHE
 --   Final (jogo 130): CEFRAN (713) vs Bandeira Tribuzzi (1276)
 
 UPDATE campeonato_partidas SET mandante_equipe_id = 713, visitante_equipe_id = 1276, updated_at = NOW() WHERE id = 130;
+-- ^ JÁ EXECUTADO em 2026-05-27 — mantido aqui apenas para documentação.

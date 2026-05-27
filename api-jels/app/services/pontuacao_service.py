@@ -507,9 +507,14 @@ async def avancar_classificados_para_mata_mata(
     (partidas de mata-mata, grupo_id IS NULL) que ainda apontam para os seeds
     iniciais pelos classificados reais.
 
-    Estratégia: os seeds_no_grupo 1..N foram usados na geração para preencher
-    os slots do chaveamento. Mapeamos seed_inicial[i] → classificado_real[i]
-    e atualizamos as partidas de mata-mata correspondentes.
+    Estratégia preferencial (brackets gerados após migration 069): cada slot
+    carrega mandante_fonte_grupo_id/mandante_fonte_seed que identificam exatamente
+    qual grupo e qual posição de ranking o preencherá. Isso torna a função imune
+    a edições posteriores de classificados_diretos ou vagas_wildcard.
+
+    Fallback (brackets legados sem as colunas fonte): comportamento anterior —
+    usa classificados_diretos + seed_no_grupo para inferir os slots. Emite aviso
+    e verifica se a contagem de slots encontrados bate com o esperado.
 
     Se o campeonato tem vagas_wildcard > 0 e este for o último grupo a concluir,
     também calcula e preenche os slots de wild card.
@@ -523,6 +528,145 @@ async def avancar_classificados_para_mata_mata(
         if not camp:
             return
 
+        # Lê todos os slots de mata-mata com as colunas de fonte (migration 069).
+        await cur.execute(
+            """
+            SELECT id,
+                   mandante_equipe_id, mandante_fonte_grupo_id, mandante_fonte_seed,
+                   visitante_equipe_id, visitante_fonte_grupo_id, visitante_fonte_seed,
+                   vencedor_equipe_id, is_bye
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s AND grupo_id IS NULL
+            """,
+            (campeonato_id,),
+        )
+        todas_partidas = await cur.fetchall()
+
+    # Slots que pertencem a este grupo (via fonte_grupo_id).
+    slots_do_grupo = [
+        p for p in todas_partidas
+        if p["mandante_fonte_grupo_id"] == grupo_id
+        or p["visitante_fonte_grupo_id"] == grupo_id
+    ]
+    has_any_fonte = any(
+        p["mandante_fonte_grupo_id"] is not None or p["visitante_fonte_grupo_id"] is not None
+        for p in todas_partidas
+    )
+
+    classificacao = await calcular_classificacao_grupo(conn, grupo_id, config)
+
+    if slots_do_grupo:
+        # --- Caminho moderno: atualiza por (fonte_grupo_id, fonte_seed) ---
+        await _atualizar_slots_por_fonte(conn, campeonato_id, grupo_id, slots_do_grupo, classificacao)
+
+    elif has_any_fonte:
+        # Bracket novo (tem fonte em outros slots) mas nenhum slot para este grupo.
+        # Indica inconsistência — não tenta atualizar para não corromper.
+        logger.error(
+            "Campeonato %s / grupo %s: bracket com fonte_grupo_id mas nenhum slot pertence a este grupo — abortando avanço",
+            campeonato_id, grupo_id,
+        )
+
+    else:
+        # --- Caminho legado: bracket sem colunas fonte (gerado antes da migration 069) ---
+        await _atualizar_slots_legado(conn, campeonato_id, grupo_id, todas_partidas, classificacao)
+
+    # Wild card: se este for o último grupo a concluir, preenche os slots pendentes
+    vagas_wildcard = int(camp["vagas_wildcard"] or 0)
+    if vagas_wildcard == 0:
+        return
+
+    todos_concluidos = await _verificar_todos_grupos_concluidos(conn, campeonato_id)
+    if not todos_concluidos:
+        return
+
+    await _preencher_wild_cards(conn, campeonato_id, vagas_wildcard, config)
+
+
+async def _atualizar_slots_por_fonte(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    grupo_id: int,
+    slots_do_grupo: list,
+    classificacao: list,
+) -> None:
+    """Atualiza slots do bracket usando os campos fonte_grupo_id/fonte_seed.
+
+    Todas as mudanças de uma mesma partida são aplicadas em um único UPDATE para
+    evitar estado intermediário que viola chk_campeonato_partidas_confronto_valido
+    (ex.: cadeia onde new_mandante == old_visitante momentaneamente).
+    """
+    async with conn.cursor() as cur:
+        for p in slots_do_grupo:
+            changes: dict[str, int | None] = {}
+
+            for lado, fonte_seed_col, equipe_col in (
+                ("mandante", "mandante_fonte_seed", "mandante_equipe_id"),
+                ("visitante", "visitante_fonte_seed", "visitante_equipe_id"),
+            ):
+                if p[f"{lado}_fonte_grupo_id"] != grupo_id:
+                    continue
+
+                seed = p[fonte_seed_col]
+                if seed is None or seed < 1 or seed > len(classificacao):
+                    logger.warning(
+                        "Campeonato %s / grupo %s: fonte_seed=%s fora do range da classificação (%d posições) — slot ignorado",
+                        campeonato_id, grupo_id, seed, len(classificacao),
+                    )
+                    continue
+
+                entry = classificacao[seed - 1]
+                new_equipe: int | None = (
+                    None if entry.get("criterio_decisivo") == "SORTEIO_PENDENTE"
+                    else entry["equipe_id"]
+                )
+
+                if new_equipe != p[equipe_col]:
+                    changes[equipe_col] = new_equipe
+
+            if not changes:
+                continue
+
+            # Propaga mudança ao vencedor de BYE se o slot que mudou era o vencedor
+            if p["is_bye"]:
+                for equipe_col in ("mandante_equipe_id", "visitante_equipe_id"):
+                    if equipe_col in changes and p["vencedor_equipe_id"] == p[equipe_col]:
+                        new_v = changes[equipe_col]
+                        if new_v is not None:
+                            changes["vencedor_equipe_id"] = new_v
+                        break
+
+            for col, new_val in changes.items():
+                logger.info(
+                    "Campeonato %s / grupo %s: substituindo %s %s → %s no bracket (partida %s)",
+                    campeonato_id, grupo_id, col, p[col], new_val, p["id"],
+                )
+
+            set_clause = ", ".join(f"{col} = %s" for col in changes)
+            await cur.execute(
+                f"UPDATE campeonato_partidas SET {set_clause}, updated_at = NOW() WHERE id = %s",
+                (*changes.values(), p["id"]),
+            )
+
+
+async def _atualizar_slots_legado(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    grupo_id: int,
+    todas_partidas: list,
+    classificacao: list,
+) -> None:
+    """
+    Caminho de compatibilidade para brackets gerados antes da migration 069.
+    Infere os slots do grupo via classificados_diretos + seed_no_grupo.
+    Emite aviso e verifica contagem para detectar dessincronização.
+    """
+    logger.warning(
+        "Campeonato %s / grupo %s: bracket sem fonte_grupo_id — usando modo legado",
+        campeonato_id, grupo_id,
+    )
+
+    async with conn.cursor() as cur:
         await cur.execute(
             "SELECT classificados_diretos FROM campeonato_grupos WHERE id = %s",
             (grupo_id,),
@@ -542,14 +686,23 @@ async def avancar_classificados_para_mata_mata(
     if not seeds_no_bracket:
         return
 
-    classificacao = await calcular_classificacao_grupo(conn, grupo_id, config)
-
     if len(classificacao) < len(seeds_no_bracket):
         return
 
-    # mapeamento: seed_inicial → equipe_real (ou None quando SORTEIO_PENDENTE,
-    # indicando que o slot deve ficar "A Definir" até o sorteio ser registrado).
-    # Usamos `old_id in mapeamento` para distinguir "sem mudança" de "limpar slot".
+    # Opção 3: verifica se a contagem de slots encontrados bate com o esperado.
+    # Dessincronização (ex.: classificados_diretos editado após geração) indica risco de corrupção.
+    seeds_set = set(seeds_no_bracket)
+    slots_encontrados = sum(
+        1 for p in todas_partidas
+        if p["mandante_equipe_id"] in seeds_set or p["visitante_equipe_id"] in seeds_set
+    )
+    if slots_encontrados != len(seeds_no_bracket):
+        logger.warning(
+            "Campeonato %s / grupo %s: esperava %d slots no bracket mas encontrou %d "
+            "— classificados_diretos pode estar dessincronizado da geração original",
+            campeonato_id, grupo_id, len(seeds_no_bracket), slots_encontrados,
+        )
+
     mapeamento: dict[int, int | None] = {}
     for i, old_id in enumerate(seeds_no_bracket):
         entry = classificacao[i]
@@ -558,57 +711,36 @@ async def avancar_classificados_para_mata_mata(
         elif old_id != entry["equipe_id"]:
             mapeamento[old_id] = entry["equipe_id"]
 
-    if mapeamento:
-        for old_id, new_id in mapeamento.items():
-            logger.info(
-                "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
-                campeonato_id, grupo_id, old_id, new_id,
-            )
+    if not mapeamento:
+        return
 
-        # Lê todos os slots do bracket de uma vez para evitar o bug de SWAP/CHAIN:
-        # se fizermos UPDATE sequencial por equipe_id, o passo N pode sobrescrever
-        # o que o passo N-1 acabou de escrever (ex.: {A→B, B→A} resulta em A em ambos).
-        # A solução é resolver tudo por partida_id: ler o estado atual, calcular os
-        # novos valores, e atualizar cada partida individualmente pelo seu id.
-        async with conn.cursor() as cur:
+    for old_id, new_id in mapeamento.items():
+        logger.info(
+            "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
+            campeonato_id, grupo_id, old_id, new_id,
+        )
+
+    async with conn.cursor() as cur:
+        for p in todas_partidas:
+            changes: dict[str, int | None] = {}
+
+            if p["mandante_equipe_id"] in mapeamento:
+                changes["mandante_equipe_id"] = mapeamento[p["mandante_equipe_id"]]
+            if p["visitante_equipe_id"] in mapeamento:
+                changes["visitante_equipe_id"] = mapeamento[p["visitante_equipe_id"]]
+            if p["is_bye"] and p["vencedor_equipe_id"] in mapeamento:
+                new_v = mapeamento[p["vencedor_equipe_id"]]
+                if new_v is not None:
+                    changes["vencedor_equipe_id"] = new_v
+
+            if not changes:
+                continue
+
+            set_clause = ", ".join(f"{col} = %s" for col in changes)
             await cur.execute(
-                """
-                SELECT id, mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id, is_bye
-                FROM campeonato_partidas
-                WHERE campeonato_id = %s AND grupo_id IS NULL
-                """,
-                (campeonato_id,),
+                f"UPDATE campeonato_partidas SET {set_clause}, updated_at = NOW() WHERE id = %s",
+                (*changes.values(), p["id"]),
             )
-            partidas = await cur.fetchall()
-
-        async with conn.cursor() as cur:
-            for p in partidas:
-                if p["mandante_equipe_id"] in mapeamento:
-                    await cur.execute(
-                        "UPDATE campeonato_partidas SET mandante_equipe_id = %s, updated_at = NOW() WHERE id = %s",
-                        (mapeamento[p["mandante_equipe_id"]], p["id"]),
-                    )
-                if p["visitante_equipe_id"] in mapeamento:
-                    await cur.execute(
-                        "UPDATE campeonato_partidas SET visitante_equipe_id = %s, updated_at = NOW() WHERE id = %s",
-                        (mapeamento[p["visitante_equipe_id"]], p["id"]),
-                    )
-                if p["is_bye"] and p["vencedor_equipe_id"] in mapeamento:
-                    await cur.execute(
-                        "UPDATE campeonato_partidas SET vencedor_equipe_id = %s, updated_at = NOW() WHERE id = %s",
-                        (mapeamento[p["vencedor_equipe_id"]], p["id"]),
-                    )
-
-    # Wild card: se este for o último grupo a concluir, preenche os slots pendentes
-    vagas_wildcard = int(camp["vagas_wildcard"] or 0)
-    if vagas_wildcard == 0:
-        return
-
-    todos_concluidos = await _verificar_todos_grupos_concluidos(conn, campeonato_id)
-    if not todos_concluidos:
-        return
-
-    await _preencher_wild_cards(conn, campeonato_id, vagas_wildcard, config)
 
 
 async def calcular_ranking_wildcards(
