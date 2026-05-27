@@ -993,7 +993,8 @@ async def _recalcular_stats_equalizados(
 ) -> list[dict]:
     """
     Para comparação justa entre candidatos de grupos de tamanhos diferentes,
-    recalcula as stats ignorando partidas envolvendo a 4ª equipe de grupos de 4.
+    recalcula as stats ignorando partidas que envolvem o 4° colocado REAL do grupo
+    (classificação final após os jogos, não o seed inicial do sorteio).
     """
     resultado: list[dict] = []
 
@@ -1006,14 +1007,14 @@ async def _recalcular_stats_equalizados(
             resultado.append(candidato)
             continue
 
-        # Busca as 3 primeiras equipes do grupo (por seed) e filtra partidas entre elas
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "SELECT equipe_id FROM campeonato_grupo_equipes WHERE grupo_id = %s ORDER BY seed_no_grupo LIMIT 3",
-                (gid,),
-            )
-            top3_ids = {int(r["equipe_id"]) for r in await cur.fetchall()}
+        # Identifica o 4° colocado real pela classificação final do grupo
+        classificacao = await calcular_classificacao_grupo(conn, gid, config)
+        if len(classificacao) < 4:
+            resultado.append(candidato)
+            continue
+        excluido_id = int(classificacao[3]["equipe_id"])
 
+        async with conn.cursor() as cur:
             await cur.execute(
                 """
                 SELECT id, mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id,
@@ -1021,10 +1022,10 @@ async def _recalcular_stats_equalizados(
                        resultado_tipo
                 FROM campeonato_partidas
                 WHERE grupo_id = %s AND is_bye = FALSE
-                  AND mandante_equipe_id = ANY(%s) AND visitante_equipe_id = ANY(%s)
+                  AND mandante_equipe_id != %s AND visitante_equipe_id != %s
                 ORDER BY rodada
                 """,
-                (gid, list(top3_ids), list(top3_ids)),
+                (gid, excluido_id, excluido_id),
             )
             partidas_equalizadas = [dict(p) for p in await cur.fetchall()]
 
