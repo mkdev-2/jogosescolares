@@ -206,6 +206,14 @@ export const campeonatosService = {
     return Array.isArray(data) ? data : []
   },
 
+  async registrarSorteio(campeonatoId, grupoId, resultados) {
+    const res = await apiFetch(`${BASE}/${campeonatoId}/grupos/${grupoId}/sorteio`, {
+      method: 'PATCH',
+      body: JSON.stringify({ resultados }),
+    })
+    return handleResponse(res, 'Erro ao registrar resultado do sorteio')
+  },
+
   async getArtilheirosPartida(campeonatoId, partidaId) {
     const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/artilheiros`)
     const data = await handleResponse(res, 'Erro ao buscar artilheiros da partida')

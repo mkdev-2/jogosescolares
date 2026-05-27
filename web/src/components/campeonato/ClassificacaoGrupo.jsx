@@ -16,6 +16,7 @@ const CRITERIO_LABEL = {
   MENOR_CONTRA_GERAL: 'Pontos sofridos',
   MAIOR_PRO_GERAL: 'Pontos marcados',
   SORTEIO: 'Sorteio',
+  SORTEIO_PENDENTE: 'Sorteio pendente',
 }
 
 function criterioDesc(crit, r) {
@@ -33,6 +34,7 @@ function criterioDesc(crit, r) {
     case 'MENOR_CONTRA_GERAL':  return `Menos pontos sofridos (${r.contra})`
     case 'MAIOR_PRO_GERAL':     return `Mais pontos marcados (${r.pro})`
     case 'SORTEIO':             return 'Critérios esgotados — posição definida por sorteio'
+    case 'SORTEIO_PENDENTE':    return 'Empate não resolvido — aguardando resultado do sorteio'
     default:                    return null
   }
 }
@@ -156,9 +158,12 @@ export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificado
 
   const usaSec = config?.unidade_placar === 'SETS'
   const grupoConcluido = classificacao[0]?.grupo_concluido ?? false
+  const isSorteioPendente = (r) => r.criterio_decisivo === 'SORTEIO_PENDENTE'
   const isClassificado = (r) =>
     grupoConcluido &&
+    !isSorteioPendente(r) &&
     (r.posicao <= classificadosDiretos || (wildcardEquipeIds ?? []).includes(r.equipe_id))
+  const sorteioPendente = classificacao.some((r) => r.criterio_decisivo === 'SORTEIO_PENDENTE')
 
   if (loading) {
     return (
@@ -169,6 +174,13 @@ export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificado
   }
 
   return (
+    <div className="flex flex-col gap-2">
+      {sorteioPendente && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+          <span>⚠</span>
+          <span>Sorteio necessário — empate não resolvido pelos critérios de desempate</span>
+        </div>
+      )}
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-sm border-collapse">
         <thead>
@@ -200,23 +212,43 @@ export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificado
         <tbody>
           {classificacao.map((r, idx) => {
             const classificado = isClassificado(r)
+            const sorteio = isSorteioPendente(r)
             const wc = (wildcardEquipeIds ?? []).includes(r.equipe_id)
             return (
               <tr
                 key={r.equipe_id}
                 className={`border-b border-slate-100 last:border-0 transition-colors ${
-                  classificado
-                    ? 'bg-emerald-50 hover:bg-emerald-100/60'
-                    : idx % 2 === 0
-                      ? 'bg-white hover:bg-slate-50'
-                      : 'bg-slate-50/50 hover:bg-slate-100/60'
+                  sorteio
+                    ? 'bg-amber-50 hover:bg-amber-100/60'
+                    : classificado
+                      ? 'bg-emerald-50 hover:bg-emerald-100/60'
+                      : idx % 2 === 0
+                        ? 'bg-white hover:bg-slate-50'
+                        : 'bg-slate-50/50 hover:bg-slate-100/60'
                 }`}
               >
                 <td className="px-3 py-2">
                   <PositionBadge posicao={r.posicao} />
                 </td>
                 <td className="px-3 py-2 font-medium text-slate-800">
-                  {classificado ? (
+                  {sorteio ? (
+                    <Popover
+                      content={
+                        <div style={{ maxWidth: 260 }}>
+                          <p className="font-semibold text-amber-700 mb-1">Posição indefinida — sorteio pendente</p>
+                          <p className="text-sm text-gray-600 m-0">
+                            Esta equipe está empatada e a posição final ainda não foi definida.
+                            Use o botão <strong>"Registrar Sorteio"</strong> acima para informar o resultado.
+                          </p>
+                        </div>
+                      }
+                      trigger="hover"
+                      placement="right"
+                      mouseEnterDelay={0.2}
+                    >
+                      <span className="cursor-default underline decoration-dotted decoration-amber-500 text-amber-900">{r.nome_escola}</span>
+                    </Popover>
+                  ) : classificado ? (
                     <Popover
                       content={<ClassificadoPopoverContent record={r} isWildcard={wc} wildcardRanking={wildcardRanking} />}
                       trigger="hover"
@@ -250,6 +282,7 @@ export default function ClassificacaoGrupo({ campeonatoId, grupoId, classificado
           })}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }

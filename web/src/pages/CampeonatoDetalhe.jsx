@@ -775,9 +775,13 @@ function ClassificadoPopoverContent({ record, isWildcard, wildcardRanking }) {
 }
 
 // ── ClassificacaoGrupo ────────────────────────────────────────────────────────
-function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, config, refreshKey, wildcardEquipeIds, wildcardRanking }) {
+function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, config, refreshKey, wildcardEquipeIds, wildcardRanking, onRefresh }) {
+  const { isAdmin } = useEdicao()
   const [classificacao, setClassificacao] = useState([])
   const [loading, setLoading] = useState(true)
+  const [sorteioModal, setSorteioModal] = useState(false)
+  const [sorteioForm, setSorteioForm] = useState([])
+  const [salvandoSorteio, setSalvandoSorteio] = useState(false)
 
   useEffect(() => {
     campeonatosService
@@ -792,6 +796,28 @@ function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, confi
   const isClassificado = (r) =>
     grupoConcluido &&
     (r.posicao <= classificadosDiretos || (wildcardEquipeIds ?? []).includes(r.equipe_id))
+  const sorteioPendente = classificacao.some((r) => r.criterio_decisivo === 'SORTEIO_PENDENTE')
+  const timesEmpatados = classificacao.filter((r) => r.criterio_decisivo === 'SORTEIO_PENDENTE')
+
+  const abrirSorteio = () => {
+    setSorteioForm(timesEmpatados.map((r) => ({ equipe_id: r.equipe_id, nome_escola: r.nome_escola, posicao_no_grupo: r.posicao })))
+    setSorteioModal(true)
+  }
+
+  const salvarSorteio = async () => {
+    setSalvandoSorteio(true)
+    try {
+      const resultados = sorteioForm.map((r) => ({ equipe_id: r.equipe_id, posicao_no_grupo: r.posicao_no_grupo }))
+      await campeonatosService.registrarSorteio(campeonatoId, grupoId, resultados)
+      message.success('Resultado do sorteio registrado com sucesso.')
+      setSorteioModal(false)
+      onRefresh?.()
+    } catch (e) {
+      message.error('Erro ao registrar resultado do sorteio.')
+    } finally {
+      setSalvandoSorteio(false)
+    }
+  }
 
   const th = (sigla, label) => (
     <Tooltip title={label} mouseEnterDelay={0.3}>
@@ -846,16 +872,72 @@ function ClassificacaoGrupo({ campeonatoId, grupoId, classificadosDiretos, confi
       : []),
   ]
 
+  // Posições disponíveis fixas — derivadas uma vez ao abrir o modal (via sorteioForm inicial)
+  const posicaoOptions = [...new Set(sorteioForm.map((r) => r.posicao_no_grupo))].sort((a, b) => a - b)
+
+  const handleSorteioChange = (idx, novaPos) => {
+    setSorteioForm((prev) => {
+      const antigoOcupante = prev.findIndex((r, i) => i !== idx && r.posicao_no_grupo === novaPos)
+      const posAnterior = prev[idx].posicao_no_grupo
+      return prev.map((r, i) => {
+        if (i === idx) return { ...r, posicao_no_grupo: novaPos }
+        if (i === antigoOcupante) return { ...r, posicao_no_grupo: posAnterior }
+        return r
+      })
+    })
+  }
+
   return (
-    <Table
-      rowKey="equipe_id"
-      size="small"
-      pagination={false}
-      loading={loading}
-      dataSource={classificacao}
-      columns={cols}
-      rowClassName={(r) => isClassificado(r) ? 'bg-emerald-50' : ''}
-    />
+    <div className="flex flex-col gap-2">
+      {sorteioPendente && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+          <span className="font-medium">⚠ Sorteio necessário — empate não resolvido pelos critérios de desempate</span>
+          {isAdmin && (
+            <Button size="small" onClick={abrirSorteio} className="shrink-0 border-amber-400 text-amber-800 hover:border-amber-600">
+              Registrar Sorteio
+            </Button>
+          )}
+        </div>
+      )}
+      <Table
+        rowKey="equipe_id"
+        size="small"
+        pagination={false}
+        loading={loading}
+        dataSource={classificacao}
+        columns={cols}
+        rowClassName={(r) => isClassificado(r) ? 'bg-emerald-50' : ''}
+      />
+      {isAdmin && (
+        <Modal
+          title="Registrar Resultado do Sorteio"
+          open={sorteioModal}
+          onCancel={() => setSorteioModal(false)}
+          onOk={salvarSorteio}
+          okText="Salvar"
+          cancelText="Cancelar"
+          confirmLoading={salvandoSorteio}
+        >
+          <p className="text-sm text-slate-600 mb-4">
+            Defina a posição final de cada equipe empatada conforme o resultado do sorteio realizado.
+          </p>
+          <div className="flex flex-col gap-2">
+            {sorteioForm.map((item, idx) => (
+              <div key={item.equipe_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50">
+                <span className="text-sm font-medium text-slate-800">{item.nome_escola}</span>
+                <Select
+                  size="small"
+                  style={{ width: 80 }}
+                  value={item.posicao_no_grupo}
+                  onChange={(val) => handleSorteioChange(idx, val)}
+                  options={posicaoOptions.map((p) => ({ value: p, label: `${p}°` }))}
+                />
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+    </div>
   )
 }
 
@@ -1373,7 +1455,7 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
 }
 
 // ── GrupoSection ──────────────────────────────────────────────────────────────
-function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refreshKey, wildcardEquipeIds, wildcardRanking, bloqueado, isManual }) {
+function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refreshKey, wildcardEquipeIds, wildcardRanking, bloqueado, isManual, onRefresh }) {
   const partidasGrupo = partidas.filter((p) => p.grupo_id === grupo.id && !p.is_bye)
 
   const handlePartidaClick = (p) => {
@@ -1434,6 +1516,7 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
             refreshKey={refreshKey}
             wildcardEquipeIds={wildcardEquipeIds}
             wildcardRanking={wildcardRanking}
+            onRefresh={onRefresh}
           />
         </div>
         <div className="flex-[2] min-w-0">
@@ -2320,6 +2403,7 @@ export default function CampeonatoDetalhe() {
                   wildcardRanking={estrutura.wildcard_ranking ?? []}
                   bloqueado={gruposBloqueados}
                   isManual={isManual}
+                  onRefresh={fetchData}
                 />
               ))
             )}

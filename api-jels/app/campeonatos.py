@@ -6,6 +6,7 @@ from math import log2
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 import psycopg
+from pydantic import BaseModel
 
 from app.auth import get_current_user, is_admin
 from app.database import get_db, log_audit
@@ -2990,4 +2991,86 @@ async def get_classificacao_grupo(
             )
 
     config = await get_config_pontuacao(conn, campeonato_id)
+    return await calcular_classificacao_grupo(conn, grupo_id, config)
+
+
+# ---------------------------------------------------------------------------
+# Registro de resultado de sorteio para desempate
+# ---------------------------------------------------------------------------
+
+class _SorteioItem(BaseModel):
+    equipe_id: int
+    posicao_no_grupo: int
+
+class _SorteioRequest(BaseModel):
+    resultados: list[_SorteioItem]
+
+
+@router.patch("/{campeonato_id}/grupos/{grupo_id}/sorteio")
+async def registrar_sorteio_grupo(
+    campeonato_id: int,
+    grupo_id: int,
+    data: _SorteioRequest,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Registra o resultado de um sorteio de desempate para um grupo.
+    Cada item indica a posição final (absoluta no grupo) de uma equipe.
+    Após o registro, se o grupo já estiver concluído, aciona automaticamente
+    o avanço dos classificados para o mata-mata.
+    """
+    _require_admin(current_user)
+    await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id FROM campeonato_grupos WHERE id = %s AND campeonato_id = %s",
+            (grupo_id, campeonato_id),
+        )
+        if not await cur.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grupo não encontrado.")
+
+        await cur.execute(
+            "SELECT equipe_id FROM campeonato_grupo_equipes WHERE grupo_id = %s",
+            (grupo_id,),
+        )
+        grupo_equipes = {r["equipe_id"] for r in await cur.fetchall()}
+
+        equipe_ids = [item.equipe_id for item in data.resultados]
+        for eid in equipe_ids:
+            if eid not in grupo_equipes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Equipe {eid} não pertence ao grupo.",
+                )
+
+        posicoes = [item.posicao_no_grupo for item in data.resultados]
+        if len(posicoes) != len(set(posicoes)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Posições duplicadas no resultado do sorteio.",
+            )
+
+        for item in data.resultados:
+            await cur.execute(
+                """
+                INSERT INTO campeonato_grupo_sorteio
+                    (grupo_id, equipe_id, posicao_no_grupo, registrado_por)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (grupo_id, equipe_id) DO UPDATE
+                    SET posicao_no_grupo = EXCLUDED.posicao_no_grupo,
+                        registrado_em    = NOW(),
+                        registrado_por   = EXCLUDED.registrado_por
+                """,
+                (grupo_id, item.equipe_id, item.posicao_no_grupo, current_user["id"]),
+            )
+        await conn.commit()
+
+    config = await get_config_pontuacao(conn, campeonato_id)
+    if await verificar_grupo_concluido(conn, grupo_id):
+        await avancar_classificados_para_mata_mata(conn, campeonato_id, grupo_id, config)
+        await conn.commit()
+
     return await calcular_classificacao_grupo(conn, grupo_id, config)

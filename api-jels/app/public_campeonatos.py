@@ -613,7 +613,6 @@ async def _destaques_one_campeonato(
                     JOIN escolas esc ON esc.id = eq.escola_id
                     JOIN campeonato_partidas cp ON cp.id = pa.partida_id
                     WHERE cp.campeonato_id = %s
-                      AND cp.rodada = %s
                       AND cp.fase = 'GRUPOS'
                       AND cp.resultado_tipo = ANY(%s)
                     GROUP BY ea.id, ea.nome, ea.foto_url, esc.nome_escola
@@ -621,7 +620,7 @@ async def _destaques_one_campeonato(
                     ORDER BY total DESC, ea.nome
                     LIMIT 10
                     """,
-                    (cid, rodada_ref, list(_RESULTADO_DESTAQUE)),
+                    (cid, list(_RESULTADO_DESTAQUE)),
                 )
                 rows_art = await cur.fetchall()
             for i, r in enumerate(rows_art, start=1):

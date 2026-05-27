@@ -276,6 +276,7 @@ def _ordenar_grupo_empatado(
     criterios: list[str],
     todas_partidas: list[dict],
     config: Config,
+    sorteio_map: dict[int, int],
 ) -> list[dict]:
     """
     Aplica a lista de critérios, em ordem, a um grupo de equipes com mesma
@@ -284,6 +285,9 @@ def _ordenar_grupo_empatado(
 
     Anota `_criterio_decisivo` em cada equipe (exceto a última) com o critério
     que determinou sua posição acima da equipe imediatamente abaixo.
+
+    sorteio_map: {equipe_id → posicao_no_grupo} registrada pelo admin; quando
+    todos os times empatados estão presentes, usa essas posições para ordenar.
     """
     if len(equipes) <= 1 or not criterios:
         return equipes
@@ -292,10 +296,18 @@ def _ordenar_grupo_empatado(
     restantes = criterios[1:]
 
     if criterio == "SORTEIO":
-        # terminal: anota SORTEIO em todas exceto a última
-        for e in equipes[:-1]:
-            e.setdefault("_criterio_decisivo", "SORTEIO")
-        return equipes
+        ids = {e["equipe_id"] for e in equipes}
+        if ids and all(eid in sorteio_map for eid in ids):
+            # Sorteio já resolvido: ordenar pelo resultado registrado
+            equipes_sorted = sorted(equipes, key=lambda e: sorteio_map[e["equipe_id"]])
+            for e in equipes_sorted[:-1]:
+                e.setdefault("_criterio_decisivo", "SORTEIO")
+            return equipes_sorted
+        else:
+            # Sorteio pendente: sinalizar como não resolvido
+            for e in equipes:
+                e.setdefault("_criterio_decisivo", "SORTEIO_PENDENTE")
+            return equipes
 
     ids_grupo = {e["equipe_id"] for e in equipes}
 
@@ -319,7 +331,7 @@ def _ordenar_grupo_empatado(
             j += 1
         sub = equipes_sorted[i:j]
         if len(sub) > 1 and restantes:
-            sub = _ordenar_grupo_empatado(sub, restantes, todas_partidas, config)
+            sub = _ordenar_grupo_empatado(sub, restantes, todas_partidas, config, sorteio_map)
         resultado.extend(sub)
         i = j
 
@@ -391,11 +403,18 @@ async def calcular_classificacao_grupo(
         )
         partidas_rows = await cur.fetchall()
 
+        await cur.execute(
+            "SELECT equipe_id, posicao_no_grupo FROM campeonato_grupo_sorteio WHERE grupo_id = %s",
+            (grupo_id,),
+        )
+        sorteio_rows = await cur.fetchall()
+
     if not equipes_rows:
         return []
 
     cfg = config if config is not None else _CONFIG_PADRAO
     partidas = [dict(p) for p in partidas_rows]
+    sorteio_map: dict[int, int] = {r["equipe_id"]: r["posicao_no_grupo"] for r in sorteio_rows}
 
     equipes: list[dict] = []
     for r in equipes_rows:
@@ -421,7 +440,7 @@ async def calcular_classificacao_grupo(
         grupo_emp = equipes[i:j]
         if len(grupo_emp) > 1:
             criterios = criterios_2 if len(grupo_emp) == 2 else criterios_3
-            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios, partidas, cfg)
+            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios, partidas, cfg, sorteio_map)
         resultado_final.extend(grupo_emp)
         i = j
 
@@ -435,7 +454,7 @@ async def calcular_classificacao_grupo(
             if e["pts"] != next_e["pts"]:
                 e["criterio_decisivo"] = "PONTOS"
             else:
-                e["criterio_decisivo"] = e.pop("_criterio_decisivo", "SORTEIO")
+                e["criterio_decisivo"] = e.pop("_criterio_decisivo", "SORTEIO_PENDENTE")
         else:
             e["criterio_decisivo"] = e.pop("_criterio_decisivo", None)
 
@@ -524,50 +543,61 @@ async def avancar_classificados_para_mata_mata(
         return
 
     classificacao = await calcular_classificacao_grupo(conn, grupo_id, config)
-    classificados_reais = [e["equipe_id"] for e in classificacao[:classificam]]
 
-    if len(classificados_reais) < len(seeds_no_bracket):
+    if len(classificacao) < len(seeds_no_bracket):
         return
 
-    mapeamento = {
-        seeds_no_bracket[i]: classificados_reais[i]
-        for i in range(len(seeds_no_bracket))
-        if seeds_no_bracket[i] != classificados_reais[i]
-    }
+    # mapeamento: seed_inicial → equipe_real (ou None quando SORTEIO_PENDENTE,
+    # indicando que o slot deve ficar "A Definir" até o sorteio ser registrado).
+    # Usamos `old_id in mapeamento` para distinguir "sem mudança" de "limpar slot".
+    mapeamento: dict[int, int | None] = {}
+    for i, old_id in enumerate(seeds_no_bracket):
+        entry = classificacao[i]
+        if entry.get("criterio_decisivo") == "SORTEIO_PENDENTE":
+            mapeamento[old_id] = None
+        elif old_id != entry["equipe_id"]:
+            mapeamento[old_id] = entry["equipe_id"]
+
     if mapeamento:
+        for old_id, new_id in mapeamento.items():
+            logger.info(
+                "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
+                campeonato_id, grupo_id, old_id, new_id,
+            )
+
+        # Lê todos os slots do bracket de uma vez para evitar o bug de SWAP/CHAIN:
+        # se fizermos UPDATE sequencial por equipe_id, o passo N pode sobrescrever
+        # o que o passo N-1 acabou de escrever (ex.: {A→B, B→A} resulta em A em ambos).
+        # A solução é resolver tudo por partida_id: ler o estado atual, calcular os
+        # novos valores, e atualizar cada partida individualmente pelo seu id.
         async with conn.cursor() as cur:
-            for old_id, new_id in mapeamento.items():
-                logger.info(
-                    "Campeonato %s / grupo %s: substituindo equipe %s → %s no bracket",
-                    campeonato_id, grupo_id, old_id, new_id,
-                )
-                await cur.execute(
-                    """
-                    UPDATE campeonato_partidas
-                    SET mandante_equipe_id = %s, updated_at = NOW()
-                    WHERE campeonato_id = %s AND grupo_id IS NULL
-                      AND mandante_equipe_id = %s
-                    """,
-                    (new_id, campeonato_id, old_id),
-                )
-                await cur.execute(
-                    """
-                    UPDATE campeonato_partidas
-                    SET visitante_equipe_id = %s, updated_at = NOW()
-                    WHERE campeonato_id = %s AND grupo_id IS NULL
-                      AND visitante_equipe_id = %s
-                    """,
-                    (new_id, campeonato_id, old_id),
-                )
-                await cur.execute(
-                    """
-                    UPDATE campeonato_partidas
-                    SET vencedor_equipe_id = %s, updated_at = NOW()
-                    WHERE campeonato_id = %s AND grupo_id IS NULL
-                      AND is_bye = TRUE AND vencedor_equipe_id = %s
-                    """,
-                    (new_id, campeonato_id, old_id),
-                )
+            await cur.execute(
+                """
+                SELECT id, mandante_equipe_id, visitante_equipe_id, vencedor_equipe_id, is_bye
+                FROM campeonato_partidas
+                WHERE campeonato_id = %s AND grupo_id IS NULL
+                """,
+                (campeonato_id,),
+            )
+            partidas = await cur.fetchall()
+
+        async with conn.cursor() as cur:
+            for p in partidas:
+                if p["mandante_equipe_id"] in mapeamento:
+                    await cur.execute(
+                        "UPDATE campeonato_partidas SET mandante_equipe_id = %s, updated_at = NOW() WHERE id = %s",
+                        (mapeamento[p["mandante_equipe_id"]], p["id"]),
+                    )
+                if p["visitante_equipe_id"] in mapeamento:
+                    await cur.execute(
+                        "UPDATE campeonato_partidas SET visitante_equipe_id = %s, updated_at = NOW() WHERE id = %s",
+                        (mapeamento[p["visitante_equipe_id"]], p["id"]),
+                    )
+                if p["is_bye"] and p["vencedor_equipe_id"] in mapeamento:
+                    await cur.execute(
+                        "UPDATE campeonato_partidas SET vencedor_equipe_id = %s, updated_at = NOW() WHERE id = %s",
+                        (mapeamento[p["vencedor_equipe_id"]], p["id"]),
+                    )
 
     # Wild card: se este for o último grupo a concluir, preenche os slots pendentes
     vagas_wildcard = int(camp["vagas_wildcard"] or 0)
@@ -666,7 +696,7 @@ async def calcular_ranking_wildcards(
             j += 1
         grupo_emp = candidatos[i:j]
         if len(grupo_emp) > 1:
-            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg)
+            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg, {})
         resultado.extend(grupo_emp)
         i = j
 
@@ -782,7 +812,7 @@ async def _preencher_wild_cards(
         if len(grupo_emp) > 1:
             # Para desempate entre candidatos de grupos distintos, não há "confronto direto"
             # Cria partidas_diretas vazio para critérios que dependem delas
-            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg)
+            grupo_emp = _ordenar_grupo_empatado(grupo_emp, criterios_base, [], cfg, {})
         resultado.extend(grupo_emp)
         i = j
 
