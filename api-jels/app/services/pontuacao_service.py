@@ -304,9 +304,11 @@ def _ordenar_grupo_empatado(
                 e.setdefault("_criterio_decisivo", "SORTEIO")
             return equipes_sorted
         else:
-            # Sorteio pendente: sinalizar como não resolvido
-            for e in equipes:
-                e.setdefault("_criterio_decisivo", "SORTEIO_PENDENTE")
+            # Sorteio pendente: só sinaliza se ao menos um jogo já foi disputado.
+            # Quando nenhum jogo aconteceu, o empate ainda não é real — não há nada a resolver.
+            if any(e.get("J", 0) > 0 for e in equipes):
+                for e in equipes:
+                    e.setdefault("_criterio_decisivo", "SORTEIO_PENDENTE")
             return equipes
 
     ids_grupo = {e["equipe_id"] for e in equipes}
@@ -454,7 +456,7 @@ async def calcular_classificacao_grupo(
             if e["pts"] != next_e["pts"]:
                 e["criterio_decisivo"] = "PONTOS"
             else:
-                e["criterio_decisivo"] = e.pop("_criterio_decisivo", "SORTEIO_PENDENTE")
+                e["criterio_decisivo"] = e.pop("_criterio_decisivo", None)
         else:
             e["criterio_decisivo"] = e.pop("_criterio_decisivo", None)
 
