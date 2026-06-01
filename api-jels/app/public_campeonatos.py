@@ -732,7 +732,7 @@ async def get_campeonato_publico(
         await cur.execute(
             """
             SELECT c.id, c.uuid::text AS uuid, c.nome, c.status, c.origem, c.formato,
-                   c.vagas_wildcard,
+                   c.vagas_wildcard, c.jogos_por_confronto_final,
                    esp.nome AS esporte_nome,
                    cat.nome AS categoria_nome,
                    nai.nome AS naipe_nome,
@@ -800,7 +800,7 @@ async def get_campeonato_publico(
                    cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
-                   cp.sets_detalhe,
+                   cp.sets_detalhe, cp.num_jogo_serie,
                    cp.resultado_tipo,
                    esc_m.nome_escola AS mandante_nome,
                    esc_v.nome_escola AS visitante_nome,
@@ -891,6 +891,7 @@ async def get_campeonato_publico(
                 "placar_mandante_sec": rd.get("placar_mandante_sec"),
                 "placar_visitante_sec": rd.get("placar_visitante_sec"),
                 "sets_detalhe": rd.get("sets_detalhe"),
+                "num_jogo_serie": rd.get("num_jogo_serie"),
                 "resultado_tipo": rd.get("resultado_tipo"),
             }
         )

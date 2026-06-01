@@ -10,6 +10,22 @@ import GrupoSection from '../components/campeonato/GrupoSection'
 import TournamentBracket from '../components/campeonato/TournamentBracket'
 import VencedorBanner from '../components/campeonato/VencedorBanner'
 
+function findCampeao(campeonato, partidas) {
+  if ((campeonato?.jogos_por_confronto_final ?? 1) > 1) {
+    const wins = {}
+    for (const p of partidas) {
+      if (p.fase === 'FINAL' && p.num_jogo_serie != null && p.vencedor_equipe_id != null) {
+        const id = p.vencedor_equipe_id
+        wins[id] = wins[id] ?? { count: 0, nome: p.vencedor_nome }
+        wins[id].count++
+      }
+    }
+    const entry = Object.entries(wins).find(([, w]) => w.count >= 2)
+    return entry ? { vencedor_equipe_id: Number(entry[0]), vencedor_nome: wins[entry[0]].nome } : null
+  }
+  return partidas.find((p) => p.fase === 'FINAL' && p.vencedor_equipe_id) ?? null
+}
+
 export default function ResultadoDetalhe() {
   const { id } = useParams()
   const campeonatoId = parseInt(id, 10)
@@ -62,9 +78,7 @@ export default function ResultadoDetalhe() {
         .join(' · ')
     : ''
 
-  const finalPartida = estrutura?.partidas?.find(
-    (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
-  )
+  const finalPartida = findCampeao(campeonato, estrutura?.partidas || [])
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">

@@ -60,6 +60,7 @@ from app.services.pontuacao_service import (
     verificar_grupo_concluido,
     avancar_classificados_para_mata_mata,
     avancar_vencedor_knockout,
+    processar_resultado_serie_md3,
 )
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
@@ -2433,7 +2434,7 @@ async def registrar_resultado_partida(
             """
             SELECT id, campeonato_id, grupo_id,
                    mandante_equipe_id, visitante_equipe_id,
-                   is_bye, resultado_tipo
+                   is_bye, resultado_tipo, num_jogo_serie
             FROM campeonato_partidas
             WHERE id = %s AND campeonato_id = %s
             """,
@@ -2531,17 +2532,45 @@ async def registrar_resultado_partida(
             )
             await conn.commit()
 
+    # --- Série MD3: processar vitórias e possivelmente criar jogo 3 ou finalizar ---
+    elif partida["num_jogo_serie"] is not None:
+        campeao_id = await processar_resultado_serie_md3(conn, campeonato_id)
+        await conn.commit()
+        if campeao_id is not None:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    UPDATE campeonatos SET status = 'FINALIZADO', updated_at = NOW()
+                    WHERE id = %s AND status IN ('GERADO', 'EM_ANDAMENTO')
+                    """,
+                    (campeonato_id,),
+                )
+            await conn.commit()
+        return {
+            "partida_id": partida_id,
+            "placar_mandante": data.placar_mandante,
+            "placar_visitante": data.placar_visitante,
+            "resultado_tipo": data.resultado_tipo,
+            "vencedor_equipe_id": vencedor_id,
+            "grupo_concluido": False,
+            "serie_campeao_id": campeao_id,
+        }
+
     # --- Mata-mata: avançar vencedor para a próxima fase ---
     elif vencedor_id is not None:
         await avancar_vencedor_knockout(conn, campeonato_id, partida_id, vencedor_id)
         await conn.commit()
 
-    # Auto-finalizar quando a FINAL tiver vencedor
+    # Auto-finalizar quando a FINAL de jogo único tiver vencedor
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT 1 FROM campeonato_partidas
-            WHERE campeonato_id = %s AND fase = 'FINAL' AND vencedor_equipe_id IS NOT NULL
+            SELECT 1 FROM campeonato_partidas cp
+            JOIN campeonatos c ON c.id = cp.campeonato_id
+            WHERE cp.campeonato_id = %s
+              AND cp.fase = 'FINAL'
+              AND cp.vencedor_equipe_id IS NOT NULL
+              AND c.jogos_por_confronto_final = 1
             LIMIT 1
             """,
             (campeonato_id,),

@@ -219,19 +219,44 @@ async def _gerar_bracket(
     vagas_bracket: int,
     vagas_wildcard: int,
     fonte_por_slot: dict[int, tuple[int, int]] | None = None,
+    jogos_por_confronto_final: int = 1,
 ) -> None:
     """
     Insere as partidas do chaveamento eliminatório.
 
-    participantes_diretos – equipe_ids dos classificados diretos (seeds 1..N).
-    vagas_wildcard        – slots WILDCARD_X ainda sem equipe.
-    vagas_bracket         – tamanho total do bracket (deve ser potência de 2).
-    fonte_por_slot        – mapeamento slot_idx → (grupo_id, seed_no_grupo) para
-                            rastrear a origem de cada slot direto. Slots wildcard
-                            e campeonatos sem grupos deixam as colunas como NULL.
+    participantes_diretos      – equipe_ids dos classificados diretos (seeds 1..N).
+    vagas_wildcard             – slots WILDCARD_X ainda sem equipe.
+    vagas_bracket              – tamanho total do bracket (deve ser potência de 2).
+    fonte_por_slot             – mapeamento slot_idx → (grupo_id, seed_no_grupo) para
+                                 rastrear a origem de cada slot direto. Slots wildcard
+                                 e campeonatos sem grupos deixam as colunas como NULL.
+    jogos_por_confronto_final  – 1 = jogo único, 3 = série MD3 (aplica-se apenas a
+                                 campeonatos com vagas_bracket == 2).
     """
     fase_inicial = _fase_por_tamanho_chave(vagas_bracket)
     total_rodadas = int(log2(vagas_bracket))
+
+    # Série MD3: cria 2 jogos imediatamente (jogo 3 é criado dinamicamente se necessário)
+    if jogos_por_confronto_final == 3 and vagas_bracket == 2:
+        seed1 = participantes_diretos[0] if participantes_diretos else None
+        seed2 = participantes_diretos[1] if len(participantes_diretos) > 1 else None
+        jogos_md3 = [(seed1, seed2, "SEED_1", "SEED_2", 1), (seed2, seed1, "SEED_2", "SEED_1", 2)]
+        for mand, vis, orig_a, orig_b, num in jogos_md3:
+            await cur.execute(
+                """
+                INSERT INTO campeonato_partidas (
+                    campeonato_id, fase, rodada, grupo_id,
+                    mandante_equipe_id, visitante_equipe_id,
+                    is_bye, is_wildcard_pending,
+                    mandante_is_wildcard, visitante_is_wildcard,
+                    origem_slot_a, origem_slot_b,
+                    num_jogo_serie
+                )
+                VALUES (%s, %s, 1, NULL, %s, %s, FALSE, FALSE, FALSE, FALSE, %s, %s, %s)
+                """,
+                (campeonato_id, fase_inicial, mand, vis, orig_a, orig_b, num),
+            )
+        return
 
     # Slots: diretos primeiro, wildcards como None no final
     slots: list[int | None] = participantes_diretos + ([None] * vagas_wildcard)
@@ -423,6 +448,7 @@ async def gerar_estrutura_campeonato(
             regra_distribuicao: str
             vagas_bracket: int
             vagas_wildcard: int
+            jogos_por_confronto_final: int = 1
 
             # --- N = 3, 4 ou 5: grupo único, round-robin, top 2 disputam FINAL ---
             if total_equipes in (3, 4, 5):
@@ -460,11 +486,12 @@ async def gerar_estrutura_campeonato(
                     1: (grupo_id, 2),
                 }
 
-            # --- N = 2: chave direta, sem grupos ---
+            # --- N = 2: chave direta, série MD3 ---
             elif total_equipes == 2:
                 regra_distribuicao = "DIRETO"
                 vagas_bracket = total_equipes
                 vagas_wildcard = 0
+                jogos_por_confronto_final = 3
                 participantes_diretos = equipe_ids
                 fonte_por_slot = {}
 
@@ -524,7 +551,10 @@ async def gerar_estrutura_campeonato(
                     participantes_diretos.extend(equipes_grupo[:classif_diretos])
 
             # Gera bracket eliminatório
-            await _gerar_bracket(cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard, fonte_por_slot)
+            await _gerar_bracket(
+                cur, campeonato_id, participantes_diretos, vagas_bracket, vagas_wildcard,
+                fonte_por_slot, jogos_por_confronto_final,
+            )
 
             status_novo = "FINALIZADO" if total_equipes == 1 else "GERADO"
             await cur.execute(
@@ -534,12 +564,13 @@ async def gerar_estrutura_campeonato(
                     regra_distribuicao = %s,
                     vagas_bracket = %s,
                     vagas_wildcard = %s,
+                    jogos_por_confronto_final = %s,
                     geracao_executada_em = NOW(),
                     geracao_executada_por = %s,
                     updated_at = NOW()
                 WHERE id = %s
                 """,
-                (status_novo, regra_distribuicao, vagas_bracket, vagas_wildcard, executor_user_id, campeonato_id),
+                (status_novo, regra_distribuicao, vagas_bracket, vagas_wildcard, jogos_por_confronto_final, executor_user_id, campeonato_id),
             )
 
             await cur.execute("SELECT COUNT(*) AS total FROM campeonato_partidas WHERE campeonato_id = %s", (campeonato_id,))
@@ -691,7 +722,8 @@ async def gerar_estrutura_direto(
                 (campeonato_id, equipe_id, equipe_id),
             )
         else:
-            await _gerar_bracket(cur, campeonato_id, equipe_ids, total, 0)
+            jogos_por_confronto_final = 3 if total == 2 else 1
+            await _gerar_bracket(cur, campeonato_id, equipe_ids, total, 0, jogos_por_confronto_final=jogos_por_confronto_final)
             await cur.execute(
                 """
                 UPDATE campeonatos
@@ -699,6 +731,7 @@ async def gerar_estrutura_direto(
                     regra_distribuicao = 'DIRETO',
                     vagas_bracket = %s,
                     vagas_wildcard = 0,
+                    jogos_por_confronto_final = %s,
                     geracao_autorizada_em = NOW(),
                     geracao_autorizada_por = %s,
                     geracao_executada_em = NOW(),
@@ -706,5 +739,5 @@ async def gerar_estrutura_direto(
                     updated_at = NOW()
                 WHERE id = %s
                 """,
-                (total, executor_user_id, executor_user_id, campeonato_id),
+                (total, jogos_por_confronto_final, executor_user_id, executor_user_id, campeonato_id),
             )

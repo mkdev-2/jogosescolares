@@ -7,6 +7,7 @@ Responsabilidades:
   3. verificar_grupo_concluido         – todos os jogos do grupo têm resultado?
   4. avancar_classificados_para_mata_mata – atualiza bracket quando grupo termina
   5. avancar_vencedor_knockout         – preenche slot do vencedor na próxima fase
+  6. processar_resultado_serie_md3     – contabiliza vitórias na série MD3, cria jogo 3 se necessário
 """
 from __future__ import annotations
 
@@ -1115,3 +1116,68 @@ async def avancar_vencedor_knockout(
         )
 
     return True
+
+
+# ===========================================================================
+# 8. Série MD3 (melhor de 3)
+# ===========================================================================
+
+async def processar_resultado_serie_md3(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+) -> int | None:
+    """
+    Chamada após registrar o resultado de qualquer jogo de uma série MD3.
+
+    Contabiliza as vitórias de cada equipe nos jogos já disputados e:
+    - Retorna o equipe_id do campeão se uma equipe já tem >= 2 vitórias.
+    - Cria o jogo 3 (se ainda não existir) quando os 2 primeiros jogos
+      foram disputados e nenhuma equipe tem 2 vitórias (série empatada).
+    - Retorna None se a série ainda não foi decidida.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, num_jogo_serie,
+                   mandante_equipe_id, visitante_equipe_id,
+                   vencedor_equipe_id
+            FROM campeonato_partidas
+            WHERE campeonato_id = %s AND num_jogo_serie IS NOT NULL
+            ORDER BY num_jogo_serie
+            """,
+            (campeonato_id,),
+        )
+        jogos = [dict(r) for r in await cur.fetchall()]
+
+    jogos_com_resultado = [j for j in jogos if j["vencedor_equipe_id"] is not None]
+
+    wins: dict[int, int] = {}
+    for jogo in jogos_com_resultado:
+        v = jogo["vencedor_equipe_id"]
+        wins[v] = wins.get(v, 0) + 1
+
+    # Verifica se a série já foi decidida
+    for equipe_id, count in wins.items():
+        if count >= 2:
+            return equipe_id
+
+    # Cria o jogo 3 quando 2 jogos foram disputados e a série ainda não tem decisão
+    if len(jogos_com_resultado) >= 2 and len(jogos) < 3:
+        jogo1 = next(j for j in jogos if j["num_jogo_serie"] == 1)
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO campeonato_partidas (
+                    campeonato_id, fase, rodada, grupo_id,
+                    mandante_equipe_id, visitante_equipe_id,
+                    is_bye, is_wildcard_pending,
+                    mandante_is_wildcard, visitante_is_wildcard,
+                    origem_slot_a, origem_slot_b,
+                    num_jogo_serie
+                )
+                VALUES (%s, 'FINAL', 1, NULL, %s, %s, FALSE, FALSE, FALSE, FALSE, 'SEED_1', 'SEED_2', 3)
+                """,
+                (campeonato_id, jogo1["mandante_equipe_id"], jogo1["visitante_equipe_id"]),
+            )
+
+    return None

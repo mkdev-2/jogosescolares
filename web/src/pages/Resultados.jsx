@@ -261,11 +261,27 @@ function SportAccordionSidebar({ esportes, selectedVarianteId, expandedEsporteId
   )
 }
 
+function findCampeao(campeonato, partidas) {
+  if ((campeonato?.jogos_por_confronto_final ?? 1) > 1) {
+    const wins = {}
+    for (const p of partidas) {
+      if (p.fase === 'FINAL' && p.num_jogo_serie != null && p.vencedor_equipe_id != null) {
+        const id = p.vencedor_equipe_id
+        wins[id] = wins[id] ?? { count: 0, nome: p.vencedor_nome }
+        wins[id].count++
+      }
+    }
+    const entry = Object.entries(wins).find(([, w]) => w.count >= 2)
+    return entry ? { vencedor_equipe_id: Number(entry[0]), vencedor_nome: wins[entry[0]].nome } : null
+  }
+  return partidas.find((p) => p.fase === 'FINAL' && p.vencedor_equipe_id) ?? null
+}
+
 function CampeonatoAside({ campDetail }) {
   const statusVal = campDetail?.status
   const estrutura = campDetail?.estrutura
   const totalEquipes = estrutura?.grupos?.reduce((sum, g) => sum + (g.equipes?.length || 0), 0) || 0
-  const finalPartida = estrutura?.partidas?.find((p) => p.fase === 'FINAL' && p.vencedor_equipe_id)
+  const finalPartida = findCampeao(campDetail, estrutura?.partidas || [])
 
   return (
     <aside className="hidden xl:block w-52 shrink-0 sticky top-24 self-start">
@@ -490,9 +506,7 @@ export default function Resultados() {
   const hasGroups = (campDetail?.estrutura?.grupos?.length || 0) > 0
   const hasKnockout = (campDetail?.estrutura?.partidas || []).some((p) => p.grupo_id === null)
   const hasPartidas = (campDetail?.estrutura?.partidas || []).some((p) => !p.is_bye)
-  const finalPartida = campDetail?.estrutura?.partidas?.find(
-    (p) => p.fase === 'FINAL' && p.vencedor_equipe_id
-  )
+  const finalPartida = findCampeao(campDetail, campDetail?.estrutura?.partidas || [])
 
   const confrontosAtivos = campDetail ? proximosCamp : proximosGlobal
   const showSportLabel = !campDetail
