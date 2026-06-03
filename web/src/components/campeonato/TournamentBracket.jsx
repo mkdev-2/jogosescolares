@@ -98,24 +98,35 @@ function BracketMatchBox({ partida, top, left }) {
     ? 'WO'
     : partida.visitante_nome || (partida.visitante_equipe_id ? `Equipe ${partida.visitante_equipe_id}` : null)
 
+  const hasPenalti = partida.placar_penaltis_mandante != null
+
   return (
-    <div
-      style={{ position: 'absolute', top, left, width: ROUND_W, height: MATCH_H }}
-      className={`rounded-lg overflow-hidden bg-white border ${
-        isBye ? 'opacity-80' : ''
-      } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
-    >
-      <BracketTeamSlot
-        name={partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)}
-        score={hasResult ? partida.placar_mandante : null}
-        isWinner={v !== null && v === partida.mandante_equipe_id}
-      />
-      <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
-      <BracketTeamSlot
-        name={visitanteName}
-        score={hasResult ? partida.placar_visitante : null}
-        isWinner={v !== null && v === partida.visitante_equipe_id}
-      />
+    <div style={{ position: 'absolute', top, left, width: ROUND_W }}>
+      <div
+        style={{ height: MATCH_H }}
+        className={`rounded-lg overflow-hidden bg-white border ${
+          isBye ? 'opacity-80' : ''
+        } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
+      >
+        <BracketTeamSlot
+          name={partida.mandante_nome || (partida.mandante_equipe_id ? `Equipe ${partida.mandante_equipe_id}` : null)}
+          score={hasResult ? partida.placar_mandante : null}
+          isWinner={v !== null && v === partida.mandante_equipe_id}
+        />
+        <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
+        <BracketTeamSlot
+          name={visitanteName}
+          score={hasResult ? partida.placar_visitante : null}
+          isWinner={v !== null && v === partida.visitante_equipe_id}
+        />
+      </div>
+      {hasPenalti && (
+        <div className="flex justify-center pt-1">
+          <span className="text-[9px] text-slate-400 whitespace-nowrap">
+            pen. {partida.placar_penaltis_mandante}–{partida.placar_penaltis_visitante}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

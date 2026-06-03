@@ -2108,6 +2108,7 @@ async def get_estrutura(
                    cp.inicio_em, cp.local_id,
                    cp.placar_mandante, cp.placar_visitante,
                    cp.placar_mandante_sec, cp.placar_visitante_sec,
+                   cp.placar_penaltis_mandante, cp.placar_penaltis_visitante,
                    cp.sets_detalhe,
                    cp.resultado_tipo, cp.registrado_em,
                    cp.created_at, cp.updated_at,
@@ -2205,6 +2206,8 @@ async def get_estrutura(
             placar_visitante=r.get("placar_visitante"),
             placar_mandante_sec=r.get("placar_mandante_sec"),
             placar_visitante_sec=r.get("placar_visitante_sec"),
+            placar_penaltis_mandante=r.get("placar_penaltis_mandante"),
+            placar_penaltis_visitante=r.get("placar_penaltis_visitante"),
             sets_detalhe=r.get("sets_detalhe"),
             resultado_tipo=r.get("resultado_tipo"),
             registrado_em=r["registrado_em"].isoformat() if r.get("registrado_em") else None,
@@ -2479,22 +2482,40 @@ async def registrar_resultado_partida(
             vencedor_id = partida["mandante_equipe_id"]
         elif data.placar_visitante > data.placar_mandante:
             vencedor_id = partida["visitante_equipe_id"]
-        # Empate: vencedor_id permanece NULL
+        else:
+            # Empate no tempo normal
+            is_mata_mata = partida["grupo_id"] is None
+            penaltis_informados = (
+                data.placar_penaltis_mandante is not None
+                and data.placar_penaltis_visitante is not None
+            )
+            if is_mata_mata and not penaltis_informados:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Em partidas eliminatórias com empate, informe o placar dos pênaltis.",
+                )
+            if penaltis_informados:
+                if data.placar_penaltis_mandante > data.placar_penaltis_visitante:
+                    vencedor_id = partida["mandante_equipe_id"]
+                else:
+                    vencedor_id = partida["visitante_equipe_id"]
 
     async with conn.cursor() as cur:
         await cur.execute(
             """
             UPDATE campeonato_partidas
-            SET placar_mandante      = %s,
-                placar_visitante     = %s,
-                placar_mandante_sec  = %s,
-                placar_visitante_sec = %s,
-                sets_detalhe         = %s,
-                resultado_tipo       = %s,
-                vencedor_equipe_id   = %s,
-                registrado_em        = NOW(),
-                registrado_por       = %s,
-                updated_at           = NOW()
+            SET placar_mandante           = %s,
+                placar_visitante          = %s,
+                placar_mandante_sec       = %s,
+                placar_visitante_sec      = %s,
+                placar_penaltis_mandante  = %s,
+                placar_penaltis_visitante = %s,
+                sets_detalhe              = %s,
+                resultado_tipo            = %s,
+                vencedor_equipe_id        = %s,
+                registrado_em             = NOW(),
+                registrado_por            = %s,
+                updated_at                = NOW()
             WHERE id = %s
             """,
             (
@@ -2502,6 +2523,8 @@ async def registrar_resultado_partida(
                 data.placar_visitante,
                 data.placar_mandante_sec,
                 data.placar_visitante_sec,
+                data.placar_penaltis_mandante,
+                data.placar_penaltis_visitante,
                 sets_detalhe_json,
                 data.resultado_tipo,
                 vencedor_id,

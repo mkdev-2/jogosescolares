@@ -792,6 +792,8 @@ class CampeonatoPartidaResponse(BaseModel):
     placar_visitante: Optional[int] = None
     placar_mandante_sec: Optional[int] = None
     placar_visitante_sec: Optional[int] = None
+    placar_penaltis_mandante: Optional[int] = None
+    placar_penaltis_visitante: Optional[int] = None
     sets_detalhe: Optional[list[dict]] = None
     resultado_tipo: Optional[str] = None
     registrado_em: Optional[str] = None
@@ -1239,6 +1241,8 @@ class PartidaResultadoInput(BaseModel):
     placar_visitante: Optional[int] = Field(None, ge=0)
     placar_mandante_sec: Optional[int] = Field(None, ge=0)
     placar_visitante_sec: Optional[int] = Field(None, ge=0)
+    placar_penaltis_mandante: Optional[int] = Field(None, ge=0)
+    placar_penaltis_visitante: Optional[int] = Field(None, ge=0)
     resultado_tipo: RESULTADO_TIPO = "NORMAL"
     vencedor_wxo: Optional[Literal["MANDANTE", "VISITANTE"]] = None
     sets_detalhe: Optional[list[SetDetalhe]] = None
@@ -1249,6 +1253,9 @@ class PartidaResultadoInput(BaseModel):
             raise ValueError("Para resultado WxO, informe vencedor_wxo (MANDANTE ou VISITANTE).")
         if self.resultado_tipo == "NORMAL" and self.sets_detalhe is None and self.placar_mandante is None:
             raise ValueError("Informe placar_mandante ou sets_detalhe.")
+        penaltis_informados = self.placar_penaltis_mandante is not None and self.placar_penaltis_visitante is not None
+        if penaltis_informados and self.placar_penaltis_mandante == self.placar_penaltis_visitante:
+            raise ValueError("O placar dos pênaltis não pode ser empate.")
         return self
 
 

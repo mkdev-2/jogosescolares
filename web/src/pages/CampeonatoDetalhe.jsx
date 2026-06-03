@@ -224,6 +224,10 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
     if (partida.resultado_tipo === 'WXO') {
       vals.desistente_wxo = partida.vencedor_equipe_id === partida.mandante_equipe_id ? 'VISITANTE' : 'MANDANTE'
     }
+    if (partida.placar_penaltis_mandante != null) {
+      vals.placar_penaltis_mandante = partida.placar_penaltis_mandante
+      vals.placar_penaltis_visitante = partida.placar_penaltis_visitante
+    }
     return vals
   })()
 
@@ -262,6 +266,15 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           sets_detalhe: setsEnviar,
         }
       } else {
+        if (isEmpate) {
+          const penM = values.placar_penaltis_mandante
+          const penV = values.placar_penaltis_visitante
+          if (penM != null && penV != null && Number(penM) === Number(penV)) {
+            message.error('O placar dos pênaltis não pode ser empate.')
+            setSaving(false)
+            return
+          }
+        }
         payload = {
           resultado_tipo: values.resultado_tipo,
           vencedor_wxo: isWxo ? vencedorWxo : undefined,
@@ -277,6 +290,8 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           placar_visitante_sec: usaSets
             ? (mandanteVence ? (config?.wxo_placar_contra_sec ?? 0) : (config?.wxo_placar_pro_sec ?? 50))
             : null,
+          placar_penaltis_mandante: isEmpate ? values.placar_penaltis_mandante : null,
+          placar_penaltis_visitante: isEmpate ? values.placar_penaltis_visitante : null,
         }
       }
 
@@ -293,7 +308,17 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
 
   const tipo = Form.useWatch('resultado_tipo', form)
   const desistente = Form.useWatch('desistente_wxo', form)
+  const placMandante = Form.useWatch('placar_mandante', form)
+  const placVisitante = Form.useWatch('placar_visitante', form)
   const isWxo = tipo === 'WXO'
+  const isMataMata = partida.grupo_id === null
+  const isEmpate =
+    !isWxo &&
+    !usaSets &&
+    isMataMata &&
+    placMandante != null &&
+    placVisitante != null &&
+    Number(placMandante) === Number(placVisitante)
 
   const nomeMandante = partida.mandante_nome || 'Mandante'
   const nomeVisitante = partida.visitante_nome || 'Visitante'
@@ -356,22 +381,52 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
 
         {!isWxo && !usaSets && (
           <>
+            <div className="grid grid-cols-2 gap-3 text-xs font-medium text-slate-600 mb-1">
+              <span>{nomeMandante}</span>
+              <span>{nomeVisitante}</span>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
                 name="placar_mandante"
-                label={`${nomeMandante} (${unidadePrimaria})`}
+                label={unidadePrimaria}
                 rules={[{ required: true, message: 'Obrigatório' }]}
               >
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
               <Form.Item
                 name="placar_visitante"
-                label={`${nomeVisitante} (${unidadePrimaria})`}
+                label={unidadePrimaria}
                 rules={[{ required: true, message: 'Obrigatório' }]}
               >
                 <InputNumber min={0} className="w-full" />
               </Form.Item>
             </div>
+
+            {isEmpate && (
+              <>
+                <div className="flex items-center gap-2 my-2">
+                  <div className="flex-1 border-t border-slate-200" />
+                  <span className="text-xs text-slate-400">Disputa de Pênaltis</span>
+                  <div className="flex-1 border-t border-slate-200" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Form.Item
+                    name="placar_penaltis_mandante"
+                    label="Pênaltis"
+                    rules={[{ required: true, message: 'Obrigatório' }]}
+                  >
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+                  <Form.Item
+                    name="placar_penaltis_visitante"
+                    label="Pênaltis"
+                    rules={[{ required: true, message: 'Obrigatório' }]}
+                  >
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -1345,8 +1400,15 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
       return <span className="text-xl font-bold leading-none text-[#94a3b8]">-</span>
     }
     return (
-      <span className="font-mono text-xl leading-none text-[#334155] font-bold">
-        {partida.placar_mandante}–{partida.placar_visitante}
+      <span className="flex flex-col items-center gap-0.5">
+        <span className="font-mono text-xl leading-none text-[#334155] font-bold">
+          {partida.placar_mandante}–{partida.placar_visitante}
+        </span>
+        {partida.placar_penaltis_mandante != null && (
+          <span className="text-[10px] text-slate-400 leading-none whitespace-nowrap">
+            pen. {partida.placar_penaltis_mandante}–{partida.placar_penaltis_visitante}
+          </span>
+        )}
       </span>
     )
   }
@@ -1657,26 +1719,37 @@ function BracketMatchBox({ partida, top, left, onRegister, slotConcluidoMap }) {
   const bothDefined = !!mandanteName && !!visitanteEffectiveName
   const canClick = !isBye && bothDefined && !!onRegister
 
+  const hasPenalti = partida.placar_penaltis_mandante != null
+
   return (
-    <div
-      style={{ position: 'absolute', top, left, width: ROUND_W, height: MATCH_H }}
-      className={`rounded-lg overflow-hidden bg-white border transition-all ${
-        canClick ? 'cursor-pointer hover:border-teal-400 hover:shadow-sm' : 'cursor-default opacity-80'
-      } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
-      onClick={() => canClick && onRegister(partida)}
-      title={isBye ? 'Classificado por WO' : !bothDefined ? 'Aguardando definição de equipes' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
-    >
-      <BracketTeamSlot
-        name={mandanteName}
-        score={hasResult ? partida.placar_mandante : null}
-        isWinner={mandanteOk && v !== null && v === partida.mandante_equipe_id}
-      />
-      <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
-      <BracketTeamSlot
-        name={visitanteName}
-        score={hasResult ? partida.placar_visitante : null}
-        isWinner={visitanteOk && v !== null && v === partida.visitante_equipe_id}
-      />
+    <div style={{ position: 'absolute', top, left, width: ROUND_W }}>
+      <div
+        style={{ height: MATCH_H }}
+        className={`rounded-lg overflow-hidden bg-white border transition-all ${
+          canClick ? 'cursor-pointer hover:border-teal-400 hover:shadow-sm' : 'cursor-default opacity-80'
+        } ${hasResult ? 'border-slate-300' : 'border-slate-200'}`}
+        onClick={() => canClick && onRegister(partida)}
+        title={isBye ? 'Classificado por WO' : !bothDefined ? 'Aguardando definição de equipes' : hasResult ? 'Editar resultado' : 'Registrar resultado'}
+      >
+        <BracketTeamSlot
+          name={mandanteName}
+          score={hasResult ? partida.placar_mandante : null}
+          isWinner={mandanteOk && v !== null && v === partida.mandante_equipe_id}
+        />
+        <div style={{ height: DIVIDER_H }} className="bg-slate-100" />
+        <BracketTeamSlot
+          name={visitanteName}
+          score={hasResult ? partida.placar_visitante : null}
+          isWinner={visitanteOk && v !== null && v === partida.visitante_equipe_id}
+        />
+      </div>
+      {hasPenalti && (
+        <div className="flex justify-center pt-1">
+          <span className="text-[9px] text-slate-400 whitespace-nowrap">
+            pen. {partida.placar_penaltis_mandante}–{partida.placar_penaltis_visitante}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

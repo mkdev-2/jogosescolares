@@ -67,6 +67,11 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, max
           {partida.resultado_tipo === 'WXO' && (
             <span className="text-[9px] font-bold text-amber-600 leading-none">WxO</span>
           )}
+          {partida.placar_penaltis_mandante != null && (
+            <span className="text-[9px] text-slate-400 leading-none mt-0.5 whitespace-nowrap">
+              pen. {partida.placar_penaltis_mandante}–{partida.placar_penaltis_visitante}
+            </span>
+          )}
         </div>
         <span className={`text-xs truncate leading-tight mt-px ${visitanteIndefinido ? 'italic text-slate-400' : visitanteWon ? 'font-bold text-emerald-700' : 'font-medium text-slate-700'}`}>
           {visitanteNome}
