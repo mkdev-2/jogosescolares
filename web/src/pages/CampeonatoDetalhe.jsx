@@ -1305,6 +1305,11 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
     return datedGroups
   }, [hojeKey, partidasValidas])
 
+  const knockoutTeamsLocked = useMemo(() => {
+    const gruposJogos = partidasValidas.filter((p) => p.fase === 'GRUPOS')
+    return gruposJogos.length === 0 || gruposJogos.every((p) => !!p.resultado_tipo)
+  }, [partidasValidas])
+
   useEffect(() => {
     if (!hojeRef.current) return
     requestAnimationFrame(() => {
@@ -1435,15 +1440,22 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
                               {finalizada && <Tag color="green" className="m-0">Resultado registrado</Tag>}
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_minmax(0,1fr)] items-center gap-3">
-                              <span className={`text-sm truncate ${ladoVenceu(partida, 'mandante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
-                                {equipeNome(partida, 'mandante')}
-                              </span>
-                              <span className="text-center whitespace-nowrap">
-                                {placarOuVs(partida)}
-                              </span>
-                              <span className={`text-sm truncate text-right ${ladoVenceu(partida, 'visitante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
-                                {equipeNome(partida, 'visitante')}
-                              </span>
+                              {(() => {
+                                const isKnockout = partida.fase !== 'GRUPOS'
+                                const mandNome = isKnockout && !knockoutTeamsLocked ? 'A definir' : equipeNome(partida, 'mandante')
+                                const visitNome = isKnockout && !knockoutTeamsLocked ? 'A definir' : equipeNome(partida, 'visitante')
+                                return (<>
+                                  <span className={`text-sm truncate ${mandNome === 'A definir' ? 'italic text-slate-400' : ladoVenceu(partida, 'mandante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                                    {mandNome}
+                                  </span>
+                                  <span className="text-center whitespace-nowrap">
+                                    {placarOuVs(partida)}
+                                  </span>
+                                  <span className={`text-sm truncate text-right ${visitNome === 'A definir' ? 'italic text-slate-400' : ladoVenceu(partida, 'visitante') ? 'font-bold text-emerald-700' : 'font-semibold text-[#1e293b]'}`}>
+                                    {visitNome}
+                                  </span>
+                                </>)
+                              })()}
                             </div>
                           </div>
                           {(onSchedule || onRegister) && (
