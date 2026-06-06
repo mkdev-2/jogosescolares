@@ -302,7 +302,7 @@ async def create_equipe(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Cria equipe na escola do usuário. Valida professor e estudantes. Idade/naipe validados pelo banco."""
-    if not is_admin(current_user):
+    if not is_admin(current_user) and not current_user.get("bypass_prazo_equipes"):
         await assert_prazo_nao_encerrado(conn, CHAVE_PRAZO_EQUIPES, MSG_PRAZO_EQUIPES_ENCERRADO)
 
     escola_id = current_user["escola_id"]
@@ -529,7 +529,7 @@ async def update_equipe(
     current_user: dict = Depends(get_current_user_with_escola),
 ):
     """Atualiza equipe. Apenas da mesma escola."""
-    if not is_admin(current_user):
+    if not is_admin(current_user) and not current_user.get("bypass_prazo_equipes"):
         await assert_prazo_nao_encerrado(conn, CHAVE_PRAZO_EQUIPES, MSG_PRAZO_EQUIPES_ENCERRADO)
 
     escola_id = current_user["escola_id"]
