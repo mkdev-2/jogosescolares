@@ -1181,3 +1181,106 @@ async def processar_resultado_serie_md3(
             )
 
     return None
+
+
+# ===========================================================================
+# 9. Reverter cascade de resultado (para limpeza de placar)
+# ===========================================================================
+
+async def reverter_cascade_resultado(
+    conn: psycopg.AsyncConnection,
+    campeonato_id: int,
+    partida: dict,
+) -> None:
+    """
+    Reverte o cascade automático causado pelo resultado que será apagado.
+    Lança HTTPException 409 se o cascade já evoluiu e não pode ser desfeito.
+    """
+    from fastapi import HTTPException
+
+    grupo_id = partida["grupo_id"]
+
+    if grupo_id is not None:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id, resultado_tipo,
+                       mandante_fonte_grupo_id, visitante_fonte_grupo_id
+                FROM campeonato_partidas
+                WHERE campeonato_id = %s AND grupo_id IS NULL
+                  AND (mandante_fonte_grupo_id = %s OR visitante_fonte_grupo_id = %s)
+                """,
+                (campeonato_id, grupo_id, grupo_id),
+            )
+            slots = await cur.fetchall()
+
+        if any(s["resultado_tipo"] is not None for s in slots):
+            raise HTTPException(
+                status_code=409,
+                detail="Não é possível limpar: partidas do mata-mata gerado por este grupo já possuem resultado.",
+            )
+
+        for slot in slots:
+            updates = {}
+            if slot["mandante_fonte_grupo_id"] == grupo_id:
+                updates["mandante_equipe_id"] = None
+            if slot["visitante_fonte_grupo_id"] == grupo_id:
+                updates["visitante_equipe_id"] = None
+            if updates:
+                cols = ", ".join(f"{k} = %s" for k in updates)
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        f"UPDATE campeonato_partidas SET {cols}, updated_at = NOW() WHERE id = %s",
+                        (*updates.values(), slot["id"]),
+                    )
+
+    elif partida["vencedor_equipe_id"] is not None:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                WITH ranked AS (
+                    SELECT id, rodada,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY campeonato_id, fase, rodada
+                               ORDER BY id
+                           ) AS match_num
+                    FROM campeonato_partidas
+                    WHERE campeonato_id = %s AND grupo_id IS NULL AND is_bye = FALSE
+                )
+                SELECT rodada, match_num FROM ranked WHERE id = %s
+                """,
+                (campeonato_id, partida["id"]),
+            )
+            row = await cur.fetchone()
+
+        if row:
+            referencia = f"R{row['rodada']}M{row['match_num']}"
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id, origem_slot_a, origem_slot_b, resultado_tipo
+                    FROM campeonato_partidas
+                    WHERE campeonato_id = %s
+                      AND (origem_slot_a = %s OR origem_slot_b = %s)
+                    LIMIT 1
+                    """,
+                    (campeonato_id, referencia, referencia),
+                )
+                proxima = await cur.fetchone()
+
+            if proxima:
+                if proxima["resultado_tipo"] is not None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Não é possível limpar: a próxima fase do bracket já possui resultado.",
+                    )
+                coluna = (
+                    "mandante_equipe_id"
+                    if proxima["origem_slot_a"] == referencia
+                    else "visitante_equipe_id"
+                )
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        f"UPDATE campeonato_partidas SET {coluna} = NULL, updated_at = NOW() WHERE id = %s",
+                        (proxima["id"],),
+                    )

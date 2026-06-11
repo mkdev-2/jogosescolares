@@ -199,6 +199,7 @@ function calcularSets(sets) {
 function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onClose }) {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const usaSets = config?.unidade_placar === 'SETS'
   const unidadePrimaria = config?.unidade_placar || 'GOLS'
   const isEditing = !!partida.resultado_tipo
@@ -235,6 +236,28 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
     }
     return vals
   })()
+
+  const handleLimpar = () => {
+    Modal.confirm({
+      title: 'Limpar resultado?',
+      content: 'O placar será removido. Caso o campeonato tenha avançado equipes automaticamente a partir deste resultado, o avanço também será desfeito.',
+      okText: 'Limpar',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        setClearing(true)
+        try {
+          await campeonatosService.limparResultado(campeonatoId, partida.id)
+          message.success('Resultado removido')
+          onSuccess(null)
+        } catch (err) {
+          message.error(err.message || 'Erro ao limpar resultado')
+        } finally {
+          setClearing(false)
+        }
+      },
+    })
+  }
 
   const handleSetChange = (index, side, val) => {
     setSets(prev => {
@@ -354,6 +377,21 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
             <Radio value="WXO">WxO (walkover)</Radio>
           </Radio.Group>
         </Form.Item>
+
+        {isEditing && (
+          <div className="flex justify-end mb-3">
+            <Button
+              size="small"
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              loading={clearing}
+              onClick={handleLimpar}
+            >
+              Limpar placar
+            </Button>
+          </div>
+        )}
 
         {!isWxo && usaSets && (
           <div className="bg-slate-50 rounded-lg p-3 mb-2">
@@ -2269,7 +2307,7 @@ export default function CampeonatoDetalhe() {
     setModalPartida(null)
     setRefreshKey((k) => k + 1)
     fetchData()
-    if (payload?.resultado_tipo !== 'WXO') {
+    if (payload !== null && payload?.resultado_tipo !== 'WXO') {
       setModalArtilheiros({
         ...partida,
         placar_mandante: payload?.placar_mandante ?? partida.placar_mandante,

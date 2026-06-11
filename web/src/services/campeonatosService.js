@@ -190,6 +190,17 @@ export const campeonatosService = {
     return handleResponse(res, 'Erro ao registrar resultado')
   },
 
+  async limparResultado(campeonatoId, partidaId, edicaoId = null) {
+    const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
+    const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/resultado${qs}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'Erro ao limpar resultado')
+    }
+  },
+
   async agendarPartida(campeonatoId, partidaId, payload, edicaoId = null) {
     const qs = edicaoId ? `?edicao_id=${encodeURIComponent(edicaoId)}` : ''
     const res = await apiFetch(`${BASE}/${campeonatoId}/partidas/${partidaId}/agendamento${qs}`, {

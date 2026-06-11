@@ -61,6 +61,7 @@ from app.services.pontuacao_service import (
     avancar_classificados_para_mata_mata,
     avancar_vencedor_knockout,
     processar_resultado_serie_md3,
+    reverter_cascade_resultado,
 )
 
 router = APIRouter(prefix="/api/campeonatos", tags=["campeonatos"])
@@ -2617,6 +2618,71 @@ async def registrar_resultado_partida(
         "vencedor_equipe_id": vencedor_id,
         "grupo_concluido": grupo_concluido,
     }
+
+
+@router.delete("/{campeonato_id}/partidas/{partida_id}/resultado", status_code=204)
+async def limpar_resultado_partida(
+    campeonato_id: int,
+    partida_id: int,
+    edicao_id: int | None = Query(None),
+    conn: psycopg.AsyncConnection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    resolved_edicao_id = await resolve_edicao_id(conn, edicao_id)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "SELECT id, origem FROM campeonatos WHERE id = %s AND edicao_id = %s",
+            (campeonato_id, resolved_edicao_id),
+        )
+        camp = await cur.fetchone()
+    if not camp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campeonato não encontrado.")
+    if camp.get("origem") == "MANUAL":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Use os endpoints manuais para campeonatos manuais.")
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT id, grupo_id, vencedor_equipe_id, resultado_tipo, num_jogo_serie
+            FROM campeonato_partidas
+            WHERE id = %s AND campeonato_id = %s
+            """,
+            (partida_id, campeonato_id),
+        )
+        partida = await cur.fetchone()
+
+    if not partida:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partida não encontrada.")
+    if partida["resultado_tipo"] is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta partida não possui resultado registrado.")
+    if partida["num_jogo_serie"] is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Limpeza de resultado não suportada para séries MD3.")
+
+    await reverter_cascade_resultado(conn, campeonato_id, partida)
+
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE campeonato_partidas
+            SET placar_mandante           = NULL,
+                placar_visitante          = NULL,
+                placar_mandante_sec       = NULL,
+                placar_visitante_sec      = NULL,
+                placar_penaltis_mandante  = NULL,
+                placar_penaltis_visitante = NULL,
+                sets_detalhe              = NULL,
+                resultado_tipo            = NULL,
+                vencedor_equipe_id        = NULL,
+                registrado_em             = NULL,
+                registrado_por            = NULL,
+                updated_at                = NOW()
+            WHERE id = %s
+            """,
+            (partida_id,),
+        )
+    await conn.commit()
 
 
 # ---------------------------------------------------------------------------
