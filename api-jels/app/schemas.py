@@ -1083,6 +1083,7 @@ class EsporteConfigPontuacaoResponse(BaseModel):
     criterios_desempate_2: list[str] = Field(default_factory=list)
     criterios_desempate_3plus: list[str] = Field(default_factory=list)
     registra_artilheiro: bool = False
+    num_sets_grupos: int = 3
 
 
 class EsporteConfigPontuacaoInput(BaseModel):
@@ -1104,6 +1105,7 @@ class EsporteConfigPontuacaoInput(BaseModel):
     criterios_desempate_2: list[str] = Field(default_factory=list)
     criterios_desempate_3plus: list[str] = Field(default_factory=list)
     registra_artilheiro: bool = False
+    num_sets_grupos: int = Field(3, ge=1)
 
 
 # ========== ARTILHEIROS ==========

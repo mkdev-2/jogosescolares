@@ -203,12 +203,17 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
   const unidadePrimaria = config?.unidade_placar || 'GOLS'
   const isEditing = !!partida.resultado_tipo
 
+  const numSets = (partida.fase === 'GRUPOS' && config?.num_sets_grupos != null)
+    ? config.num_sets_grupos
+    : 3
+  const setsParaVencer = Math.ceil(numSets / 2)
+
   // Estado de sets para sports de sets
   const setsIniciais = (() => {
     if (partida.sets_detalhe?.length) {
       return partida.sets_detalhe.map(s => ({ mandante: s.mandante, visitante: s.visitante }))
     }
-    return [{ mandante: null, visitante: null }, { mandante: null, visitante: null }]
+    return Array(Math.min(numSets, setsParaVencer)).fill(null).map(() => ({ mandante: null, visitante: null }))
   })()
   const [sets, setSets] = useState(setsIniciais)
 
@@ -251,10 +256,13 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
 
       let payload
       if (usaSets && !isWxo) {
-        // Validar: deve resultar em 2-0 ou 2-1
         const calc = calcularSets(sets)
-        if (calc.preenchidos < 2 || (calc.mSets !== 2 && calc.vSets !== 2)) {
-          message.error('Preencha os sets corretamente — o vencedor deve ganhar 2 sets (2×0 ou 2×1).')
+        if (calc.preenchidos < setsParaVencer || (calc.mSets !== setsParaVencer && calc.vSets !== setsParaVencer)) {
+          message.error(
+            setsParaVencer === 1
+              ? 'Preencha o set corretamente — o vencedor deve ganhar 1 set.'
+              : `Preencha os sets corretamente — o vencedor deve ganhar ${setsParaVencer} sets.`
+          )
           setSaving(false)
           return
         }
@@ -359,19 +367,22 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
                 onChange={handleSetChange}
               />
             ))}
-            {preenchidos >= 2 && mSets === 1 && vSets === 1 && sets.length < 3 && (
+            {preenchidos >= setsParaVencer - 1
+              && mSets === setsParaVencer - 1
+              && vSets === setsParaVencer - 1
+              && sets.length < numSets && (
               <Button
                 type="dashed"
                 size="small"
                 className="w-full mb-3"
                 onClick={() => setSets(prev => [...prev, { mandante: null, visitante: null }])}
               >
-                + Adicionar SET 3 (desempate)
+                + Adicionar SET {numSets} (desempate)
               </Button>
             )}
-            {preenchidos >= 2 && (mSets === 2 || vSets === 2) && (
+            {preenchidos >= setsParaVencer && (mSets === setsParaVencer || vSets === setsParaVencer) && (
               <div className="text-xs text-center text-slate-600 border-t pt-2 mt-1">
-                <strong>{mSets === 2 ? nomeMandante : nomeVisitante}</strong> vence{' '}
+                <strong>{mSets === setsParaVencer ? nomeMandante : nomeVisitante}</strong> vence{' '}
                 {Math.max(mSets, vSets)}×{Math.min(mSets, vSets)}
                 {' · '}pontos: {mPts}–{vPts}
               </div>

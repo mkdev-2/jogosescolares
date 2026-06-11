@@ -568,7 +568,8 @@ async def upsert_config_pontuacao(
                 wxo_placar_pro_sec, wxo_placar_contra_sec,
                 ignorar_placar_extra,
                 criterios_desempate_2, criterios_desempate_3plus,
-                registra_artilheiro
+                registra_artilheiro,
+                num_sets_grupos
             ) VALUES (
                 %s, %s,
                 %s, %s,
@@ -577,6 +578,7 @@ async def upsert_config_pontuacao(
                 %s, %s,
                 %s,
                 %s::jsonb, %s::jsonb,
+                %s,
                 %s
             )
             ON CONFLICT (esporte_id, edicao_id) DO UPDATE SET
@@ -597,6 +599,7 @@ async def upsert_config_pontuacao(
                 criterios_desempate_2     = EXCLUDED.criterios_desempate_2,
                 criterios_desempate_3plus = EXCLUDED.criterios_desempate_3plus,
                 registra_artilheiro   = EXCLUDED.registra_artilheiro,
+                num_sets_grupos       = EXCLUDED.num_sets_grupos,
                 updated_at            = CURRENT_TIMESTAMP
             RETURNING
                 id, esporte_id, edicao_id,
@@ -606,7 +609,8 @@ async def upsert_config_pontuacao(
                 wxo_placar_pro_sec, wxo_placar_contra_sec,
                 ignorar_placar_extra,
                 criterios_desempate_2, criterios_desempate_3plus,
-                registra_artilheiro
+                registra_artilheiro,
+                num_sets_grupos
             """,
             (
                 esporte_id, resolved_edicao_id,
@@ -618,6 +622,7 @@ async def upsert_config_pontuacao(
                 _json.dumps(data.criterios_desempate_2),
                 _json.dumps(data.criterios_desempate_3plus),
                 data.registra_artilheiro,
+                data.num_sets_grupos,
             ),
         )
         row = await cur.fetchone()

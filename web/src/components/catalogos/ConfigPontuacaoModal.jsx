@@ -167,6 +167,7 @@ const ESTADO_INICIAL = {
   criterios_desempate_2: [],
   criterios_desempate_3plus: [],
   registra_artilheiro: false,
+  num_sets_grupos: 3,
 }
 
 function configParaForm(cfg) {
@@ -189,6 +190,7 @@ function configParaForm(cfg) {
     criterios_desempate_2: cfg.criterios_desempate_2 ?? [],
     criterios_desempate_3plus: cfg.criterios_desempate_3plus ?? [],
     registra_artilheiro: cfg.registra_artilheiro ?? false,
+    num_sets_grupos: cfg.num_sets_grupos ?? 3,
   }
 }
 
@@ -246,6 +248,7 @@ export default function ConfigPontuacaoModal({
       criterios_desempate_2: form.criterios_desempate_2,
       criterios_desempate_3plus: form.criterios_desempate_3plus,
       registra_artilheiro: form.registra_artilheiro,
+      num_sets_grupos: form.num_sets_grupos ?? 3,
     }
     try {
       await esportesService.upsertConfigPontuacao(esporteId, payload, edicaoId)
@@ -330,6 +333,18 @@ export default function ConfigPontuacaoModal({
               />
             </div>
           </div>
+          {form.unidade_placar === 'SETS' && (
+            <div className="mt-3">
+              {fLabel('Sets na fase de grupos', 'Padrão: 3 (melhor de 3). Use 1 para Vôlei de Praia.')}
+              <InputNumber
+                min={1}
+                max={5}
+                value={form.num_sets_grupos}
+                onChange={(v) => set('num_sets_grupos', v ?? 3)}
+                className="w-full"
+              />
+            </div>
+          )}
           <div className="flex items-center gap-3 mt-3">
             <Switch
               checked={form.ignorar_placar_extra}
