@@ -2307,6 +2307,7 @@ async def get_config_pontuacao_endpoint(
         criterios_desempate_2=config["criterios_desempate_2"] or [],
         criterios_desempate_3plus=config["criterios_desempate_3plus"] or [],
         registra_artilheiro=config.get("registra_artilheiro", False),
+        num_sets_grupos=config.get("num_sets_grupos", 3),
     )
 
 
