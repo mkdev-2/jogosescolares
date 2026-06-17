@@ -55,7 +55,7 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, max
           {mandanteNome}
         </span>
         <div className="flex flex-col items-center shrink-0">
-          {hasResult ? (
+          {hasResult && partida.resultado_tipo !== 'CANCELADA' ? (
             <span className="text-sm font-extrabold text-slate-800 tabular-nums leading-none whitespace-nowrap">
               {partida.placar_mandante}
               <span className="text-slate-400 mx-0.5 font-normal">×</span>
@@ -66,6 +66,9 @@ function PartidaCard({ partida, grupoNome, highlighted, knockoutTeamsLocked, max
           )}
           {partida.resultado_tipo === 'WXO' && (
             <span className="text-[9px] font-bold text-amber-600 leading-none">WxO</span>
+          )}
+          {partida.resultado_tipo === 'CANCELADA' && (
+            <span className="text-[9px] font-bold text-slate-400 leading-none">Cancelado</span>
           )}
           {partida.placar_penaltis_mandante != null && (
             <span className="text-[9px] text-slate-400 leading-none mt-0.5 whitespace-nowrap">

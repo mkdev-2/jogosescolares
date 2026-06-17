@@ -278,7 +278,9 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
       const mandanteVence = !isWxo || vencedorWxo === 'MANDANTE'
 
       let payload
-      if (usaSets && !isWxo) {
+      if (isCancelada) {
+        payload = { resultado_tipo: 'CANCELADA' }
+      } else if (usaSets && !isWxo) {
         const calc = calcularSets(sets)
         if (calc.preenchidos < setsParaVencer || (calc.mSets !== setsParaVencer && calc.vSets !== setsParaVencer)) {
           message.error(
@@ -342,6 +344,7 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
   const placMandante = Form.useWatch('placar_mandante', form)
   const placVisitante = Form.useWatch('placar_visitante', form)
   const isWxo = tipo === 'WXO'
+  const isCancelada = tipo === 'CANCELADA'
   const isMataMata = partida.grupo_id === null
   const isEmpate =
     !isWxo &&
@@ -375,8 +378,15 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           <Radio.Group>
             <Radio value="NORMAL">Normal</Radio>
             <Radio value="WXO">WxO (walkover)</Radio>
+            <Radio value="CANCELADA">Não houve jogo</Radio>
           </Radio.Group>
         </Form.Item>
+
+        {isCancelada && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-sm text-amber-800">
+            O jogo será marcado como cancelado. Ambas as equipes ficam com 0 pontos e a classificação do grupo será calculada com base nos demais jogos.
+          </div>
+        )}
 
         {isEditing && (
           <div className="flex justify-end mb-3">
@@ -393,7 +403,7 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           </div>
         )}
 
-        {!isWxo && usaSets && (
+        {!isWxo && !isCancelada && usaSets && (
           <div className="bg-slate-50 rounded-lg p-3 mb-2">
             {sets.map((_, i) => (
               <SetInputRow
@@ -428,7 +438,7 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
           </div>
         )}
 
-        {!isWxo && !usaSets && (
+        {!isWxo && !isCancelada && !usaSets && (
           <>
             <div className="grid grid-cols-2 gap-3 text-xs font-medium text-slate-600 mb-1">
               <span>{nomeMandante}</span>

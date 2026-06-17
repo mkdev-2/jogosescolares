@@ -58,6 +58,8 @@ def _pts_da_partida(equipe_id: int, p: dict, config: Config) -> int:
     tipo = p.get("resultado_tipo")
     if not tipo:
         return 0
+    if tipo == "CANCELADA":
+        return 0
 
     mandante_id = p["mandante_equipe_id"]
     visitante_id = p["visitante_equipe_id"]
@@ -114,7 +116,7 @@ def _pro_contra_partida(
     ignorar_placar_extra=True → subtrai placar_sec do primário (handebol:
                                  gols de prorrogação não contam no saldo).
     """
-    if not p.get("resultado_tipo"):
+    if not p.get("resultado_tipo") or p.get("resultado_tipo") == "CANCELADA":
         return 0, 0
     if p["mandante_equipe_id"] != equipe_id and p["visitante_equipe_id"] != equipe_id:
         return 0, 0
@@ -155,7 +157,7 @@ def _aggregate_stats(
     pro = contra = pro_sec = contra_sec = 0
 
     for p in partidas:
-        if not p.get("resultado_tipo"):
+        if not p.get("resultado_tipo") or p.get("resultado_tipo") == "CANCELADA":
             continue
         if p["mandante_equipe_id"] != equipe_id and p["visitante_equipe_id"] != equipe_id:
             continue
