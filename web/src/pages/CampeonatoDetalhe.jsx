@@ -1458,6 +1458,9 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
     if (!partida.resultado_tipo) {
       return <span className="text-xl font-bold leading-none text-[#94a3b8]">-</span>
     }
+    if (partida.resultado_tipo === 'CANCELADA') {
+      return <span className="text-xl font-bold leading-none text-[#94a3b8]">-</span>
+    }
     return (
       <span className="flex flex-col items-center gap-0.5">
         <span className="font-mono text-xl leading-none text-[#334155] font-bold">
@@ -1550,6 +1553,7 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
                 <div className="flex-1 min-w-0 flex flex-col gap-3">
                   {slot.items.map((partida) => {
                     const finalizada = !!partida.resultado_tipo
+                    const isCanceladaPartida = partida.resultado_tipo === 'CANCELADA'
                     return (
                       <div key={partida.id} className="rounded-xl border border-[#e2e8f0] bg-white px-4 py-3">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1558,7 +1562,8 @@ function PartidasTimeline({ partidas, grupos, onSchedule, onRegister }) {
                               <span className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider">
                                 {descricaoFase(partida)}
                               </span>
-                              {finalizada && <Tag color="green" className="m-0">Resultado registrado</Tag>}
+                              {finalizada && !isCanceladaPartida && <Tag color="green" className="m-0">Resultado registrado</Tag>}
+                              {isCanceladaPartida && <Tag color="red" className="m-0">Cancelado</Tag>}
                             </div>
                             <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_minmax(0,1fr)] items-center gap-3">
                               {(() => {
@@ -1692,7 +1697,9 @@ function GrupoSection({ grupo, partidas, campeonatoId, config, onRegister, refre
                   >
                     {p.mandante_nome || `Equipe ${p.mandante_equipe_id}`}
                   </span>
-                  {p.resultado_tipo ? (
+                  {p.resultado_tipo === 'CANCELADA' ? (
+                    <span className="text-[10px] font-semibold text-red-500 shrink-0 mx-1">Cancelado</span>
+                  ) : p.resultado_tipo ? (
                     <span className="text-xs font-mono text-[#334155] shrink-0 mx-1">
                       {p.placar_mandante}–{p.placar_visitante}
                       {p.resultado_tipo === 'WXO' && (
