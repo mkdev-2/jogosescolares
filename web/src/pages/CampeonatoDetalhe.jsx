@@ -204,7 +204,8 @@ function RegistrarResultadoModal({ partida, config, campeonatoId, onSuccess, onC
   const unidadePrimaria = config?.unidade_placar || 'GOLS'
   const isEditing = !!partida.resultado_tipo
 
-  const numSets = (partida.fase === 'GRUPOS' && config?.num_sets_grupos != null)
+  const FASES_SETS_REDUZIDOS = ['GRUPOS', 'OITAVAS', 'QUARTAS']
+  const numSets = (FASES_SETS_REDUZIDOS.includes(partida.fase) && config?.num_sets_grupos != null)
     ? config.num_sets_grupos
     : 3
   const setsParaVencer = Math.ceil(numSets / 2)
